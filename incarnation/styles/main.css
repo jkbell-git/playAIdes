@@ -1,0 +1,62 @@
+/* ── Reset & base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #1a1a2e;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Viewer canvas ─────────────────────────────────────────────────────────── */
+#viewer {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* ── Status overlay ────────────────────────────────────────────────────────── */
+#status-overlay {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px);
+    border-radius: 20px;
+    color: #ccc;
+    font-size: 13px;
+    pointer-events: none;
+    z-index: 100;
+    transition: opacity 0.3s ease;
+}
+
+#status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f44;
+    transition: background 0.3s ease;
+}
+
+#status-overlay.connected #status-indicator {
+    background: #4f4;
+}
+
+#status-overlay.loading #status-indicator {
+    background: #fa0;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+}

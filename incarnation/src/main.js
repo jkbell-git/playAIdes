@@ -1,24 +1,94 @@
-import './style.css'
-import javascriptLogo from './javascript.svg'
-import viteLogo from '/vite.svg'
-import { setupCounter } from './counter.js'
+import { scene, camera, renderer, controls, clock } from './scene.js';
+import { Incarnation } from './incarnation.js';
+import { ConnectionManager } from './connectionManager.js';
 
-document.querySelector('#app').innerHTML = `
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-      <img src="${javascriptLogo}" class="logo vanilla" alt="JavaScript logo" />
-    </a>
-    <h1>Hello Vite!</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite logo to learn more
-    </p>
-  </div>
-`
+/**
+ * main.js — Incarnation service entry point.
+ *
+ * Sets up the render loop, instantiates the Incarnation orchestrator,
+ * and connects to PlayAIdes via WebSocket.
+ */
 
-setupCounter(document.querySelector('#counter'))
+// ── UI references ───────────────────────────────────────────────────────────
+const statusOverlay = document.getElementById('status-overlay');
+const statusText = document.getElementById('status-text');
+
+function setStatus(state, text) {
+  statusOverlay.className = state; // '', 'connected', 'loading'
+  statusText.textContent = text;
+}
+
+// ── Incarnation & connection ────────────────────────────────────────────────
+const incarnation = new Incarnation();
+const connection = new ConnectionManager();
+
+// Determine WebSocket URL from query params or default
+// e.g. ?ws=ws://localhost:8765
+const params = new URLSearchParams(window.location.search);
+const wsUrl = params.get('ws') || 'ws://localhost:8765';
+
+// ── Wire connection events to incarnation ───────────────────────────────────
+connection.addEventListener('connected', () => {
+  setStatus('connected', 'Connected to PlayAIdes');
+});
+
+connection.addEventListener('disconnected', () => {
+  setStatus('', 'Disconnected — reconnecting…');
+});
+
+connection.addEventListener('error', () => {
+  setStatus('', 'Connection error');
+});
+
+// Route all typed commands to the incarnation orchestrator
+connection.addEventListener('load_model', async (e) => {
+  try {
+    setStatus('loading', 'Loading model…');
+    const info = await incarnation.handleCommand('load_model', e.detail);
+    setStatus('connected', 'Model loaded');
+    // Report available animations/morphs back to PlayAIdes
+    connection.send('status', { state: 'model_loaded', ...info });
+  } catch (err) {
+    console.error('[main] Failed to load model:', err);
+    setStatus('connected', 'Model load failed');
+    connection.send('status', { state: 'error', error: err.message });
+  }
+});
+
+connection.addEventListener('play_animation', (e) => {
+  incarnation.handleCommand('play_animation', e.detail);
+});
+
+connection.addEventListener('stop_animation', (e) => {
+  incarnation.handleCommand('stop_animation', e.detail);
+});
+
+connection.addEventListener('set_expression', (e) => {
+  incarnation.handleCommand('set_expression', e.detail);
+});
+
+connection.addEventListener('clear_expressions', (e) => {
+  incarnation.handleCommand('clear_expressions', e.detail);
+});
+
+connection.addEventListener('play_viseme_sequence', (e) => {
+  incarnation.handleCommand('play_viseme_sequence', e.detail);
+});
+
+// ── Render loop ─────────────────────────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+
+  const delta = clock.getDelta();
+
+  controls.update();
+  incarnation.update(delta);
+  renderer.render(scene, camera);
+}
+
+// ── Bootstrap ───────────────────────────────────────────────────────────────
+setStatus('', 'Connecting…');
+connection.connect(wsUrl);
+animate();
+
+console.log('[Incarnation] Service started — ws:', wsUrl);
