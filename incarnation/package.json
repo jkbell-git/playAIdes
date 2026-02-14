@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.4.5",
-    "three": "^0.182.0"
+    "@pixiv/three-vrm-animation": "^3.4.5",
+    "three": "^0.182.0",
+    "vrm-mixamo-retarget": "^1.0.3"
   }
 }

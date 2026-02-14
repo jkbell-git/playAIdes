@@ -15,12 +15,13 @@ Then open the Incarnation service in a browser:
 Commands:
     1. Load a model (provide path relative to incarnation/public/)
     2. Load an animation file (FBX/GLB/glTF)
-    3. Play an animation by name
-    4. Stop animation
-    5. Set expressions (e.g. happy=0.8, angry=0.2)
-    6. Clear expressions
-    7. Send raw JSON command
-    8. Quit
+    3. Load a Mixamo animation (auto-retargets for VRM)
+    4. Play an animation by name
+    5. Stop animation
+    6. Set expressions (e.g. happy=0.8, angry=0.2)
+    7. Clear expressions
+    8. Send raw JSON command
+    9. Quit
 """
 
 import asyncio
@@ -96,16 +97,17 @@ async def interactive_menu():
         print("\n─── Commands ───────────────────────────────")
         print("  1. Load model")
         print("  2. Load animation")
-        print("  3. Play animation")
-        print("  4. Stop animation")
-        print("  5. Set expressions")
-        print("  6. Clear expressions")
-        print("  7. Send raw JSON")
-        print("  8. Quit")
+        print("  3. Load Mixamo animation (VRM retarget)")
+        print("  4. Play animation")
+        print("  5. Stop animation")
+        print("  6. Set expressions")
+        print("  7. Clear expressions")
+        print("  8. Send raw JSON")
+        print("  9. Quit")
         print("────────────────────────────────────────────")
 
         try:
-            choice = await asyncio.to_thread(input, "\nChoice [1-8]: ")
+            choice = await asyncio.to_thread(input, "\nChoice [1-9]: ")
         except (EOFError, KeyboardInterrupt):
             break
 
@@ -116,6 +118,9 @@ async def interactive_menu():
                 input,
                 "Model path relative to public/ (e.g. models/vroid_test_1/model_test_1.vrm): ",
             )
+            if url.strip() == "":
+                #url = "models/blue_fox/blue_fox.vrm"
+                url = "models/fox_maid/fox_maid.vrm"
             await send_command("load_model", {"url": url.strip()})
 
         elif choice == "2":
@@ -132,6 +137,24 @@ async def interactive_menu():
             await send_command("load_animation", payload)
 
         elif choice == "3":
+            url = await asyncio.to_thread(
+                input,
+                "Mixamo FBX path relative to public/ (e.g. models/anamations/Quick_FormalBow.fbx): ",
+            )
+            if url.strip() == "":
+                url = "models/anamations/Quick_FormalBow.fbx"
+            name = await asyncio.to_thread(
+                input, "Custom clip name (or press Enter for 'vrmAnimation'): "
+            )
+
+            payload = {"url": url.strip()}
+            if name.strip() == "":
+                name = "bow"
+            payload["name"] = name.strip()
+            
+            await send_command("load_mixamo_animation", payload)
+
+        elif choice == "4":
             name = await asyncio.to_thread(input, "Animation name: ")
             loop_str = await asyncio.to_thread(
                 input, "Loop? [Y/n]: "
@@ -141,10 +164,10 @@ async def interactive_menu():
                 "play_animation", {"name": name.strip(), "loop": loop}
             )
 
-        elif choice == "4":
+        elif choice == "5":
             await send_command("stop_animation")
 
-        elif choice == "5":
+        elif choice == "6":
             text = await asyncio.to_thread(
                 input, "Expressions (e.g. happy=0.8, angry=0.2): "
             )
@@ -154,10 +177,10 @@ async def interactive_menu():
             else:
                 print("  No valid expressions parsed.")
 
-        elif choice == "6":
+        elif choice == "7":
             await send_command("clear_expressions")
 
-        elif choice == "7":
+        elif choice == "8":
             raw = await asyncio.to_thread(input, "JSON: ")
             try:
                 msg = json.loads(raw.strip())
@@ -166,7 +189,7 @@ async def interactive_menu():
             except json.JSONDecodeError:
                 print("  ⚠️  Invalid JSON.")
 
-        elif choice == "8":
+        elif choice == "9":
             print("Goodbye!")
             break
 

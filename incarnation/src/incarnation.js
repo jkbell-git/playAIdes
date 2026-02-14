@@ -1,9 +1,11 @@
 import { scene } from './scene.js';
 import { loadModel, loadAnimationFile, listMorphTargets } from './modelLoader.js';
+import { loadMixamoAnimation } from './loadMixamoAnimation.js';
 import { AnimationManager } from './animationManager.js';
 import { ExpressionManager } from './expressionManager.js';
 import { VisemeManager } from './visemeManager.js';
-
+import { retargetAnimation } from 'vrm-mixamo-retarget'
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 /**
  * Incarnation — top-level orchestrator for a single persona's 3D body.
  *
@@ -125,6 +127,55 @@ export class Incarnation {
         };
     }
 
+    /**
+     * Load a Mixamo animation file.
+     * For VRM models, bone tracks are automatically retargeted via the
+     * Mixamo → VRM rig map. For non-VRM models, falls back to generic loading.
+     *
+     * @param {object} config
+     * @param {string} config.url   Path or URL to a Mixamo FBX animation file.
+     * @param {string} [config.name]  Optional override name for the clip.
+     */
+    async loadMixamoAnim(config) {
+        if (!this.animationManager) {
+            console.warn('[Incarnation] No model loaded — load a model before loading animations');
+            return { animations: [] };
+        }
+
+        let clip;
+
+        if (this.isVRM) {
+            const fbxLoader = new FBXLoader();
+            const fbxAsset = await fbxLoader.loadAsync(config.url);
+            // Use VRM-aware retargeting
+            clip = retargetAnimation(fbxAsset, this.vrm);
+            //clip = await loadMixamoAnimation(config.url, this.vrm);
+        } else {
+            // Fallback: load generically (no retargeting needed)
+            const clips = await loadAnimationFile(config.url);
+            clip = clips[0] || null;
+        }
+
+        if (!clip) {
+            console.warn('[Incarnation] No animation clip found in:', config.url);
+            return { animations: this.animationManager.listClips(), loaded: [] };
+        }
+
+        // Apply optional name override
+        if (config.name) {
+            clip.name = config.name;
+        }
+
+        this.animationManager.loadClips([clip]);
+
+        console.log('[Incarnation] Mixamo animation loaded:', config.url, '→', clip.name);
+
+        return {
+            animations: this.animationManager.listClips(),
+            loaded: [clip.name],
+        };
+    }
+
     /** Remove the current model from the scene and reset managers. */
     unload() {
         if (this.model) {
@@ -152,6 +203,12 @@ export class Incarnation {
 
             case 'load_animation':
                 return await this.loadAnimation({
+                    url: payload.url,
+                    name: payload.name,
+                });
+
+            case 'load_mixamo_animation':
+                return await this.loadMixamoAnim({
                     url: payload.url,
                     name: payload.name,
                 });

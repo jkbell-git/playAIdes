@@ -68,6 +68,19 @@ connection.addEventListener('load_animation', async (e) => {
   }
 });
 
+connection.addEventListener('load_mixamo_animation', async (e) => {
+  try {
+    setStatus('loading', 'Loading Mixamo animation…');
+    const info = await incarnation.handleCommand('load_mixamo_animation', e.detail);
+    setStatus('connected', 'Mixamo animation loaded');
+    connection.send('status', { state: 'animation_loaded', ...info });
+  } catch (err) {
+    console.error('[main] Failed to load Mixamo animation:', err);
+    setStatus('connected', 'Mixamo animation load failed');
+    connection.send('status', { state: 'error', error: err.message });
+  }
+});
+
 connection.addEventListener('play_animation', (e) => {
   incarnation.handleCommand('play_animation', e.detail);
 });
