@@ -55,6 +55,19 @@ connection.addEventListener('load_model', async (e) => {
   }
 });
 
+connection.addEventListener('load_animation', async (e) => {
+  try {
+    setStatus('loading', 'Loading animation…');
+    const info = await incarnation.handleCommand('load_animation', e.detail);
+    setStatus('connected', 'Animation loaded');
+    connection.send('status', { state: 'animation_loaded', ...info });
+  } catch (err) {
+    console.error('[main] Failed to load animation:', err);
+    setStatus('connected', 'Animation load failed');
+    connection.send('status', { state: 'error', error: err.message });
+  }
+});
+
 connection.addEventListener('play_animation', (e) => {
   incarnation.handleCommand('play_animation', e.detail);
 });

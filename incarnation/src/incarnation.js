@@ -1,5 +1,5 @@
 import { scene } from './scene.js';
-import { loadModel, listMorphTargets } from './modelLoader.js';
+import { loadModel, loadAnimationFile, listMorphTargets } from './modelLoader.js';
 import { AnimationManager } from './animationManager.js';
 import { ExpressionManager } from './expressionManager.js';
 import { VisemeManager } from './visemeManager.js';
@@ -87,6 +87,44 @@ export class Incarnation {
         return info;
     }
 
+    /**
+     * Load a standalone animation file and register its clips.
+     * @param {object} config
+     * @param {string} config.url   Path or URL to animation file (FBX/GLB/glTF).
+     * @param {string} [config.name]  Optional override name for the clip(s).
+     */
+    async loadAnimation(config) {
+        if (!this.animationManager) {
+            console.warn('[Incarnation] No model loaded — load a model before loading animations');
+            return { animations: [] };
+        }
+
+        const clips = await loadAnimationFile(config.url);
+
+        // Optionally rename clips to a user-specified name
+        if (config.name && clips.length > 0) {
+            // If there's only one clip, rename it directly.
+            // If multiple, suffix with _0, _1, etc.
+            if (clips.length === 1) {
+                clips[0].name = config.name;
+            } else {
+                clips.forEach((clip, i) => {
+                    clip.name = `${config.name}_${i}`;
+                });
+            }
+        }
+
+        this.animationManager.loadClips(clips);
+
+        const names = clips.map((c) => c.name);
+        console.log('[Incarnation] Animation loaded:', config.url, '→', names);
+
+        return {
+            animations: this.animationManager.listClips(),
+            loaded: names,
+        };
+    }
+
     /** Remove the current model from the scene and reset managers. */
     unload() {
         if (this.model) {
@@ -111,6 +149,12 @@ export class Incarnation {
         switch (type) {
             case 'load_model':
                 return await this.loadPersona({ url: payload.url });
+
+            case 'load_animation':
+                return await this.loadAnimation({
+                    url: payload.url,
+                    name: payload.name,
+                });
 
             case 'play_animation':
                 if (!this.animationManager) break;

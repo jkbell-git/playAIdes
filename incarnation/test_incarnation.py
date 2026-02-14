@@ -14,12 +14,13 @@ Then open the Incarnation service in a browser:
 
 Commands:
     1. Load a model (provide path relative to incarnation/public/)
-    2. Play an animation by name
-    3. Stop animation
-    4. Set expressions (e.g. happy=0.8, angry=0.2)
-    5. Clear expressions
-    6. Send raw JSON command
-    7. Quit
+    2. Load an animation file (FBX/GLB/glTF)
+    3. Play an animation by name
+    4. Stop animation
+    5. Set expressions (e.g. happy=0.8, angry=0.2)
+    6. Clear expressions
+    7. Send raw JSON command
+    8. Quit
 """
 
 import asyncio
@@ -94,16 +95,17 @@ async def interactive_menu():
     while True:
         print("\n─── Commands ───────────────────────────────")
         print("  1. Load model")
-        print("  2. Play animation")
-        print("  3. Stop animation")
-        print("  4. Set expressions")
-        print("  5. Clear expressions")
-        print("  6. Send raw JSON")
-        print("  7. Quit")
+        print("  2. Load animation")
+        print("  3. Play animation")
+        print("  4. Stop animation")
+        print("  5. Set expressions")
+        print("  6. Clear expressions")
+        print("  7. Send raw JSON")
+        print("  8. Quit")
         print("────────────────────────────────────────────")
 
         try:
-            choice = await asyncio.to_thread(input, "\nChoice [1-7]: ")
+            choice = await asyncio.to_thread(input, "\nChoice [1-8]: ")
         except (EOFError, KeyboardInterrupt):
             break
 
@@ -117,6 +119,19 @@ async def interactive_menu():
             await send_command("load_model", {"url": url.strip()})
 
         elif choice == "2":
+            url = await asyncio.to_thread(
+                input,
+                "Animation file path relative to public/ (e.g. models/anamations/Quick_FormalBow.fbx): ",
+            )
+            name = await asyncio.to_thread(
+                input, "Custom clip name (or press Enter to keep original): "
+            )
+            payload = {"url": url.strip()}
+            if name.strip():
+                payload["name"] = name.strip()
+            await send_command("load_animation", payload)
+
+        elif choice == "3":
             name = await asyncio.to_thread(input, "Animation name: ")
             loop_str = await asyncio.to_thread(
                 input, "Loop? [Y/n]: "
@@ -126,10 +141,10 @@ async def interactive_menu():
                 "play_animation", {"name": name.strip(), "loop": loop}
             )
 
-        elif choice == "3":
+        elif choice == "4":
             await send_command("stop_animation")
 
-        elif choice == "4":
+        elif choice == "5":
             text = await asyncio.to_thread(
                 input, "Expressions (e.g. happy=0.8, angry=0.2): "
             )
@@ -139,10 +154,10 @@ async def interactive_menu():
             else:
                 print("  No valid expressions parsed.")
 
-        elif choice == "5":
+        elif choice == "6":
             await send_command("clear_expressions")
 
-        elif choice == "6":
+        elif choice == "7":
             raw = await asyncio.to_thread(input, "JSON: ")
             try:
                 msg = json.loads(raw.strip())
@@ -151,7 +166,7 @@ async def interactive_menu():
             except json.JSONDecodeError:
                 print("  ⚠️  Invalid JSON.")
 
-        elif choice == "7":
+        elif choice == "8":
             print("Goodbye!")
             break
 

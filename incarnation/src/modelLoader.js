@@ -143,6 +143,44 @@ export async function loadModel(rawUrl, onProgress) {
 }
 
 /**
+ * Load a standalone animation file (glTF / GLB / FBX) and return its clips.
+ * Unlike loadModel, this does NOT add anything to the scene — it only
+ * extracts AnimationClip[] for use with an already-loaded model.
+ *
+ * @param {string} rawUrl  Path or URL to the animation file.
+ * @param {Function} [onProgress]  Optional progress callback.
+ * @returns {Promise<THREE.AnimationClip[]>}
+ */
+export async function loadAnimationFile(rawUrl, onProgress) {
+    const url = normaliseUrl(rawUrl);
+    const format = detectFormat(url);
+
+    let clips;
+
+    switch (format) {
+        case 'fbx': {
+            const fbx = await new Promise((resolve, reject) => {
+                fbxLoader.load(url, resolve, onProgress, reject);
+            });
+            clips = fbx.animations || [];
+            break;
+        }
+        case 'vrm':
+        case 'gltf':
+        default: {
+            const gltf = await new Promise((resolve, reject) => {
+                gltfLoader.load(url, resolve, onProgress, reject);
+            });
+            clips = gltf.animations || [];
+            break;
+        }
+    }
+
+    console.log(`[ModelLoader] Loaded ${clips.length} animation clip(s) from ${rawUrl}`);
+    return clips;
+}
+
+/**
  * Convenience: list morph target names from a set of skinned meshes.
  * @param {THREE.SkinnedMesh[]} skinnedMeshes
  * @returns {string[]}
