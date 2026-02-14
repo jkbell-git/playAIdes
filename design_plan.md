@@ -4,16 +4,33 @@ Is a framework for creating and managing AI personas that can be interacted. the
 
 ## Persona(s) 
 Personas will be entities of PlayAIdes and consist of the following:
+### Persona Components
+- Avatar: 3D avatar that is visulized in a web browser
+- Actions: LLM Responses used to personify the Persona
+- Voice: Optional Voice that will be sourced from a TTS model (Future)
+- Memory: this will be used to store the Personas memories and will be used to give the Persona a sense of self and continuity. Most likely a vector database to start with.(Future)
+- Psyche: A prompt of traits and characteristics that will be used to personify the Persona
 
-- 3D avatar that is visulized in a web browser
-- LLM Responses used to personify the persona
-- Optional Voice that will be a TTS model of the LLM response
+### Persona Requirements
+- Personas should be able to interact with User
+- Personas should be able to interact with other Personas(Future)
+- Personas should be able to remember past interactions (Future)
+- Personas should be able to learn from interactions(Future)
+- Personas should be able to have a sense of time and place (Future)
+- Personas should be able to use tools to interact with the world (Future)
+- Personas should have a clear distiction between roleplaying and there actual actions. (I.E given access to a file there personality would want to delete. We need to ensure this does not happen.) I would want this reenforced by the LLM prompt. Maybe some kind of safety check before using tools.(Future)
+### Presona Stimulus
+- User Input(Text, Voice,Actions(Future))
+- Software triggered events : Optional (API calls, Other Personas, etc) Rate Limit (Future)
+- Time based events: Optional (Future)
+- Location based events: Optional (Future)
+## Core loop of PlayAIdes
 ````
                  Stimulus Input 
                         │
                         ▼
         ┌────────────────────────────────────┐
-        │   LLM Core Brain / Pesona Manager  │
+        │   LLM Core Brain / PlayAides Core  │
         └────────────────────────────────────┘
                          │
                          ▼
@@ -24,35 +41,40 @@ Personas will be entities of PlayAIdes and consist of the following:
          ▼               ▼               ▼
       Avatar A         Avatar B         Avatar C
     (voice + 3D)     (voice + 3D)     (voice + 3D)
+         │               │               │
+         └───────────────┼───────────────┘
+                         ▼
+        Updated Selected Personas components
 ````
 
 # Software Services 
 
-### PlayAIdes
+## PlayAIdes
 - This will be a python application that will be used to create and manage personas it will also be the brains of all the other components it should be able to run multiple personas at once and commuicate with the other componets using http /web sockets. this will implement all the logic for personas and the routing to persona componets.
-- The PlayAIdes will communicate with LLM(s) and tts models as well as send data to the avatar and voice components using http /websockets.
+- The PlayAIdes will communicate with LLM(s) and tts models as well as send data to the avatar and voice components using http /websockets. PlayAIdes will use the Model Inferance Interface to communicate with LLM(s) and tts models.
+- PlayAIdes will direct the Incaration services
 
-### incarnation 
+## incarnation 
 This will be the js web browser service that will give personas a body to inhabit its own component
-  - implemented using three.js
-  - will support displaying the 3D model for the persona
-  - will support lip sync for the 3D model
+  - will be a standalone service that can be run in a web browser
+  - will be configured from PlayAIdes using json
+  - implemented using three.js and vite for now
+  - will support displaying the 3D model for the Persona
+    - Local 3D model File (glTF/GLB, VRM, etc)
+    - Cloud based 3D model (Future)
   - will support animations for the 3D model
-  - will support web sockets for real time communication with PlayAIdes
-  - will support http for communication with PlayAIdes
+  - will support expressions for the 3D model
+  - will support visemes for the 3D model
+  
+  - will support  http or web sockets for real time communication with PlayAIdes
+  - Support an optional superate dashboard for the Persona incarnation configuration
+  - Voice file playback(Optional) maybe we do this in Python instead of JS?
+  - will support lip sync for the 3D model(Future)  
   - will support multiple personas at once(Future)
   - will support multiple 3D models at once(Future)
-  - will support multiple voice models at once(Future)
 
-### Persona Componets
-1. 3d avatar - this will use the incarnations service andwill give personas a body to inhabit its own component
-        1. Web frontend 
-        2. 3D model viewer using three.js
-        3. 
-        4. will have lip sync for the 3D model
-        5. A sperate dashboard to change settings 
-        
-2. voice - this will be a voice tts integration for the avatar independent component that will interact with some sort of tts model or services
-
-### LLM Inteface 
-python package that can commuicate with local hosted or cloud based LLM's and tts models. 
+# Interfaces
+## Model Inferance Interface 
+python package that will be used to commuicate with local hosted or cloud based LLM's and tts models. local models will be supported using Ollama VLLM. Open models can be supported using the OpenAI API or other compatible APIs. 
+## Json websocket and http Interface
+PlayAides will communcate with the incarnation services using a Json Interface. This interface will be used to send data to the avatar and voice components as well as receive data from the avatar and voice components. 
