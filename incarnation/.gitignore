@@ -11,7 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
-
+vroid_test_1/
+prompts/
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

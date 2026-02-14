@@ -1,26 +1,36 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
 /**
- * ModelLoader — loads glTF/GLB and VRM 3D models, centres and scales them.
- * Returns { model, clips, skinnedMeshes, vrm } for use by other managers.
+ * ModelLoader — loads glTF/GLB, VRM, and FBX 3D models.
+ * Centres and scales them, then returns { model, clips, skinnedMeshes, vrm }.
  *
- * VRM files are detected by extension and loaded with @pixiv/three-vrm.
+ * Supported formats:
+ *   .gltf / .glb — standard glTF via GLTFLoader
+ *   .vrm         — VRoid / VRM via GLTFLoader + VRMLoaderPlugin
+ *   .fbx         — Autodesk FBX via FBXLoader
  */
 
+// ── Loaders ─────────────────────────────────────────────────────────────────
 const gltfLoader = new GLTFLoader();
-
-// Register the VRM plugin so .vrm files are parsed automatically
 gltfLoader.register((parser) => new VRMLoaderPlugin(parser));
 
+const fbxLoader = new FBXLoader();
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
 /**
- * Detect whether a URL points to a VRM file.
+ * Detect model format from URL extension.
  * @param {string} url
- * @returns {boolean}
+ * @returns {'vrm'|'fbx'|'gltf'}
  */
-function isVRM(url) {
-    return /\.vrm(\?.*)?$/i.test(url);
+function detectFormat(url) {
+    const clean = url.split('?')[0].toLowerCase();
+    if (clean.endsWith('.vrm')) return 'vrm';
+    if (clean.endsWith('.fbx')) return 'fbx';
+    return 'gltf'; // .gltf, .glb, or anything else
 }
 
 /**
@@ -30,22 +40,19 @@ function isVRM(url) {
  * @returns {string}
  */
 function normaliseUrl(url) {
-    // Already absolute or a full URL — leave it
     if (url.startsWith('/') || url.startsWith('http://') || url.startsWith('https://')) {
         return url;
     }
     return '/' + url;
 }
 
-/**
- * Load a glTF / GLB / VRM model.
- * @param {string} rawUrl  Path or URL to the model file.
- * @param {Function} [onProgress]  Optional progress callback.
- * @returns {Promise<{model: THREE.Group, clips: THREE.AnimationClip[], skinnedMeshes: THREE.SkinnedMesh[], vrm: import('@pixiv/three-vrm').VRM|null}>}
- */
-export async function loadModel(rawUrl, onProgress) {
-    const url = normaliseUrl(rawUrl);
+// ── Loader dispatch ─────────────────────────────────────────────────────────
 
+/**
+ * Load a glTF / GLB / VRM model via GLTFLoader.
+ * @returns {Promise<{model: THREE.Group, clips: THREE.AnimationClip[], vrm: import('@pixiv/three-vrm').VRM|null}>}
+ */
+async function loadGLTF(url, onProgress) {
     const gltf = await new Promise((resolve, reject) => {
         gltfLoader.load(url, resolve, onProgress, reject);
     });
@@ -53,20 +60,53 @@ export async function loadModel(rawUrl, onProgress) {
     let model;
     let vrm = null;
 
-    // ── VRM-specific handling ────────────────────────────────────────────────
     if (gltf.userData.vrm) {
         vrm = gltf.userData.vrm;
-
-        // VRMUtils.removeUnnecessaryJoints removes unused bones that can
-        // cause warnings and performance issues.
         VRMUtils.removeUnnecessaryJoints(vrm.scene);
-
         model = vrm.scene;
-
-        // VRM models face +Z by default; rotate to face camera (-Z)
         VRMUtils.rotateVRM0(vrm);
     } else {
         model = gltf.scene;
+    }
+
+    return { model, clips: gltf.animations || [], vrm };
+}
+
+/**
+ * Load an FBX model via FBXLoader.
+ * @returns {Promise<{model: THREE.Group, clips: THREE.AnimationClip[], vrm: null}>}
+ */
+async function loadFBX(url, onProgress) {
+    const fbx = await new Promise((resolve, reject) => {
+        fbxLoader.load(url, resolve, onProgress, reject);
+    });
+
+    return { model: fbx, clips: fbx.animations || [], vrm: null };
+}
+
+// ── Public API ──────────────────────────────────────────────────────────────
+
+/**
+ * Load a 3D model (glTF / GLB / VRM / FBX).
+ * @param {string} rawUrl  Path or URL to the model file.
+ * @param {Function} [onProgress]  Optional progress callback.
+ * @returns {Promise<{model: THREE.Group, clips: THREE.AnimationClip[], skinnedMeshes: THREE.SkinnedMesh[], vrm: import('@pixiv/three-vrm').VRM|null}>}
+ */
+export async function loadModel(rawUrl, onProgress) {
+    const url = normaliseUrl(rawUrl);
+    const format = detectFormat(url);
+
+    let model, clips, vrm;
+
+    switch (format) {
+        case 'fbx':
+            ({ model, clips, vrm } = await loadFBX(url, onProgress));
+            break;
+        case 'vrm':
+        case 'gltf':
+        default:
+            ({ model, clips, vrm } = await loadGLTF(url, onProgress));
+            break;
     }
 
     // ── Normalise: centre and scale to ~1.6 m tall ──────────────────────────
@@ -98,8 +138,6 @@ export async function loadModel(rawUrl, onProgress) {
             skinnedMeshes.push(child);
         }
     });
-
-    const clips = gltf.animations || [];
 
     return { model, clips, skinnedMeshes, vrm };
 }
