@@ -1,6 +1,7 @@
 import { scene } from './scene.js';
 import { loadModel, loadAnimationFile, listMorphTargets } from './modelLoader.js';
 import { loadMixamoAnimation } from './loadMixamoAnimation.js';
+import { loadVRMAAnimation } from './vrmaLoader.js';
 import { AnimationManager } from './animationManager.js';
 import { ExpressionManager } from './expressionManager.js';
 import { VisemeManager } from './visemeManager.js';
@@ -176,6 +177,47 @@ export class Incarnation {
         };
     }
 
+    /**
+     * Load a VRMA animation file (native VRM animation format).
+     * Only works with VRM models.
+     *
+     * @param {object} config
+     * @param {string} config.url   Path or URL to a .vrma file.
+     * @param {string} [config.name]  Optional override name for the clip.
+     */
+    async loadVRMAAnim(config) {
+        if (!this.animationManager) {
+            console.warn('[Incarnation] No model loaded — load a model before loading animations');
+            return { animations: [] };
+        }
+
+        if (!this.isVRM) {
+            console.warn('[Incarnation] VRMA files can only be applied to VRM models.');
+            return { animations: this.animationManager.listClips(), loaded: [] };
+        }
+
+        const clip = await loadVRMAAnimation(config.url, this.vrm);
+
+        if (!clip) {
+            console.warn('[Incarnation] No VRMA clip loaded from:', config.url);
+            return { animations: this.animationManager.listClips(), loaded: [] };
+        }
+
+        // Apply optional name override
+        if (config.name) {
+            clip.name = config.name;
+        }
+
+        this.animationManager.loadClips([clip]);
+
+        console.log('[Incarnation] VRMA animation loaded:', config.url, '→', clip.name);
+
+        return {
+            animations: this.animationManager.listClips(),
+            loaded: [clip.name],
+        };
+    }
+
     /** Remove the current model from the scene and reset managers. */
     unload() {
         if (this.model) {
@@ -209,6 +251,12 @@ export class Incarnation {
 
             case 'load_mixamo_animation':
                 return await this.loadMixamoAnim({
+                    url: payload.url,
+                    name: payload.name,
+                });
+
+            case 'load_vrma_animation':
+                return await this.loadVRMAAnim({
                     url: payload.url,
                     name: payload.name,
                 });

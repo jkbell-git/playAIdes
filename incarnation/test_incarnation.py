@@ -16,12 +16,13 @@ Commands:
     1. Load a model (provide path relative to incarnation/public/)
     2. Load an animation file (FBX/GLB/glTF)
     3. Load a Mixamo animation (auto-retargets for VRM)
-    4. Play an animation by name
-    5. Stop animation
-    6. Set expressions (e.g. happy=0.8, angry=0.2)
-    7. Clear expressions
-    8. Send raw JSON command
-    9. Quit
+    4. Load a VRMA animation (native VRM)
+    5. Play an animation by name
+    6. Stop animation
+    7. Set expressions (e.g. happy=0.8, angry=0.2)
+    8. Clear expressions
+    9. Send raw JSON command
+    10. Quit
 """
 
 import asyncio
@@ -98,16 +99,17 @@ async def interactive_menu():
         print("  1. Load model")
         print("  2. Load animation")
         print("  3. Load Mixamo animation (VRM retarget)")
-        print("  4. Play animation")
-        print("  5. Stop animation")
-        print("  6. Set expressions")
-        print("  7. Clear expressions")
-        print("  8. Send raw JSON")
-        print("  9. Quit")
+        print("  4. Load VRMA Animation")
+        print("  5. Play animation")
+        print("  6. Stop animation")
+        print("  7. Set expressions")
+        print("  8. Clear expressions")
+        print("  9. Send raw JSON")
+        print("  10. Quit")
         print("────────────────────────────────────────────")
 
         try:
-            choice = await asyncio.to_thread(input, "\nChoice [1-9]: ")
+            choice = await asyncio.to_thread(input, "\nChoice [1-10]: ")
         except (EOFError, KeyboardInterrupt):
             break
 
@@ -155,6 +157,24 @@ async def interactive_menu():
             await send_command("load_mixamo_animation", payload)
 
         elif choice == "4":
+            url = await asyncio.to_thread(
+                input,
+                "VRMA path relative to public/ (e.g. models/vroid_test_1/run.vrma): ",
+            )
+            name = await asyncio.to_thread(
+                input, "Custom clip name (optional): "
+            )
+            payload = {"url": url.strip()}
+            if payload["url"] == "":
+                payload["url"] = "models/vrma/VRMA_MotionPack/vrma/VRMA_01.vrma" 
+            if name.strip() == "":
+                name = "1"
+            if name.strip():            
+                payload["name"] = name.strip()
+            
+            await send_command("load_vrma_animation", payload)
+
+        elif choice == "5":
             name = await asyncio.to_thread(input, "Animation name: ")
             loop_str = await asyncio.to_thread(
                 input, "Loop? [Y/n]: "
@@ -164,10 +184,10 @@ async def interactive_menu():
                 "play_animation", {"name": name.strip(), "loop": loop}
             )
 
-        elif choice == "5":
+        elif choice == "6":
             await send_command("stop_animation")
 
-        elif choice == "6":
+        elif choice == "7":
             text = await asyncio.to_thread(
                 input, "Expressions (e.g. happy=0.8, angry=0.2): "
             )
@@ -189,7 +209,7 @@ async def interactive_menu():
             except json.JSONDecodeError:
                 print("  ⚠️  Invalid JSON.")
 
-        elif choice == "9":
+        elif choice == "10":
             print("Goodbye!")
             break
 

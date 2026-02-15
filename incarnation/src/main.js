@@ -81,6 +81,19 @@ connection.addEventListener('load_mixamo_animation', async (e) => {
   }
 });
 
+connection.addEventListener('load_vrma_animation', async (e) => {
+  try {
+    setStatus('loading', 'Loading VRMA animation…');
+    const info = await incarnation.handleCommand('load_vrma_animation', e.detail);
+    setStatus('connected', 'VRMA animation loaded');
+    connection.send('status', { state: 'animation_loaded', ...info });
+  } catch (err) {
+    console.error('[main] Failed to load VRMA animation:', err);
+    setStatus('connected', 'VRMA animation load failed');
+    connection.send('status', { state: 'error', error: err.message });
+  }
+});
+
 connection.addEventListener('play_animation', (e) => {
   incarnation.handleCommand('play_animation', e.detail);
 });

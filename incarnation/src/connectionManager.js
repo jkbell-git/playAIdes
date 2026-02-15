@@ -6,6 +6,7 @@
  *     { type: "load_model",          payload: { url: string } }
  *     { type: "load_animation",      payload: { url: string, name?: string } }
  *     { type: "load_mixamo_animation", payload: { url: string, name?: string } }
+ *     { type: "load_vrma_animation",   payload: { url: string, name?: string } }
  *     { type: "play_animation",      payload: { name: string, loop?: boolean, crossFade?: number } }
  *     { type: "set_expression",      payload: { expressions: Record<string, number> } }
  *     { type: "play_viseme_sequence", payload: { sequence: {viseme,weight,time}[] } }
