@@ -128,7 +128,7 @@ async def interactive_menu():
         elif choice == "2":
             url = await asyncio.to_thread(
                 input,
-                "Animation file path relative to public/ (e.g. models/anamations/Quick_FormalBow.fbx): ",
+                "Animation file path relative to public/ (e.g. models/animations/Quick_FormalBow.fbx): ",
             )
             name = await asyncio.to_thread(
                 input, "Custom clip name (or press Enter to keep original): "
@@ -141,10 +141,10 @@ async def interactive_menu():
         elif choice == "3":
             url = await asyncio.to_thread(
                 input,
-                "Mixamo FBX path relative to public/ (e.g. models/anamations/Quick_FormalBow.fbx): ",
+                "Mixamo FBX path relative to public/ (e.g. models/animations/Quick_FormalBow.fbx): ",
             )
             if url.strip() == "":
-                url = "models/anamations/Quick_FormalBow.fbx"
+                url = "models/animations/Quick_FormalBow.fbx"
             name = await asyncio.to_thread(
                 input, "Custom clip name (or press Enter for 'vrmAnimation'): "
             )

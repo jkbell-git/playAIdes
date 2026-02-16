@@ -5,6 +5,7 @@ curl http://localhost:11434/api/chat -d '{
       "role": "user",
       "content": "Why is the sky blue?"
     }
-  ]
+  ],
+  "stream": false
 }'
-``` [7]
+
