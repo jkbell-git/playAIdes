@@ -1,5 +1,5 @@
 # PlayAides
-Is a framework for creating and managing AI personas that can be interacted. they will be visulized through and visusal web browser.
+Is a framework for creating and managing AI personas that can be interacted with. they will be visulized through and visusal web browser.
 
 
 ## Persona(s) 
@@ -50,31 +50,50 @@ Personas will be entities of PlayAIdes and consist of the following:
 # Software Services 
 
 ## PlayAIdes
-- This will be a python application that will be used to create and manage personas it will also be the brains of all the other components it should be able to run multiple personas at once and commuicate with the other componets using http /web sockets. this will implement all the logic for personas and the routing to persona componets.
-- The PlayAIdes will communicate with LLM(s) and tts models as well as send data to the avatar and voice components using http /websockets. PlayAIdes will use the Model Inferance Interface to communicate with LLM(s) and tts models.
-- PlayAIdes will direct the Incaration services
+- This will be a python application that will be used to create and manage personas it will also be the brains of all the other components it should be able to run multiple personas at once and communicate with the other components using http /web sockets. this will implement all the logic for personas and the routing to persona components.
+- The PlayAIdes will communicate with LLM(s) and tts models as well as send data to the avatar and voice components using http /websockets. PlayAIdes will use the Model Inference Interface to communicate with LLM(s) and tts models.
+- PlayAIdes will direct all persona related services :
+  - Incaration services
+  - LLM services
+  - TTS services
 
 ## incarnation 
 This will be the js web browser service that will give personas a body to inhabit its own component
-  - will be a standalone service that can be run in a web browser
-  - will be configured from PlayAIdes using json
-  - implemented using three.js and vite for now
+- Requirements:
   - will support displaying the 3D model for the Persona
-    - Local 3D model File (glTF/GLB, VRM, etc)
+    - ~~Local 3D model File (glTF/GLB, VRM, etc)~~
     - Cloud based 3D model (Future)
-  - will support animations for the 3D model
-  - will support expressions for the 3D model
-  - will support visemes for the 3D model
+    - will support  http or web sockets for real time communication with PlayAIdes
+      - a rough api is currently in place and testable with incarnation/test_incarnation.py
+    - Support an optional separate dashboard for the Persona incarnation configuration
+    - Voice file playback(Optional) maybe we do this in Python instead of JS?
+    - will support lip sync for the 3D model(Future)  
+    - will support multiple personas at once(Future)
+    - will support multiple 3D models at once(Future)
   
-  - will support  http or web sockets for real time communication with PlayAIdes
-  - Support an optional superate dashboard for the Persona incarnation configuration
-  - Voice file playback(Optional) maybe we do this in Python instead of JS?
-  - will support lip sync for the 3D model(Future)  
-  - will support multiple personas at once(Future)
-  - will support multiple 3D models at once(Future)
+  Features we need soon:
+  - will be a standalone service that can be run in a web browser (Started currently demo that supports one model and playing anamations)
+    - need to add a way to add background images(Future)
+    - add a idle animation that loads on default (Future)
+    - would be cool to support unreal or unity (Future)
+    - dashboard for configuration(Future)
+    - will be configured from PlayAIdes using json 
+    
+  - implemented using three.js and vite for now
+    - first draft successfully runs in a web browser
+    - Known issues: 
+      - Miximo models mapping to VRM sucks
+      - I dont really understand 3d Model Files XD
+  
+  - features with rough prototypes:    
+    - will support animations for the 3D model - 
+    - will support expressions for the 3D model
+    - will support visemes for the 3D model
+  
+  
 
 # Interfaces
 ## Model Inferance Interface 
-python package that will be used to commuicate with local hosted or cloud based LLM's and tts models. local models will be supported using Ollama VLLM. Open models can be supported using the OpenAI API or other compatible APIs. 
+python package that will be used to communicate with local hosted or cloud based LLM's and tts models. local models will be supported using Ollama VLLM. Open models can be supported using the OpenAI API or other compatible APIs. 
 ## Json websocket and http Interface
-PlayAides will communcate with the incarnation services using a Json Interface. This interface will be used to send data to the avatar and voice components as well as receive data from the avatar and voice components. 
+PlayAides will communicate with the incarnation services using a Json Interface. This interface will be used to send data to the avatar and voice components as well as receive data from the avatar and voice components. 
