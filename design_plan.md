@@ -45,6 +45,8 @@ Personas will be entities of PlayAIdes and consist of the following:
          └───────────────┼───────────────┘
                          ▼
         Updated Selected Personas components
+                         ▼
+                 Response to Input
 ````
 
 # Software Services 
@@ -52,11 +54,13 @@ Personas will be entities of PlayAIdes and consist of the following:
 ## PlayAIdes
 - This will be a python application that will be used to create and manage personas it will also be the brains of all the other components it should be able to run multiple personas at once and communicate with the other components using http /web sockets. this will implement all the logic for personas and the routing to persona components.
 - The PlayAIdes will communicate with LLM(s) and tts models as well as send data to the avatar and voice components using http /websockets. PlayAIdes will use the Model Inference Interface to communicate with LLM(s) and tts models.
-- PlayAIdes will direct all persona related services :
+- PlayAIdes will direct all persona related services thease are all optional :
   - Incaration services
   - LLM services
   - TTS services
-
+  
+- PlayAIdes should be to function with out any of the above services
+- Need a basic chat interface to start with 
 ## incarnation 
 This will be the js web browser service that will give personas a body to inhabit its own component
 - Requirements:
