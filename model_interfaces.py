@@ -30,8 +30,8 @@ class OllamaLLM(LLMInterface):
         payload_messages = []
         
         if system_prompt:
-             payload_messages.append({"role": "system", "content": system_prompt})
-             
+            payload_messages.append({"role": "system", "content": system_prompt})
+
         payload_messages.extend(messages)
 
         payload = {
