@@ -1,0 +1,5 @@
+service/outputs
+hf_models
+__pycache__
+*.db
+*.wav

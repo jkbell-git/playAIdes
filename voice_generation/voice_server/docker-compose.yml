@@ -1,0 +1,26 @@
+services:
+  playaides-tts-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playaides-tts-api
+    ports:
+      - "8008:8008"
+    volumes:
+      # Persistent storage: Host path : Container path
+      - ./hf_models:/root/.cache/huggingface
+      - ./service:/app
+      #- ./outputs:/app/outputs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              # Use "all" or specific IDs like ["0"] (4090) or ["1"] (5060)
+              count: all
+              #device_ids: ['0', '1']
+              capabilities: [gpu]
+    command: ["python3", "voice_server.py"]
+    environment:
+      - TORCH_CUDA_ARCH_LIST=8.9;10.0
+    restart: unless-stopped

@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+playsound3
+sounddevice
+numpy
+#THE REST SHOULD BE IN THE LOADED IMAGE
+#transformers
+#numpy
+#scipy
+# Add any specific Qwen3-TTS requirements here if they differ from standard transformers
