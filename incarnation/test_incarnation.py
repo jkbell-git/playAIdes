@@ -105,6 +105,7 @@ async def interactive_menu():
         print("  7. Set expressions")
         print("  8. Clear expressions")
         print("  9. Send raw JSON")
+        print ("Load. Load all VRMA animations")
         print("  10. Quit")
         print("────────────────────────────────────────────")
 
@@ -208,8 +209,39 @@ async def interactive_menu():
                 await send_command(cmd_type, msg.get("payload", msg))
             except json.JSONDecodeError:
                 print("  ⚠️  Invalid JSON.")
-
-        elif choice == "10":
+        elif choice == "9":
+            await send_command("clear_expressions")
+        
+        elif choice == "Load":
+            # url = await asyncio.to_thread(
+            #     input,
+            #     "VRMA path relative to public/ (e.g. models/vroid_test_1/run.vrma): ",
+            # )
+            # name = await asyncio.to_thread(
+            #     input, "Custom clip name (optional): "
+            # )
+            # payload = {"url": url.strip()}
+            # if payload["url"] == "":
+            #     payload["url"] = "models/vrma/VRMA_MotionPack/vrma/VRMA_01.vrma" 
+            # if name.strip() == "":
+            #     name = "1"
+            # if name.strip():            
+            #     payload["name"] = name.strip()
+            preload_animations =[
+                "models/vrma/VRMA_MotionPack/vrma/VRMA_01.vrma",
+                "models/vrma/VRMA_MotionPack/vrma/VRMA_02.vrma",
+                "models/vrma/VRMA_MotionPack/vrma/VRMA_03.vrma",
+                "models/vrma/VRMA_MotionPack/vrma/VRMA_04.vrma",
+                "models/vrma/VRMA_MotionPack/vrma/VRMA_05.vrma",
+                "models/vrma/VRMA_MotionPack/vrma/VRMA_06.vrma",
+                "models/vrma/VRMA_MotionPack/vrma/VRMA_07.vrma"
+                
+            ]
+            for i in range(len(preload_animations)):
+                payload = {"url": preload_animations[i], "name": str(i+1)}
+                await send_command("load_vrma_animation", payload)
+            
+        elif choice == "Quit":
             print("Goodbye!")
             break
 
