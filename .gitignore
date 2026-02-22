@@ -6,3 +6,6 @@ hf_models
 __pycache__
 *.db
 *.wav
+models/
+vite.svg
+.env
