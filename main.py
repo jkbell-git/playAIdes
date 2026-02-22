@@ -45,7 +45,7 @@ def main(services_args:PlayAIdesArgs):
             response = ai.chat(user_input)
             
 
-            print(f"{ai.current_persona.name}: {response}")
+            print(f"{ai.current_persona.name}: {response}")Silver
             
         except KeyboardInterrupt:
             print("\nGoodbye!")
@@ -61,8 +61,12 @@ if __name__ == "__main__":
     parser.add_argument("--persona", type=str, default="personas/Rin/tsundere.json", help="Path to persona file")
     parser.add_argument("--generate_voice",default=False, action="store_true", help="Generate voice for persona")
     parser.add_argument("--use_voice", default=False, action="store_true", help="Use voice for persona")
+    parser.add_argument("--use_avatar", default=False, action="store_true", help="Use avatar for persona")
+    parser.add_argument("--generate_avatar", default=False, action="store_true", help="Generate avatar for persona")
     args = parser.parse_args()
     casted_args = PlayAIdesArgs(persona=[args.persona],
     generate_voice=args.generate_voice,
-    use_voice=args.use_voice)
+    use_voice=args.use_voice,
+    use_avatar=args.use_avatar,
+    generate_avatar=args.generate_avatar)
     main(casted_args)

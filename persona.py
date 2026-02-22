@@ -19,6 +19,7 @@ class Avatar(BaseModel): #optional
 class Voice(BaseModel): #optional
     #speaker: Speaker # this can also be a local file path
     speaker_uuid: Optional[str] = None
+    voice_instruct: Optional[str] = None
     def is_voice_valid(self) -> bool:
         return self.speaker_uuid is not None
 #probably start as a local file but VectorDB and embedding is were I really want to do 

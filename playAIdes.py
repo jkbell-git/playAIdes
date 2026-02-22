@@ -14,6 +14,8 @@ class PlayAIdesArgs(BaseModel):
     persona: List[str]
     generate_voice: bool
     use_voice: bool
+    use_avatar: bool
+    generate_avatar: bool
     llm: LLMInterface = None
     tts: Optional[PersonaTTS] = None
     @field_validator("tts")
@@ -64,13 +66,16 @@ class PlayAIdes:
             print("Error: TTS not initialized")
             return
         # is the voice design generation needed?
-        if (self.args.generate_voice and 
+        if (self.args.generate_voice and Silver
         (p.persona_voice is None or not p.persona_voice.is_voice_valid())):
+            voice_instruct = p.persona_voice.voice_instruct if p.persona_voice.voice_instruct else ""
+            voice_instruct += f"Background: {p.back_ground}. "
+            voice_instruct += f"{', '.join(p.psyche.traits)}. "
             # send a generate voice request to the TTS service
             p.persona_voice.speaker_uuid = self.tts.generate_voice(VoiceDesignRequest(            
                 text=p.back_ground,
                 language=p.language,
-                instruct=f"{', '.join(p.psyche.traits)}. ",
+                instruct=voice_instruct",
                 #output_path=f"personas/{p.name}/tts",                
                 name=p.name,
                 gender=p.gender
