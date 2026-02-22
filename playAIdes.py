@@ -106,12 +106,12 @@ class PlayAIdes:
         
         response = self.llm.chat(self.chat_history, system_prompt=system_prompt)
         if self.args.use_voice:
-            sound_file = self.tts.generate_speech(SpeechGenerationRequest(
+            self.tts.generate_speech_stream(SpeechGenerationRequest(
                 text=response,
                 speaker_id=self.current_persona.persona_voice.speaker_uuid),
             #output_path=f"outputs/tts/{self.current_persona.name}")
             )
-            playsound(sound_file)
+            #playsound(sound_file)
         
         self.chat_history.append({"role": "assistant", "content": response})
         return response

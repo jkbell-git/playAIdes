@@ -94,7 +94,10 @@ This will be the js web browser service that will give personas a body to inhabi
     - will support expressions for the 3D model
     - will support visemes for the 3D model
   
-  
+## voice_generation
+- voice generation service that will be used to generate speech for the personas.
+- it is run independently of PlayAIdes and communicates with PlayAIdes using http /websockets.
+- it runs in a docker container and started and stopped outside of PlayAIdes. 
 
 # Interfaces
 ## Model Inferance Interface 

@@ -103,16 +103,16 @@ async def generate_speech_stream(request: SpeechGenerationRequest):
             raise HTTPException(status_code=404, detail=f"Speaker '{request.speaker_id}' not found")
         
         def audio_streamer():
-            for audio_chunk in app_data["TTS_ENGINE"].generator_speech_stream(request, speaker):
-                logger.info(f"audio chunk instance { audio_chunk}")
-                if isinstance(audio_chunk, torch.Tensor):
-                    audio_chunk = audio_chunk.cpu().numpy()
-                    logger.info(f"proccessing chunk")
-                    # Convert to 16-bit PCM for better compatibility
-                    pcm_buffer = (audio_chunk * 32767).astype("int16").tobytes()
-                    yield pcm_buffer
-                else:
-                    logger.error("cannont convert chunk")
+            for audio_chunk,sr in app_data["TTS_ENGINE"].generator_speech_stream(request, speaker):
+                #logger.info(f"audio chunk instance { audio_chunk} {sr}")
+                #if isinstance(audio_chunk, torch.Tensor):
+                #audio_chunk = audio_chunk.cpu().numpy()
+                #logger.info(f"proccessing chunk")
+                # Convert to 16-bit PCM for better compatibility
+                pcm_buffer = (audio_chunk * 32767).astype("int16").tobytes()
+                yield pcm_buffer
+                # else:
+                #     logger.error("cannont convert chunk")
                 # if isinstance(audio_chunk, list):
                 # # Convert list of integers to 16-bit PCM bytes
                 #     yield struct.pack(f"{len(audio_chunk)}h", *audio_chunk)

@@ -2,14 +2,14 @@ services:
   playaides-tts-api:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: playaides-tts-api
+      dockerfile: Dockerfile_streaming_tts
+    container_name: playaides-streaming-tts-api
     ports:
       - "8008:8008"
     volumes:
       # Persistent storage: Host path : Container path
       - ./hf_models:/root/.cache/huggingface
-      - ./service:/app
+      - ./service:/app/Qwen3-TTS-streaming/service
       #- ./outputs:/app/outputs
     deploy:
       resources:
@@ -20,6 +20,8 @@ services:
               count: all
               #device_ids: ['0', '1']
               capabilities: [gpu]
+    working_dir: /app/Qwen3-TTS-streaming/service
+    #command: ["pwd"]
     command: ["python3", "voice_server.py"]
     environment:
       - TORCH_CUDA_ARCH_LIST=8.9;10.0

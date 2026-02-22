@@ -29,19 +29,20 @@ class Qwen3TTSEngine(BaseTTSEngine):
     def __init__(self, design_model_path: str = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign", 
                 base_model_path: str = "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
                 attn_implementation:str="flash_attention_2",
-                output_path: str = BaseTTSEngine.DEFAULT_OUTPUT_PATH):
+                output_path: str = BaseTTSEngine.DEFAULT_OUTPUT_PATH,
+                optimize_for_streaming:bool=True):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         logging.info(f"Device: {self.device}")
         self.dtype = torch.bfloat16 if self.device == "cuda" else torch.float32
         # we need to get the device here
         self.output_path = output_path
         if self.device == "cuda":
-            self.device_map = "cuda:0"
+            self.device_map = "cuda"
             self.attn_implementation=attn_implementation
         else:
             self.device_map = "cpu"
             self.attn_implementation=""
-        
+        self.optimize_for_streaming = optimize_for_streaming
         logging.info(f"Device map: {self.device_map}")
         logging.info(f"Dtype: {self.dtype}")
         logging.info(f"Attn implementation: {self.attn_implementation}")
@@ -148,33 +149,47 @@ class Qwen3TTSEngine(BaseTTSEngine):
         logging.info(f"streaming speech for text: {request.text} {speaker.language} {speaker.ref_audio_file} {speaker.ref_text_file}")
         
         if self.current_model != self.base_model_path:
+
             self._model = Qwen3TTSModel.from_pretrained(
                 self.base_model_path,
                 device_map=self.device_map,
                 dtype=self.dtype,
                 attn_implementation=self.attn_implementation,
             )
+            #TODO FIX THE OPTIMIZATION
+            # I THINK IT HAS TO DO WITH PYTHON OR TORCH VERSION IN THE CONTAINER
+            # CURRENTLY CRASHES THE PROGRAM
+            # self._model.enable_streaming_optimizations(
+            #     decode_window_frames=80,
+            #     use_compile=True,
+            #     compile_mode="reduce-overhead",
+            # )
+            # self.has_streamed = True
             # store the model we are holding in memory
             self.current_model = self.base_model_path
             logging.info(f"Model loaded: {self.base_model_path}")
-        
-        
+        else:
+            pass
+            # if not self.has_streamed:
+            #     self._model.enable_streaming_optimizations(
+            #         decode_window_frames=80,
+            #         use_compile=True,
+            #         compile_mode="reduce-overhead")
+            #     self.has_streamed = True
+
         voice_prompt = self._cached_voice_prompt(speaker)
-        yield from self._model.generate_voice_clone(
+        for audio_chunks,sr in self._model.stream_generate_voice_clone(
             text=request.text,
             language=request.language if request.language else speaker.language,
             voice_clone_prompt= voice_prompt,
-            emit_every_frames=12,decode_window_frames=80,
-            first_chunk_emit_every=5, first_chunk_frames=48 
+            emit_every_frames=12,
+            decode_window_frames=80,            
+            first_chunk_emit_every=5,
+            first_chunk_decode_window=48,
+            first_chunk_frames=48 
             # ref_audio=speaker.ref_audio_file,
             # ref_text=Path(speaker.ref_text_file).read_text(encoding="utf-8")
-        )
+        ):
+            yield (audio_chunks,sr)
         
-        #key= datetime.now().strftime("%Y%m%d_%H%M%S")
-        #audio_file = f"{self.output_path}/{speaker.id}_{key}.wav"        
-        #text_file = f"{self.output_path}/{speaker.id}_{key}.txt"   
-        
-        #with open(text_file, "w") as f:
-        #f.write(request.text)
-        #logging.info(f"Generated speech for text: {request.text} {speaker.language} {speaker.ref_audio_file} {speaker.ref_text_file}")
-        #return (audio_file, text_file)   
+ 
