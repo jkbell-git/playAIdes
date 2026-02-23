@@ -4,9 +4,11 @@ import os
 from playAIdes import PlayAIdes,PlayAIdesArgs
 from model_interfaces import OllamaLLM
 import pydantic
-
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 def main(services_args:PlayAIdesArgs):
-    print("Initializing PlayAIdes...")
+    logger.info("Initializing PlayAIdes...")
     
     # Initialize Core
     # We can default to Ollama, but user might want to configure this later.
@@ -29,8 +31,8 @@ def main(services_args:PlayAIdesArgs):
     #     ai._setup_voice(ai.current_persona)
     
 
-    print(f"Chatting with {ai.current_persona.name}. Type 'exit!' or 'quit!' to stop.")
-    print("-" * 50)
+    logger.info(f"Chatting with {ai.current_persona.name}. Type 'exit!' or 'quit!' to stop.")
+    logger.info("-" * 50)
 
     while True:
         try:
@@ -45,7 +47,7 @@ def main(services_args:PlayAIdesArgs):
             response = ai.chat(user_input)
             
 
-            print(f"{ai.current_persona.name}: {response}")Silver
+            print(f"{ai.current_persona.name}: {response}")
             
         except KeyboardInterrupt:
             print("\nGoodbye!")

@@ -12,14 +12,14 @@ class Psyche(BaseModel): #quirks, traits things that makie this persona unique
 
 class Avatar(BaseModel): #optional
     model_url: str # this can also be a local file path
-    animations_url: str # this can also be a local folder path
-    animation_list: List[str] # we need to get the animation list from the model and also
+    animations_url: Optional[str] = None # this can also be a local folder path
+    animation_list: Optional[List[str]] = None # we need to get the animation list from the model and also
     #add animations we have loaded
 
 class Voice(BaseModel): #optional
     #speaker: Speaker # this can also be a local file path
     speaker_uuid: Optional[str] = None
-    voice_instruct: Optional[str] = None
+    voice_instruct: Optional[list[str]] = None
     def is_voice_valid(self) -> bool:
         return self.speaker_uuid is not None
 #probably start as a local file but VectorDB and embedding is were I really want to do 

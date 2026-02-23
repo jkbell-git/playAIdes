@@ -8,6 +8,8 @@ import os
 from voice_generation.voice_server.service.voice_server_api import SpeechGenerationRequest,VoiceDesignRequest
 import sounddevice as sd
 import numpy as np
+import logging
+logger = logging.getLogger(__name__)
 # class SpeechGenerationRequest(BaseModel):    
 #     text: str
 #     speaker_id: str
@@ -40,9 +42,9 @@ class Qwen3TTS_local:
         
         if response.status_code == 200:
             id = response.json()["speaker_id"]
-            print("Successfully designed voice. Saved to: test_design_output.wav")
+            logger.info(f"Successfully designed voice. Saved to: {id}")
         else:
-            print(f"Failed to design voice. Status: {response.status_code}, Error: {response.text}")
+            logger.error(f"Failed to design voice. Status: {response.status_code}, Error: {response.text}")
         return id
     
     def generate_speech_file(self, speech_generation_request: SpeechGenerationRequest,output_path:Optional[str] = None) -> str:
@@ -57,9 +59,9 @@ class Qwen3TTS_local:
         if response.status_code == 200:
             with open(output_file, "wb") as f:
                 f.write(response.content)
-            print(f"Successfully generated speech. Saved to: {output_file}")
+            logger.info(f"Successfully generated speech. Saved to: {output_file}")
         else:
-            print(f"Failed to generate speech. Status: {response.status_code}, Error: {response.text}")
+            logger.error(f"Failed to generate speech. Status: {response.status_code}, Error: {response.text}")
         
         return output_file
 
@@ -67,7 +69,7 @@ class Qwen3TTS_local:
         SAMPLE_RATE = 24000 
         CHANNELS = 1
         with sd.OutputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype='int16') as stream:
-            print(f"Streaming and playing: '{speech_generation_request.text}'")     
+            logger.debug(f"Streaming and playing: '{speech_generation_request.text}'")     
             with requests.post(f"{self.BASE_URL}/generate_stream",json=speech_generation_request.model_dump(), stream=True) as r:
                 r.raise_for_status()
                 for chunk in r.iter_content(chunk_size=2048):
@@ -76,7 +78,8 @@ class Qwen3TTS_local:
                         audio_data = np.frombuffer(chunk, dtype=np.int16)
                         # Send directly to your local speakers
                         stream.write(audio_data)
-    
+        logger.debug(f"Finished streaming speech: '{speech_generation_request.text}'")
+        return speech_generation_request.text
         # output_file = None
         # if output_path is None:
         #     output_path = f"outputs/tts/temp/{speech_generation_request.speaker_id}"

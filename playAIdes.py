@@ -5,6 +5,11 @@ from typing import Optional, List, Dict
 from voice_generation.voice_api import PersonaTTS, Qwen3TTS_local, VoiceDesignRequest, SpeechGenerationRequest
 from playsound3 import playsound
 import json
+import logging
+from incarnation_server import IncarnationServer
+import os
+
+logger = logging.getLogger(__name__)
 #this will be the main class for PlayAIdes and manage all currently loaded personas
 # will be in charge of routing requests to the service to handle a personas actions/tasks
 # I believe we should do as much async as possible due to the nature of how we will be waiting for our services to perform actions
@@ -31,9 +36,11 @@ class PlayAIdes:
     def __init__(self, args: PlayAIdesArgs):
         self.llm: Optional[LLMInterface] = args.llm if args.llm else OllamaLLM() # Default to Ollama
         self.tts: Optional[PersonaTTS] = args.tts if args.tts else Qwen3TTS_local() #Default to Qwen3TTS_local
+        self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(on_message_callback=self._handle_incarnation_message) if args.use_avatar else None
         self.current_persona: Optional[Persona] = None
         self.chat_history: List[Dict[str, str]] = []
         self.args: PlayAIdesArgs = args
+        self.expected_animations = set()
         for persona in args.persona:
             self._load_persona_from_file(persona)
             break  # currently only support one persona at a time
@@ -43,15 +50,13 @@ class PlayAIdes:
             with open(filepath, 'r') as f:
                 data = json.load(f)
             self.current_persona = Persona(**data)
-            print(f"Loaded persona: {self.current_persona.name}")
+            logger.info(f"Loaded persona: {self.current_persona.name}")
             self._validate_persona(self.current_persona)
         except Exception as e:
-            print(f"Error loading persona from {filepath}: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"Error loading persona from {filepath}: {e}")
             return
     def _update_persona_file(self,p:Persona):
-        with open(f"personas/{p.name}/persona.json", 'w') as f:
+        with open(f"personas/{p.name.lower()}/persona.json", 'w') as f:
             json.dump(p.model_dump(), f, indent=2)
 
     def _validate_persona(self,p:Persona):
@@ -59,31 +64,80 @@ class PlayAIdes:
         # validate voice
         if self.args.use_voice:
             self._setup_voice(p)
+            
+        if self.args.use_avatar:
+            self._setup_avatar(p)
         
     
     def _setup_voice(self,p:Persona):
         if self.tts is None:
-            print("Error: TTS not initialized")
+            logger.error("TTS not initialized")
             return
         # is the voice design generation needed?
-        if (self.args.generate_voice and Silver
+        if (self.args.generate_voice and 
         (p.persona_voice is None or not p.persona_voice.is_voice_valid())):
-            voice_instruct = p.persona_voice.voice_instruct if p.persona_voice.voice_instruct else ""
-            voice_instruct += f"Background: {p.back_ground}. "
-            voice_instruct += f"{', '.join(p.psyche.traits)}. "
+            voice_instruct = p.persona_voice.voice_instruct if p.persona_voice.voice_instruct else []
+            voice_instruct.append(f"Background: {p.back_ground}. ")
+            voice_instruct.append(f"{', '.join(p.psyche.traits)}. ")
             # send a generate voice request to the TTS service
             p.persona_voice.speaker_uuid = self.tts.generate_voice(VoiceDesignRequest(            
                 text=p.back_ground,
                 language=p.language,
-                instruct=voice_instruct",
+                instruct=f" ".join(voice_instruct),
                 #output_path=f"personas/{p.name}/tts",                
                 name=p.name,
                 gender=p.gender
             ))
             #update the persona file with the new voice
             self._update_persona_file(p)
+
+    def _setup_avatar(self, p: Persona):
+        if self.incarnation_server is None:
+            logger.error("IncarnationServer not initialized")
+            return
+        if p.avatar is not None and p.avatar.model_url:
+            self.expected_animations.clear()
+            logger.info(f"Sending load_model command for avatar: {p.avatar.model_url}")
+            self.incarnation_server.send_command("load_model", {"url": p.avatar.model_url})
             
-        
+        else:
+            logger.info("No avatar configured for this persona.")
+
+    def load_default_animations(self):
+        if self.current_persona.avatar.model_url.lower().endswith('.vrm'):
+            animation_dir = "incarnation/public/vrma/animations"
+            if os.path.exists(animation_dir):
+                logger.info("Loading VRMA animations...")
+                for filename in os.listdir(animation_dir):
+                    if filename.lower().endswith('.vrma'):
+                        anim_url = f"vrma/animations/{filename}"
+                        anim_name = os.path.splitext(filename)[0].split(".vrma")[0]
+                        self.expected_animations.add(anim_name)
+                        logger.info(f"Loading animation: {anim_name} from {anim_url}")
+                        self.incarnation_server.send_command("load_vrma_animation", {
+                            "url": anim_url,
+                            "name": anim_name
+                        })
+
+    def _handle_incarnation_message(self, msg: dict):
+        logger.info(f"Incarnation callback: {msg}")
+        if msg.get("type") == "status":
+            state = msg['payload'].get("state")
+            # if state == None and "payload" in msg:
+            #     state = msg["payload"].get("state")
+            payload = msg['payload']
+            logger.info(f"Incarnation state: {state}")
+            if state == "animation_loaded":
+                anim_name = payload.get("animations")
+                logger.info(f"Animation {set(anim_name)} loaded. Expected animations: {self.expected_animations}")
+                if set(anim_name) == self.expected_animations:
+                    logger.info("All auto-loaded animations finished loading. Playing default animation...")
+                    self.incarnation_server.send_command("play_animation", {
+                        "name": "cute_greeting_twirl",
+                        "loop": True
+                    })
+            if state == "model_loaded":
+                self.load_default_animations()
 
     def chat(self, user_input: str) -> str:
         if not self.current_persona:
@@ -116,8 +170,4 @@ class PlayAIdes:
                 speaker_id=self.current_persona.persona_voice.speaker_uuid),
             #output_path=f"outputs/tts/{self.current_persona.name}")
             )
-            #playsound(sound_file)
-        
-        self.chat_history.append({"role": "assistant", "content": response})
-        return response
-
+            #playsound(sound_file)incarnation/public/models/vrma/VRMA_MotionPack/vrma/crouch_to_excited_greeting.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/cute_greeting_twirl.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/cute_peace_sign.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/model_pose.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/point_shoot.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/squats.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/twirl_ta_da.vrma
