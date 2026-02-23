@@ -5,13 +5,26 @@ import * as THREE from 'three';
  * Manages loading, playing, cross-fading, and stopping animation clips.
  */
 export class AnimationManager {
-    /** @param {THREE.Object3D} root  The root object (loaded model). */
-    constructor(root) {
+    /** 
+     * @param {THREE.Object3D} root  The root object (loaded model). 
+     * @param {Function} [onFinished] Callback fired when a non-looping animation completes.
+     */
+    constructor(root, onFinished) {
         this.mixer = new THREE.AnimationMixer(root);
         /** @type {Map<string, THREE.AnimationClip>} */
         this.clips = new Map();
         /** @type {THREE.AnimationAction|null} */
         this.currentAction = null;
+
+        if (onFinished) {
+            this.mixer.addEventListener('finished', (e) => {
+                // e.action is the AnimationAction that finished
+                // e.action.getClip().name gives us the clip name
+                if (e.action) {
+                    onFinished(e.action.getClip().name);
+                }
+            });
+        }
     }
 
     // ── Clip management ─────────────────────────────────────────────────────

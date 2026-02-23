@@ -27,6 +27,11 @@ const connection = new ConnectionManager();
 const params = new URLSearchParams(window.location.search);
 const wsUrl = params.get('ws') || 'ws://localhost:8765';
 
+// Wire up animation finished events
+incarnation.onAnimationFinished = (clipName) => {
+  connection.send('status', { state: 'animation_finished', name: clipName });
+};
+
 // ── Wire connection events to incarnation ───────────────────────────────────
 connection.addEventListener('connected', () => {
   setStatus('connected', 'Connected to PlayAIdes');
@@ -94,24 +99,14 @@ connection.addEventListener('load_vrma_animation', async (e) => {
   }
 });
 
-connection.addEventListener('play_animation', (e) => {
-  incarnation.handleCommand('play_animation', e.detail);
-});
-
-connection.addEventListener('stop_animation', (e) => {
-  incarnation.handleCommand('stop_animation', e.detail);
-});
-
-connection.addEventListener('set_expression', (e) => {
-  incarnation.handleCommand('set_expression', e.detail);
-});
-
-connection.addEventListener('clear_expressions', (e) => {
-  incarnation.handleCommand('clear_expressions', e.detail);
-});
-
-connection.addEventListener('play_viseme_sequence', (e) => {
-  incarnation.handleCommand('play_viseme_sequence', e.detail);
+// Generic router for all other quick, synchronous commands 
+// (e.g. play_animation, focus_camera, set_expression)
+connection.addEventListener('message', (e) => {
+  const msg = e.detail;
+  // If it is not a "load_" task and it has a type, route it instantly
+  if (msg.type && !msg.type.startsWith('load_')) {
+    incarnation.handleCommand(msg.type, msg.payload || {});
+  }
 });
 
 // ── Render loop ─────────────────────────────────────────────────────────────

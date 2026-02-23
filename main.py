@@ -43,11 +43,27 @@ def main(services_args:PlayAIdesArgs):
             
             if not user_input.strip():
                 continue
-
-            response = ai.chat(user_input)
-            
-
-            print(f"{ai.current_persona.name}: {response}")
+            if "play[" in user_input:
+                animation_name = user_input.split("play[")[1].split("]")[0]
+                ai.incarnation_server.send_command("play_animation", {
+                    "name": animation_name,
+                    "loop": False
+                })
+                continue
+            if "set-bg" in user_input:
+                print("!loading bg")
+                bg_url = "scene/castle_interior.jpg"
+                ai.incarnation_server.send_command("set_background", {
+                    "url": bg_url
+                })
+                continue
+            if "focus-head" in user_input:
+                print("!focusing head")
+                ai.incarnation_server.send_command("focus_camera", {})
+                continue
+            else:
+                response = ai.chat(user_input)
+                print(f"{ai.current_persona.name}: {response}")
             
         except KeyboardInterrupt:
             print("\nGoodbye!")

@@ -7,6 +7,7 @@ import soundfile as sf
 from qwen_tts import Qwen3TTSModel
 import logging
 from pathlib import Path
+import gc
 # Note: The actual qwen_tts imports would go here in a real environment
 # from qwen_tts import Qwen3TTSModel
 
@@ -53,7 +54,11 @@ class Qwen3TTSEngine(BaseTTSEngine):
         self.base_model_path = base_model_path
         self.attn_implementation = attn_implementation
         self.cached_voice_prompts = {}
-        
+    def _clear_vram(self):
+        self.current_model = None
+        del self._model
+        gc.collect()
+        torch.cuda.empty_cache()
     #generates a speaker and saves relevent files for voice cloning
     def generate_voice_design(self, request: VoiceDesignRequest) -> Speaker:
         """
@@ -61,6 +66,7 @@ class Qwen3TTSEngine(BaseTTSEngine):
         """
         logging.info(f"Generating voice design for text:{self.design_model_path} {self.device_map} {self.dtype} {self.attn_implementation}...")
         if self.current_model != self.design_model_path:
+            self._clear_vram()
             self._model = Qwen3TTSModel.from_pretrained(                
                 self.design_model_path,
                 device_map=self.device_map,
@@ -115,6 +121,7 @@ class Qwen3TTSEngine(BaseTTSEngine):
         """
         logging.info(f"Generating speech for text: {request.text} {speaker.language} {speaker.ref_audio_file} {speaker.ref_text_file}")
         if self.current_model != self.base_model_path:
+            self._clear_vram
             self._model = Qwen3TTSModel.from_pretrained(
                 self.base_model_path,
                 device_map=self.device_map,

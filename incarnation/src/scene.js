@@ -59,14 +59,11 @@ const fillLight = new THREE.DirectionalLight(0xc4d7ff, 0.4);
 fillLight.position.set(-3, 2, -2);
 scene.add(fillLight);
 
-// ── Ground plane (subtle) ───────────────────────────────────────────────────
-const groundGeo = new THREE.CircleGeometry(5, 64);
-const groundMat = new THREE.MeshStandardMaterial({
-    color: 0x16213e,
-    roughness: 0.9,
-    metalness: 0.0,
-});
-const ground = new THREE.Mesh(groundGeo, groundMat);
+// ── Ground plane (subtle shadow catcher only) ───────────────────────────────
+// Provide a transparent plane that only receives shadows, so the background shows through
+const shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.5 });
+const groundGeo = new THREE.PlaneGeometry(100, 100);
+const ground = new THREE.Mesh(groundGeo, shadowMaterial);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
@@ -82,4 +79,66 @@ window.addEventListener('resize', onResize);
 // ── Clock ───────────────────────────────────────────────────────────────────
 const clock = new THREE.Clock();
 
-export { scene, camera, renderer, controls, clock };
+// ── Background & Camera APIs ────────────────────────────────────────────────
+function setBackground(url) {
+    if (!url) {
+        console.log("[scene] No background URL provided");
+        scene.background = new THREE.Color(0x1a1a2e);
+        return;
+
+    }
+    const loader = new THREE.TextureLoader();
+    loader.load(url, (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        scene.background = texture;
+    }, undefined, (err) => {
+        console.error('[scene] Failed to load background:', err);
+    });
+}
+
+function focusOnHead(model) {
+    if (!model) return;
+    console.log("[scene] Focusing on head");
+    // Use a bounding box to find the rough center/top of the model
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    // Better approximate head position: typically around 85-90% of total height
+    // We also want to look slightly "down" at the face rather than from below.
+    const headY = box.min.y + (size.y * 0.88);
+
+    // Target the actual face center
+    const targetPos = new THREE.Vector3(center.x, headY, center.z);
+
+    // Place camera right in front of the face
+    // Z offset controls how "close" the camera gets
+    // Y offset controls angle (slightly higher than the focus target)
+    const camTargetPos = new THREE.Vector3(
+        center.x,
+        headY + 0.05,
+        center.z + 0.6
+    );
+
+    // Naive simple lerp loop via requestAnimationFrame
+    let alpha = 0;
+    function animateFocus() {
+        alpha += 0.02; // Speed of pan
+        if (alpha > 1) {
+            controls.target.copy(targetPos);
+            camera.position.copy(camTargetPos);
+            controls.update();
+            return;
+        }
+
+        controls.target.lerp(targetPos, 0.05);
+        camera.position.lerp(camTargetPos, 0.05);
+        controls.update();
+
+        requestAnimationFrame(animateFocus);
+    }
+
+    animateFocus();
+}
+
+export { scene, camera, renderer, controls, clock, setBackground, focusOnHead };

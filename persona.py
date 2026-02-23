@@ -13,8 +13,10 @@ class Psyche(BaseModel): #quirks, traits things that makie this persona unique
 class Avatar(BaseModel): #optional
     model_url: str # this can also be a local file path
     animations_url: Optional[str] = None # this can also be a local folder path
+    idle_animation: Optional[str] = "idle" # default idle animation name
     animation_list: Optional[List[str]] = None # we need to get the animation list from the model and also
     #add animations we have loaded
+    background_url: Optional[str] = None
 
 class Voice(BaseModel): #optional
     #speaker: Speaker # this can also be a local file path

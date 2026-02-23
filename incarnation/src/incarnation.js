@@ -1,4 +1,4 @@
-import { scene } from './scene.js';
+import { scene, setBackground, focusOnHead } from './scene.js';
 import { loadModel, loadAnimationFile, listMorphTargets } from './modelLoader.js';
 import { loadMixamoAnimation } from './loadMixamoAnimation.js';
 import { loadVRMAAnimation } from './vrmaLoader.js';
@@ -37,6 +37,9 @@ export class Incarnation {
         this.visemeManager = new VisemeManager();
 
         this._loaded = false;
+
+        /** @type {Function|null} */
+        this.onAnimationFinished = null;
     }
 
     /** Whether a model is currently loaded. */
@@ -67,7 +70,11 @@ export class Incarnation {
         scene.add(model);
 
         // Wire up managers
-        this.animationManager = new AnimationManager(model);
+        this.animationManager = new AnimationManager(model, (clipName) => {
+            if (this.onAnimationFinished) {
+                this.onAnimationFinished(clipName);
+            }
+        });
         if (clips.length > 0) {
             this.animationManager.loadClips(clips);
         }
@@ -239,6 +246,7 @@ export class Incarnation {
      * @param {object} payload
      */
     async handleCommand(type, payload) {
+        console.log('[Incarnation] Received command:', type, payload);
         switch (type) {
             case 'load_model':
                 return await this.loadPersona({ url: payload.url });
@@ -283,6 +291,18 @@ export class Incarnation {
 
             case 'play_viseme_sequence':
                 await this.visemeManager.playVisemeSequence(payload.sequence || []);
+                break;
+
+            case 'set_background':
+                console.log('[Incarnation] Loading background:', payload.url);
+                setBackground(payload.url);
+                break;
+
+            case 'focus_camera':
+                console.log('[Incarnation] Focusing camera');
+                if (this.model) {
+                    focusOnHead(this.model);
+                }
                 break;
 
             default:

@@ -104,6 +104,14 @@ class PlayAIdes:
             logger.info("No avatar configured for this persona.")
 
     def load_default_animations(self):
+        # We send set_background when the client connects and sends model_loaded,
+        # ensuring the client is actually ready to receive it.
+        if self.current_persona and self.current_persona.avatar:
+            bg_url = self.current_persona.avatar.background_url
+            if bg_url:
+                logger.info(f"Sending set_background for avatar: {bg_url}")
+                self.incarnation_server.send_command("set_background", {"url": bg_url})
+
         if self.current_persona.avatar.model_url.lower().endswith('.vrm'):
             animation_dir = "incarnation/public/vrma/animations"
             if os.path.exists(animation_dir):
@@ -128,14 +136,35 @@ class PlayAIdes:
             payload = msg['payload']
             logger.info(f"Incarnation state: {state}")
             if state == "animation_loaded":
-                anim_name = payload.get("animations")
-                logger.info(f"Animation {set(anim_name)} loaded. Expected animations: {self.expected_animations}")
-                if set(anim_name) == self.expected_animations:
-                    logger.info("All auto-loaded animations finished loading. Playing default animation...")
+                anim_name = payload.get("name") # payload is actually a dict from getModelInfo in JS, so it has animations array, not name
+                if not anim_name and payload.get("animations"):
+                    # For Mixamo/VRMA the payload returns the entire animations array and a "loaded" array that has the actual name 
+                    loaded_arr = payload.get("loaded", [])
+                    if loaded_arr:
+                        anim_name = loaded_arr[0]
+                
+                if anim_name:
+                    logger.info(f"Animation {anim_name} loaded. Expected animations: {self.expected_animations}")
+                    if anim_name in self.expected_animations:
+                        self.expected_animations.remove(anim_name)
+                        
+                if not self.expected_animations:
+                    logger.info("All auto-loaded animations finished loading. Playing initial animation...")
                     self.incarnation_server.send_command("play_animation", {
                         "name": "cute_greeting_twirl",
-                        "loop": True
+                        "loop": False
                     })
+            if state == "animation_finished":
+                anim_name = payload.get("name")
+                logger.info(f"Animation {anim_name} finished playing.")
+                idle_anim = self.current_persona.avatar.idle_animation if (self.current_persona and self.current_persona.avatar) else "idle"
+                logger.info(f"Switching to idle animation '{idle_anim}' and focusing camera...")
+                self.incarnation_server.send_command("play_animation", {
+                     "name": idle_anim,
+                     "loop": True,
+                     "crossFade": 0.5
+                })
+                self.incarnation_server.send_command("focus_camera")
             if state == "model_loaded":
                 self.load_default_animations()
 
@@ -167,7 +196,8 @@ class PlayAIdes:
         if self.args.use_voice:
             self.tts.generate_speech_stream(SpeechGenerationRequest(
                 text=response,
-                speaker_id=self.current_persona.persona_voice.speaker_uuid),
-            #output_path=f"outputs/tts/{self.current_persona.name}")
+                speaker_id=self.current_persona.persona_voice.speaker_uuid),        
             )
-            #playsound(sound_file)incarnation/public/models/vrma/VRMA_MotionPack/vrma/crouch_to_excited_greeting.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/cute_greeting_twirl.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/cute_peace_sign.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/model_pose.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/point_shoot.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/squats.vrma incarnation/public/models/vrma/VRMA_MotionPack/vrma/twirl_ta_da.vrma
+        
+        return response
+            
