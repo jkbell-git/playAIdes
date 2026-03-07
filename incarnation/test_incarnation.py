@@ -10,7 +10,7 @@ Usage:
     python test_incarnation.py
 
 Then open the Incarnation service in a browser:
-    http://localhost:5173?ws=ws://localhost:8765
+    http://localhost:5173?ws=ws://localhost:8765/ws
 
 Commands:
     1. Load a model (provide path relative to incarnation/public/)
@@ -250,6 +250,7 @@ async def interactive_menu():
 
 
 async def main():
+    # websockets handles paths by process_request, but simplified test server can just accept it
     async with websockets.serve(handler, "0.0.0.0", PORT):
         await interactive_menu()
 

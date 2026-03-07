@@ -23,9 +23,9 @@ const incarnation = new Incarnation();
 const connection = new ConnectionManager();
 
 // Determine WebSocket URL from query params or default
-// e.g. ?ws=ws://localhost:8765
+// e.g. ?ws=ws://localhost:8765/ws
 const params = new URLSearchParams(window.location.search);
-const wsUrl = params.get('ws') || 'ws://localhost:8765';
+const wsUrl = params.get('ws') || 'ws://localhost:8765/ws';
 
 // Wire up animation finished events
 incarnation.onAnimationFinished = (clipName) => {

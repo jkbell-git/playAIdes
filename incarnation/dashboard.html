@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PlayAIdes Admin Dashboard</title>
+    <!-- No main.css here — dashboard has its own standalone styles -->
+    <style>
+        /* Adjust layout specifically for the dashboard */
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            height: 100vh;
+            font-family: sans-serif;
+        }
+
+        #avatar-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            /* keep the canvas inside the container */
+            background: #1a1a2e;
+        }
+
+        /* The canvas itself is sized by scene.js, so we let it be absolute */
+        #avatar-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #dashboard-panel {
+            flex-shrink: 0;
+            /* never let the panel get crushed */
+            width: 350px;
+            background: rgba(20, 20, 20, 0.98);
+            color: white;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border-left: 1px solid #444;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #555;
+            padding-bottom: 10px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        .section h3 {
+            margin-top: 0;
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #ddd;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            background: #222;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: white;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button:disabled {
+            background: #555;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        .status {
+            font-size: 0.85rem;
+            margin-top: 8px;
+            color: #aaa;
+        }
+
+        .success {
+            color: #4CAF50;
+        }
+
+        .error {
+            color: #f44336;
+        }
+
+        /* Test controls */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .control-grid button {
+            background: #2196F3;
+        }
+
+        .control-grid button:hover {
+            background: #1976D2;
+        }
+
+        .inline-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #ddd;
+        }
+
+        .inline-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #4CAF50;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- The 3D canvas goes here -->
+    <div id="avatar-container">
+        <canvas id="viewer"></canvas>
+    </div>
+
+    <!-- UI Controls -->
+    <div id="dashboard-panel">
+        <h2>Incarnation Admin Dashboard</h2>
+
+        <div class="section">
+            <h3>Upload Avatar (.vrm)</h3>
+            <div class="form-group">
+                <input type="file" id="avatar-file" accept=".vrm" />
+            </div>
+            <button id="upload-avatar-btn">Upload Selected Avatar</button>
+            <div id="avatar-status" class="status"></div>
+        </div>
+
+        <div class="section">
+            <h3>Upload Animation(s) (.vrma)</h3>
+            <div class="form-group">
+                <input type="file" id="animation-file" accept=".vrma" multiple />
+            </div>
+            <button id="upload-animation-btn">Upload Animation(s)</button>
+            <div id="animation-status" class="status"></div>
+        </div>
+
+        <div class="section" id="animations-section" style="display: none;">
+            <h3>Loaded Animations</h3>
+            <div class="form-group">
+                <label class="inline-label">
+                    <input type="checkbox" id="animation-loop" checked />
+                    Loop animation
+                </label>
+            </div>
+            <div class="control-grid" id="animation-buttons">
+                <!-- Buttons generated per uploaded clip -->
+            </div>
+        </div>
+
+        <div class="section" id="expressions-section" style="display: none;">
+            <h3>Test Expressions</h3>
+            <div class="control-grid" id="expression-buttons">
+                <!-- Buttons generated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Using a module script for standard Vite integration -->
+    <script type="module" src="/src/dashboard.js"></script>
+</body>
+
+</html>
