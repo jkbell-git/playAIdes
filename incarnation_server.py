@@ -18,7 +18,8 @@ try:
 except ImportError:
     FastAPI = None
 
-import persona_db
+import os
+import shutil
 
 
 class PersonaCreate(BaseModel):
@@ -56,9 +57,6 @@ class IncarnationServer:
             logger.error("FastAPI is not installed. Cannot start Incarnation Server.")
             return
 
-        # Init database
-        persona_db.init_db()
-
         self.app = FastAPI(title="Incarnation Server")
 
         self.app.add_middleware(
@@ -69,13 +67,15 @@ class IncarnationServer:
             allow_headers=["*"],
         )
 
-        # Ensure data directories exist
-        os.makedirs("data/avatars", exist_ok=True)
-        os.makedirs("data/animations", exist_ok=True)
-        os.makedirs("data/backgrounds", exist_ok=True)
-        os.makedirs("data/personas", exist_ok=True)
+        os.makedirs("personas", exist_ok=True)
+        os.makedirs("data", exist_ok=True)
+        os.makedirs("incarnation/public/outputs", exist_ok=True)
+        os.makedirs("incarnation/public/vrma/animations", exist_ok=True)
 
         self.app.mount("/data", StaticFiles(directory="data"), name="data")
+        self.app.mount("/personas", StaticFiles(directory="personas"), name="personas")
+        self.app.mount("/outputs", StaticFiles(directory="incarnation/public/outputs"), name="outputs")
+        self.app.mount("/default_animations", StaticFiles(directory="incarnation/public/vrma/animations"), name="default_animations")
         self._setup_routes()
 
         self.thread = threading.Thread(target=self._run_server, daemon=True)
@@ -110,159 +110,62 @@ class IncarnationServer:
                 if self.connected_client == websocket:
                     self.connected_client = None
 
-        # ── Persona CRUD ──────────────────────────────────────────────────────
-        @self.app.get("/api/personas")
-        async def list_personas():
-            return persona_db.list_personas()
-
-        @self.app.post("/api/personas", status_code=201)
-        async def create_persona(body: PersonaCreate):
-            try:
-                return persona_db.create_persona(body.name, body.description)
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=str(e))
-
-        @self.app.get("/api/personas/{persona_id}")
-        async def get_persona(persona_id: str):
-            p = persona_db.get_persona(persona_id)
-            if p is None:
-                raise HTTPException(status_code=404, detail="Persona not found")
-            return p
-
-        @self.app.delete("/api/personas/{persona_id}", status_code=204)
-        async def delete_persona(persona_id: str):
-            if not persona_db.delete_persona(persona_id):
-                raise HTTPException(status_code=404, detail="Persona not found")
+        # ── Fetch Default Animations ──────────────────────────────────────────
+        @self.app.get("/api/default_animations")
+        async def list_default_animations():
+            folder = "incarnation/public/vrma/animations"
+            os.makedirs(folder, exist_ok=True)
+            files = []
+            for f in os.listdir(folder):
+                if f.endswith(".vrma"):
+                    files.append({
+                        "name": os.path.splitext(f)[0],
+                        "url": f"http://localhost:{self.port}/default_animations/{f}"
+                    })
+            return {"animations": files}
 
         # ── Model upload ──────────────────────────────────────────────────────
         @self.app.post("/api/personas/{persona_id}/model")
         async def upload_persona_model(persona_id: str, file: UploadFile = File(...)):
-            p = persona_db.get_persona(persona_id)
-            if p is None:
-                raise HTTPException(status_code=404, detail="Persona not found")
-
-            folder = f"data/personas/{persona_id}/model"
+            folder = f"personas/{persona_id}/avatar"
             os.makedirs(folder, exist_ok=True)
             file_path = os.path.join(folder, file.filename)
             with open(file_path, "wb") as buf:
                 shutil.copyfileobj(file.file, buf)
-            url = f"http://localhost:{self.port}/data/personas/{persona_id}/model/{file.filename}"
-            record = persona_db.attach_model(persona_id, file.filename, file_path, url)
-            return record
+            
+            url = f"http://localhost:{self.port}/personas/{persona_id}/avatar/{file.filename}"
+            
+            if self.on_message_callback:
+                self.on_message_callback({
+                    "type": "model_uploaded",
+                    "payload": {
+                        "persona_id": persona_id,
+                        "url": url
+                    }
+                })
+            return {"url": url, "filename": file.filename}
 
         # ── Animation upload ──────────────────────────────────────────────────
         @self.app.post("/api/personas/{persona_id}/animations")
         async def upload_persona_animation(persona_id: str, file: UploadFile = File(...)):
-            p = persona_db.get_persona(persona_id)
-            if p is None:
-                raise HTTPException(status_code=404, detail="Persona not found")
-
-            folder = f"data/personas/{persona_id}/animations"
+            folder = f"personas/{persona_id}/avatar/animations"
             os.makedirs(folder, exist_ok=True)
             file_path = os.path.join(folder, file.filename)
             with open(file_path, "wb") as buf:
                 shutil.copyfileobj(file.file, buf)
             name = os.path.splitext(file.filename)[0]
-            url = f"http://localhost:{self.port}/data/personas/{persona_id}/animations/{file.filename}"
-            record = persona_db.attach_animation(persona_id, name, file.filename, file_path, url)
-            return record
-
-        @self.app.delete("/api/personas/{persona_id}/animations/{animation_id}", status_code=204)
-        async def delete_persona_animation(persona_id: str, animation_id: str):
-            if not persona_db.delete_animation(animation_id):
-                raise HTTPException(status_code=404, detail="Animation not found")
-
-        # ── Legacy upload endpoints (kept for backward compat) ────────────────
-        @self.app.post("/api/upload/avatar")
-        async def upload_avatar(file: UploadFile = File(...)):
-            file_path = os.path.join("data/avatars", file.filename)
-            with open(file_path, "wb") as buf:
-                shutil.copyfileobj(file.file, buf)
-            url = f"http://localhost:{self.port}/data/avatars/{file.filename}"
-            return {"filename": file.filename, "url": url}
-
-        @self.app.post("/api/upload/animation")
-        async def upload_animation(file: UploadFile = File(...)):
-            file_path = os.path.join("data/animations", file.filename)
-            with open(file_path, "wb") as buf:
-                shutil.copyfileobj(file.file, buf)
-            url = f"http://localhost:{self.port}/data/animations/{file.filename}"
-            name = os.path.splitext(file.filename)[0]
-            return {"filename": file.filename, "url": url, "name": name}
-
-        @self.app.post("/api/upload/background")
-        async def upload_background(file: UploadFile = File(...)):
-            file_path = os.path.join("data/backgrounds", file.filename)
-            with open(file_path, "wb") as buf:
-                shutil.copyfileobj(file.file, buf)
-            url = f"http://localhost:{self.port}/data/backgrounds/{file.filename}"
-            return {"filename": file.filename, "url": url}
-
-        # ── Voice proxy ───────────────────────────────────────────────────────
-        @self.app.get("/api/voice/speakers")
-        async def list_speakers():
-            return persona_db.list_voices()
-
-        @self.app.post("/api/voice/design")
-        async def design_voice(body: VoiceDesignRequest):
-            payload = {
-                "text": body.sample_text,
-                "language": body.language,
-                "instruct": body.instruct,
-                "name": body.name,
-                "gender": body.gender,
-            }
-            try:
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    resp = await client.post(f"{TTS_BASE}/design", json=payload)
-            except httpx.ConnectError:
-                raise HTTPException(status_code=503, detail="TTS voice server is not reachable (localhost:8008)")
-
-            if resp.status_code != 200:
-                raise HTTPException(status_code=resp.status_code, detail=f"TTS error: {resp.text}")
-
-            speaker_id = resp.json().get("speaker_id")
-            if not speaker_id:
-                raise HTTPException(status_code=500, detail="TTS did not return a speaker_id")
-
-            # Persist to DB only if a persona_id was provided
-            voice_record = None
-            if body.persona_id:
-                p = persona_db.get_persona(body.persona_id)
-                if p:
-                    voice_record = persona_db.upsert_voice(
-                        persona_id=body.persona_id,
-                        speaker_id=speaker_id,
-                        name=body.name,
-                        gender=body.gender,
-                        language=body.language,
-                        instruct=body.instruct,
-                    )
-
-            return {"speaker_id": speaker_id, "voice": voice_record}
-
-        @self.app.post("/api/voice/generate")
-        async def generate_speech(body: VoiceGenerateRequest):
-            payload = {
-                "text": body.text,
-                "speaker_id": body.speaker_id,
-                "language": body.language,
-            }
-            try:
-                async with httpx.AsyncClient(timeout=60.0) as client:
-                    resp = await client.post(f"{TTS_BASE}/generate_file", json=payload)
-            except httpx.ConnectError:
-                raise HTTPException(status_code=503, detail="TTS voice server is not reachable (localhost:8008)")
-
-            if resp.status_code != 200:
-                raise HTTPException(status_code=resp.status_code, detail=f"TTS error: {resp.text}")
-
-            audio_bytes = resp.content
-            return StreamingResponse(
-                iter([audio_bytes]),
-                media_type="audio/wav",
-                headers={"Content-Disposition": "inline; filename=speech.wav"},
-            )
+            url = f"http://localhost:{self.port}/personas/{persona_id}/avatar/animations/{file.filename}"
+            
+            if self.on_message_callback:
+                self.on_message_callback({
+                    "type": "animation_uploaded",
+                    "payload": {
+                        "persona_id": persona_id,
+                        "url": url,
+                        "name": name
+                    }
+                })
+            return {"url": url, "name": name, "filename": file.filename}
 
     # ── Server lifecycle ──────────────────────────────────────────────────────
     def _run_server(self):

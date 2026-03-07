@@ -3,208 +3,452 @@
 
 <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PlayAIdes Admin Dashboard</title>
-    <!-- No main.css here — dashboard has its own standalone styles -->
+    <title>Persona Creator — PlayAIdes</title>
     <style>
-        /* Adjust layout specifically for the dashboard */
-        body {
+        *,
+        *::before,
+        *::after {
             margin: 0;
-            overflow: hidden;
-            display: flex;
-            height: 100vh;
-            font-family: sans-serif;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        #avatar-container {
+        body {
+            display: flex;
+            flex-direction: row-reverse;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0f0f17;
+            color: #e0e0f0;
+        }
+
+        /* ── 3D Viewport ─────────────────────────────────────── */
+        #viewport {
             flex: 1;
             position: relative;
             overflow: hidden;
-            /* keep the canvas inside the container */
             background: #1a1a2e;
         }
 
-        /* The canvas itself is sized by scene.js, so we let it be absolute */
-        #avatar-container canvas {
+        #viewport canvas {
             position: absolute;
             top: 0;
             left: 0;
         }
 
-        #dashboard-panel {
+        #viewport-label {
+            position: absolute;
+            top: 12px;
+            left: 16px;
+            font-size: 11px;
+            letter-spacing: .08em;
+            color: rgba(255, 255, 255, .35);
+            pointer-events: none;
+            text-transform: uppercase;
+        }
+
+        /* ── Side panel ──────────────────────────────────────── */
+        #panel {
             flex-shrink: 0;
-            /* never let the panel get crushed */
-            width: 350px;
-            background: rgba(20, 20, 20, 0.98);
-            color: white;
-            padding: 20px;
-            box-sizing: border-box;
+            width: 360px;
+            background: #13131f;
+            border-right: 1px solid #2a2a40;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #panel-header {
+            padding: 18px 20px 14px;
+            border-bottom: 1px solid #2a2a40;
+            background: #0f0f17;
+        }
+
+        #panel-header h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #c8b4ff;
+            letter-spacing: .04em;
+        }
+
+        #panel-header p {
+            font-size: .75rem;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        #panel-body {
+            flex: 1;
             overflow-y: auto;
-            border-left: 1px solid #444;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        h2 {
-            margin-top: 0;
-            font-size: 1.2rem;
-            border-bottom: 1px solid #555;
-            padding-bottom: 10px;
+        /* ── Persona selector ────────────────────────────────── */
+        #persona-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
         }
 
-        .section {
-            margin-bottom: 20px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
+        #persona-select {
+            flex: 1;
+            background: #1e1e30;
+            border: 1px solid #333;
+            color: #e0e0f0;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: .85rem;
+        }
+
+        #persona-select {
+            flex: 1;
+            background: #1e1e30;
+            border: 1px solid #333;
+            color: #e0e0f0;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: .85rem;
+        }
+
+        /* ── Persona editor form (hidden by default) ─────────── */
+        #persona-editor {
+            background: #1a1a2c;
+            border: 1px solid #333;
             border-radius: 8px;
-            border: 1px solid #444;
+            padding: 14px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #persona-editor.visible {
+            display: flex;
+        }
+
+        /* ── Sections ────────────────────────────────────────── */
+        .section {
+            background: #1a1a2c;
+            border: 1px solid #2a2a40;
+            border-radius: 8px;
+            padding: 14px;
         }
 
         .section h3 {
-            margin-top: 0;
-            font-size: 1rem;
-            margin-bottom: 15px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-            color: #ddd;
-        }
-
-        input[type="file"] {
-            width: 100%;
-            padding: 8px;
-            background: #222;
-            border: 1px solid #555;
-            border-radius: 4px;
-            color: white;
-        }
-
-        button {
-            width: 100%;
-            padding: 10px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s;
-        }
-
-        button:hover {
-            background: #45a049;
-        }
-
-        button:disabled {
-            background: #555;
+            font-size: .8rem;
+            text-transform: uppercase;
+            letter-spacing: .07em;
             color: #888;
-            cursor: not-allowed;
+            margin-bottom: 10px;
         }
 
-        .status {
-            font-size: 0.85rem;
-            margin-top: 8px;
+        .section.hidden {
+            display: none;
+        }
+
+        /* ── Form elements ───────────────────────────────────── */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        label.field-label {
+            font-size: .78rem;
             color: #aaa;
         }
 
-        .success {
-            color: #4CAF50;
+        input[type=text],
+        input[type=file],
+        textarea,
+        select.field-input {
+            background: #111120;
+            border: 1px solid #333;
+            border-radius: 5px;
+            color: #e0e0f0;
+            padding: 7px 9px;
+            font-size: .82rem;
+            width: 100%;
         }
 
-        .error {
-            color: #f44336;
+        textarea {
+            resize: vertical;
+            min-height: 60px;
         }
 
-        /* Test controls */
-        .control-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .control-grid button {
-            background: #2196F3;
-        }
-
-        .control-grid button:hover {
-            background: #1976D2;
+        input[type=file] {
+            padding: 5px;
         }
 
         .inline-label {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
+            font-size: .82rem;
+            color: #aaa;
             cursor: pointer;
-            font-size: 0.9rem;
-            color: #ddd;
         }
 
-        .inline-label input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
+        .inline-label input[type=checkbox] {
+            width: 15px;
+            height: 15px;
+            accent-color: #7c4dff;
+        }
+
+        /* ── Buttons ─────────────────────────────────────────── */
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
             cursor: pointer;
-            accent-color: #4CAF50;
+            font-size: .82rem;
+            font-weight: 600;
+            transition: filter .15s;
+        }
+
+        .btn:hover {
+            filter: brightness(1.15);
+        }
+
+        .btn:disabled {
+            filter: brightness(.5);
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #5c35c7;
+            color: #fff;
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        .btn-blue {
+            background: #1565c0;
+            color: #fff;
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        .btn-teal {
+            background: #00695c;
+            color: #fff;
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        .btn-danger {
+            background: #b71c1c;
+            color: #fff;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: .75rem;
+            width: auto;
+            margin-top: 0;
+        }
+
+        /* ── Clip / expression button grids ──────────────────── */
+        .chip-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .chip {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 20px;
+            font-size: .75rem;
+            cursor: pointer;
+            transition: outline .1s;
+        }
+
+        .chip-anim {
+            background: #1565c0;
+            color: #fff;
+        }
+
+        .chip-expr {
+            background: #004d40;
+            color: #e0f2f1;
+        }
+
+        .chip.active {
+            outline: 2px solid #fff;
+        }
+
+        /* ── Status messages ─────────────────────────────────── */
+        .status {
+            font-size: .75rem;
+            margin-top: 6px;
+            color: #888;
+            min-height: 16px;
+        }
+
+        .status.ok {
+            color: #69f0ae;
+        }
+
+        .status.err {
+            color: #ff5252;
+        }
+
+        /* ── Voice preview audio ─────────────────────────────── */
+        #voice-preview-audio {
+            width: 100%;
+            margin-top: 8px;
+            display: none;
+        }
+
+        #voice-preview-audio.visible {
+            display: block;
         }
     </style>
 </head>
 
 <body>
-    <!-- The 3D canvas goes here -->
-    <div id="avatar-container">
+
+    <!-- 3D Viewport -->
+    <div id="viewport">
         <canvas id="viewer"></canvas>
+        <span id="viewport-label">Persona Preview</span>
     </div>
 
-    <!-- UI Controls -->
-    <div id="dashboard-panel">
-        <h2>Incarnation Admin Dashboard</h2>
-
-        <div class="section">
-            <h3>Upload Avatar (.vrm)</h3>
-            <div class="form-group">
-                <input type="file" id="avatar-file" accept=".vrm" />
-            </div>
-            <button id="upload-avatar-btn">Upload Selected Avatar</button>
-            <div id="avatar-status" class="status"></div>
+    <!-- Side panel -->
+    <div id="panel">
+        <div id="panel-header">
+            <h1>✦ Persona Creator</h1>
+            <p>PlayAIdes — build and preview personas</p>
         </div>
 
-        <div class="section">
-            <h3>Upload Animation(s) (.vrma)</h3>
-            <div class="form-group">
-                <input type="file" id="animation-file" accept=".vrma" multiple />
-            </div>
-            <button id="upload-animation-btn">Upload Animation(s)</button>
-            <div id="animation-status" class="status"></div>
-        </div>
+        <div id="panel-body">
 
-        <div class="section" id="animations-section" style="display: none;">
-            <h3>Loaded Animations</h3>
-            <div class="form-group">
+            <!-- Persona selector -->
+            <div class="form-group" style="margin-bottom:0">
+                <label class="field-label">Active Persona</label>
+                <div id="persona-bar">
+                    <select id="persona-select" class="field-input">
+                        <option value="">— select a persona —</option>
+                        <option value="__new__">── Create New Persona ──</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Persona editor frame -->
+            <div id="persona-editor">
+                <div class="form-group">
+                    <label class="field-label">Name</label>
+                    <input type="text" id="edit-persona-name" placeholder="e.g. Rin" />
+                </div>
+                <div class="form-group">
+                    <label class="field-label">Description (optional)</label>
+                    <textarea id="edit-persona-desc" rows="2" placeholder="Brief notes…"></textarea>
+                </div>
+                <button id="save-persona-btn" class="btn btn-primary">Save Persona</button>
+                <div id="save-persona-status" class="status"></div>
+            </div>
+
+            <!-- Upload Model -->
+            <div class="section hidden" id="model-section">
+                <h3>Avatar Model (.vrm)</h3>
+                <div class="form-group">
+                    <input type="file" id="model-file" accept=".vrm" />
+                </div>
+                <button id="upload-model-btn" class="btn btn-primary">Upload Model</button>
+                <div id="model-status" class="status"></div>
+            </div>
+
+            <!-- Upload Animations -->
+            <div class="section hidden" id="anim-upload-section">
+                <h3>Upload Animations (.vrma)</h3>
+                <div class="form-group">
+                    <input type="file" id="anim-file" accept=".vrma" multiple />
+                </div>
+                <button id="upload-anim-btn" class="btn btn-primary">Upload Animation(s)</button>
+                <div id="anim-upload-status" class="status"></div>
+            </div>
+
+            <!-- Default animations -->
+            <div class="section hidden" id="default-anim-section">
+                <h3>Default Animations</h3>
+                <div class="chip-grid" id="default-anim-buttons"></div>
+            </div>
+
+            <!-- Loaded animations -->
+            <div class="section hidden" id="anim-section">
+                <h3>Animations</h3>
                 <label class="inline-label">
-                    <input type="checkbox" id="animation-loop" checked />
-                    Loop animation
+                    <input type="checkbox" id="anim-loop" checked /> Loop
                 </label>
+                <div class="chip-grid" id="anim-buttons"></div>
             </div>
-            <div class="control-grid" id="animation-buttons">
-                <!-- Buttons generated per uploaded clip -->
-            </div>
-        </div>
 
-        <div class="section" id="expressions-section" style="display: none;">
-            <h3>Test Expressions</h3>
-            <div class="control-grid" id="expression-buttons">
-                <!-- Buttons generated dynamically -->
+            <!-- Expressions -->
+            <div class="section hidden" id="expr-section">
+                <h3>Expressions</h3>
+                <div class="chip-grid" id="expr-buttons"></div>
             </div>
-        </div>
-    </div>
 
-    <!-- Using a module script for standard Vite integration -->
-    <script type="module" src="/src/dashboard.js"></script>
+            <!-- Voice Design -->
+            <div class="section hidden" id="voice-design-section">
+                <h3>Voice Design</h3>
+                <div class="form-group">
+                    <label class="field-label">Voice Name</label>
+                    <input type="text" id="voice-name" placeholder="e.g. Rin_voice" />
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <div class="form-group" style="flex:1">
+                        <label class="field-label">Gender</label>
+                        <select id="voice-gender" class="field-input">
+                            <option>Female</option>
+                            <option>Male</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label class="field-label">Language</label>
+                        <input type="text" id="voice-language" value="English" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="field-label">Voice Style / Instruct</label>
+                    <textarea id="voice-instruct" rows="2"
+                        placeholder="e.g. Speak softly, slightly teasing tone…"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="field-label">Sample Text (for voice design)</label>
+                    <textarea id="voice-sample" rows="2"
+                        placeholder="e.g. Hello there, how can I help you today?"></textarea>
+                </div>
+                <button id="design-voice-btn" class="btn btn-teal">Design Voice</button>
+                <div id="voice-design-status" class="status"></div>
+                
+                <button id="save-voice-btn" class="btn btn-primary" style="display:none; margin-top:8px;">Save Voice to Persona</button>
+                
+            </div>
+
+            <!-- Voice Preview -->
+            <div class="section hidden" id="voice-preview-section">
+                <h3>Voice Preview</h3>
+                <div class="form-group">
+                    <label class="field-label">Text to speak</label>
+                    <textarea id="voice-text" rows="2" placeholder="What shall I say?"></textarea>
+                </div>
+                <button id="speak-btn" class="btn btn-blue">Test Speech</button>
+                <div id="voice-preview-status" class="status"></div>
+                <audio id="voice-preview-audio" controls></audio>
+            </div>
+
+        </div><!-- /panel-body -->
+    </div><!-- /panel -->
+
+    <script type="module" src="/src/personaCreator.js"></script>
 </body>
 
 </html>

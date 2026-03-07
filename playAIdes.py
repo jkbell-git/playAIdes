@@ -59,6 +59,63 @@ class PlayAIdes:
         with open(f"personas/{p.name.lower()}/persona.json", 'w') as f:
             json.dump(p.model_dump(), f, indent=2)
 
+    def list_personas(self) -> List[dict]:
+        personas_dir = "personas"
+        os.makedirs(personas_dir, exist_ok=True)
+        persona_list = []
+        for d in os.listdir(personas_dir):
+            p_dir = os.path.join(personas_dir, d)
+            if os.path.isdir(p_dir):
+                p_file = os.path.join(p_dir, "persona.json")
+                if os.path.exists(p_file):
+                    try:
+                        with open(p_file, 'r') as f:
+                            data = json.load(f)
+                            data["id"] = d
+                            persona_list.append(data)
+                    except Exception as e:
+                        logger.error(f"Error reading {p_file}: {e}")
+        return persona_list
+
+    def get_persona_by_id(self, persona_id: str) -> Optional[dict]:
+        p_file = os.path.join("personas", persona_id, "persona.json")
+        if os.path.exists(p_file):
+             with open(p_file, 'r') as f:
+                 data = json.load(f)
+                 data["id"] = persona_id
+                 return data
+        return None
+
+    def create_persona(self, name: str, description: str) -> dict:
+        persona_id = name.strip().lower().replace(" ", "_")
+        p_dir = os.path.join("personas", persona_id)
+        os.makedirs(p_dir, exist_ok=True)
+        p_data = {
+            "name": name,
+            "back_ground": description,
+            "psyche": {"traits": []},
+            "gender": "Female",
+            "language": "English",
+            "avatar": None,
+            "persona_voice": None,
+            "memories": None
+        }
+        with open(os.path.join(p_dir, "persona.json"), "w") as f:
+            json.dump(p_data, f, indent=2)
+        p_data["id"] = persona_id
+        return p_data
+
+    def update_persona(self, persona_id: str, data: dict) -> dict:
+        p_dir = os.path.join("personas", persona_id)
+        os.makedirs(p_dir, exist_ok=True)
+        p_file = os.path.join(p_dir, "persona.json")
+        if "id" in data:
+            del data["id"]
+        with open(p_file, "w") as f:
+            json.dump(data, f, indent=2)
+        data["id"] = persona_id
+        return data
+
     def _validate_persona(self,p:Persona):
         
         # validate voice
@@ -129,7 +186,101 @@ class PlayAIdes:
 
     def _handle_incarnation_message(self, msg: dict):
         logger.info(f"Incarnation callback: {msg}")
-        if msg.get("type") == "status":
+        msg_type = msg.get("type")
+        payload = msg.get("payload", {})
+        
+        if msg_type == "get_personas":
+            self.incarnation_server.send_command("personas_list", {"personas": self.list_personas()})
+            return
+            
+        if msg_type == "get_persona":
+            pid = payload.get("id")
+            if pid:
+                p = self.get_persona_by_id(pid)
+                if p:
+                    self.incarnation_server.send_command("persona_data", {"persona": p})
+            return
+            
+        if msg_type == "create_persona":
+            name = payload.get("name", "Unknown")
+            desc = payload.get("description", "")
+            p = self.create_persona(name, desc)
+            self.incarnation_server.send_command("persona_created", {"persona": p})
+            return
+            
+        if msg_type == "update_persona":
+            pid = payload.get("id")
+            if pid:
+                p = self.update_persona(pid, payload)
+                self.incarnation_server.send_command("persona_updated", {"persona": p})
+            return
+            
+        if msg_type == "model_uploaded":
+            pid = payload.get("persona_id")
+            url = payload.get("url")
+            if pid and url:
+                p_data = self.get_persona_by_id(pid)
+                if p_data:
+                    if not p_data.get("avatar"):
+                        p_data["avatar"] = {}
+                    p_data["avatar"]["model_url"] = url
+                    self.update_persona(pid, p_data)
+                    # Forward to WS client
+                    self.incarnation_server.send_command("model_uploaded", {"persona_id": pid, "url": url})
+            return
+            
+        if msg_type == "animation_uploaded":
+            pid = payload.get("persona_id")
+            url = payload.get("url")
+            name = payload.get("name")
+            if pid and url and name:
+                p_data = self.get_persona_by_id(pid)
+                if p_data:
+                    if "animations" not in p_data or not p_data["animations"]:
+                        p_data["animations"] = []
+                    if not any(a.get("name") == name for a in p_data["animations"]):
+                        p_data["animations"].append({"name": name, "url": url})
+                    self.update_persona(pid, p_data)
+                    # Forward to WS client
+                    self.incarnation_server.send_command("animation_uploaded", {"persona_id": pid, "name": name, "url": url})
+            return
+            
+        if msg_type == "design_voice":
+            req = VoiceDesignRequest(
+                text=payload.get("sample_text", "hello"),
+                language=payload.get("language", "English"),
+                instruct=payload.get("instruct", ""),
+                name=payload.get("name", "voice"),
+                gender=payload.get("gender", "Female")
+            )
+            speaker_uuid = self.tts.generate_voice(req)
+            self.incarnation_server.send_command("voice_designed", {
+                "speaker_id": speaker_uuid, 
+                "name": payload.get("name")
+            })
+            return
+            
+        if msg_type == "test_voice":
+            req = SpeechGenerationRequest(
+                text=payload.get("text", "hello"),
+                language=payload.get("language", "English"),
+                speaker_id=payload.get("speaker_id", "")
+            )
+            try:
+                # We save audio to public/outputs so it's statically addressable by frontend via /outputs/...
+                output_path = "incarnation/public/outputs/tts/temp"
+                os.makedirs(output_path, exist_ok=True)
+                output_file = self.tts.generate_speech_file(req, output_path=output_path)
+                # Ensure the url is relative to the root for the frontend
+                filename = os.path.basename(output_file)
+                url = f"http://localhost:8765/outputs/tts/temp/{filename}"
+                self.incarnation_server.send_command("voice_tested", {"url": url})
+            except Exception as e:
+                logger.error(f"Voice test failed: {e}")
+                self.incarnation_server.send_command("voice_test_failed", {"error": str(e)})
+            return
+
+        if msg_type == "status":
             state = msg['payload'].get("state")
             # if state == None and "payload" in msg:
             #     state = msg["payload"].get("state")
