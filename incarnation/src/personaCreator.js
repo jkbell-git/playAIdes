@@ -8,6 +8,8 @@ import { loadModel } from './modelLoader.js';
 import { AnimationManager } from './animationManager.js';
 import { ExpressionManager } from './expressionManager.js';
 import { ConnectionManager } from './connectionManager.js';
+import { VisemeManager } from './visemeManager.js';
+import { LipSyncManager } from './lipSyncManager.js';
 
 // HTTP Upload API base
 const HTTP_API = 'http://localhost:8765';
@@ -79,12 +81,15 @@ let exprManager = new ExpressionManager();
 let currentModel = null;
 let currentVrm = null;
 let activeSpeakerId = null;
+let visemeManager = new VisemeManager();
+let lipSyncManager = null;
 
 function renderLoop() {
     requestAnimationFrame(renderLoop);
     const delta = clock.getDelta();
     controls.update();
     if (animManager) animManager.update(delta);
+    if (lipSyncManager) lipSyncManager.update();
     if (currentVrm) currentVrm.update(delta);
     renderer.render(scene, camera);
 }
@@ -182,6 +187,14 @@ conn.addEventListener('voice_designed', (e) => {
 conn.addEventListener('voice_tested', (e) => {
     voiceAudio.src = e.detail.url; // URL provided by backend
     voiceAudio.classList.add('visible');
+
+    // Start lip sync from the audio element when it plays
+    voiceAudio.onplay = () => {
+        if (lipSyncManager && currentVrm) {
+            lipSyncManager.startFromAudioElement(voiceAudio);
+        }
+    };
+
     // Handle autoplay policy: .play() returns a promise that may reject
     const playPromise = voiceAudio.play();
     if (playPromise !== undefined) {
@@ -413,6 +426,11 @@ async function loadAvatar(url) {
 
         animManager = new AnimationManager(model, null);
         exprManager.setMeshes(skinnedMeshes);
+        visemeManager.setMeshes(skinnedMeshes);
+
+        // Stop existing lip sync and create a new one for this model
+        if (lipSyncManager) lipSyncManager.stop();
+        lipSyncManager = new LipSyncManager(visemeManager);
 
         setStatus(modelStatus, 'Model loaded', true);
         buildExpressionUI(vrm, exprManager);
