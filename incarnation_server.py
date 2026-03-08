@@ -167,6 +167,22 @@ class IncarnationServer:
                 })
             return {"url": url, "name": name, "filename": file.filename}
 
+        # ── Ref audio proxy (voice server → frontend) ────────────────────────
+        @self.app.get("/api/speakers/{speaker_id}/ref_audio")
+        async def proxy_ref_audio(speaker_id: str):
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(f"{TTS_BASE}/speakers/{speaker_id}/ref_audio", timeout=30.0)
+                if resp.status_code != 200:
+                    raise HTTPException(status_code=resp.status_code, detail=resp.text)
+                return StreamingResponse(
+                    iter([resp.content]),
+                    media_type="audio/wav",
+                    headers={"Content-Disposition": f"inline; filename={speaker_id}_ref.wav"}
+                )
+            except httpx.HTTPError as e:
+                raise HTTPException(status_code=502, detail=f"Voice server error: {e}")
+
     # ── Server lifecycle ──────────────────────────────────────────────────────
     def _run_server(self):
         config = uvicorn.Config(app=self.app, host=self.host, port=self.port, log_level="info")

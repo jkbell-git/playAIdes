@@ -122,8 +122,7 @@ class PlayAIdes:
         if self.args.use_voice:
             self._setup_voice(p)
             
-        if self.args.use_avatar:
-            self._setup_avatar(p)
+        # Avatar setup is now deferred until the frontend connects and sends {"state": "ready"}
         
     
     def _setup_voice(self,p:Persona):
@@ -254,9 +253,11 @@ class PlayAIdes:
                 gender=payload.get("gender", "Female")
             )
             speaker_uuid = self.tts.generate_voice(req)
+            ref_audio_url = f"http://localhost:{self.incarnation_server.port}/api/speakers/{speaker_uuid}/ref_audio"
             self.incarnation_server.send_command("voice_designed", {
                 "speaker_id": speaker_uuid, 
-                "name": payload.get("name")
+                "name": payload.get("name"),
+                "ref_audio_url": ref_audio_url
             })
             return
             
@@ -282,10 +283,13 @@ class PlayAIdes:
 
         if msg_type == "status":
             state = msg['payload'].get("state")
-            # if state == None and "payload" in msg:
-            #     state = msg["payload"].get("state")
             payload = msg['payload']
             logger.info(f"Incarnation state: {state}")
+            if state == "ready":
+                if self.current_persona and self.args.use_avatar:
+                    logger.info("Incarnation client ready, sending avatar setup")
+                    self._setup_avatar(self.current_persona)
+            
             if state == "animation_loaded":
                 anim_name = payload.get("name") # payload is actually a dict from getModelInfo in JS, so it has animations array, not name
                 if not anim_name and payload.get("animations"):

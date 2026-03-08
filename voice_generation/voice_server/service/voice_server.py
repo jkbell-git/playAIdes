@@ -143,6 +143,20 @@ async def generate_speech_file(request: SpeechGenerationRequest):
         logger.error(f"Error generating speech file: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/speakers/{speaker_id}/ref_audio")
+async def get_ref_audio(speaker_id: str):
+    if app_data["DB"] is None:
+        raise HTTPException(status_code=503, detail="Database not initialized")
+    speaker = app_data["DB"].get_speaker(speaker_id)
+    if not speaker:
+        raise HTTPException(status_code=404, detail=f"Speaker '{speaker_id}' not found")
+    if not speaker.ref_audio_file:
+        raise HTTPException(status_code=404, detail="No ref audio file for this speaker")
+    import os
+    if not os.path.exists(speaker.ref_audio_file):
+        raise HTTPException(status_code=404, detail="Ref audio file not found on disk")
+    return FileResponse(path=speaker.ref_audio_file, media_type="audio/wav")
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "engine_loaded": app_data["TTS_ENGINE"] is not None}

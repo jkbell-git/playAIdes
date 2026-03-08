@@ -53,6 +53,7 @@ const voiceInstruct = document.getElementById('voice-instruct');
 const voiceSample = document.getElementById('voice-sample');
 const designVoiceBtn = document.getElementById('design-voice-btn');
 const voiceDesignStatus = document.getElementById('voice-design-status');
+const refAudioPlayer = document.getElementById('ref-audio-player');
 const saveVoiceBtn = document.getElementById('save-voice-btn');
 
 const voicePreviewSection = document.getElementById('voice-preview-section');
@@ -170,13 +171,27 @@ conn.addEventListener('voice_designed', (e) => {
     saveVoiceBtn.style.display = 'block';
     voicePreviewSection.classList.remove('hidden');
     designVoiceBtn.disabled = false;
+
+    // Show ref audio player with the designed voice sample
+    if (e.detail.ref_audio_url) {
+        refAudioPlayer.src = e.detail.ref_audio_url;
+        refAudioPlayer.style.display = 'block';
+    }
 });
 
 conn.addEventListener('voice_tested', (e) => {
     voiceAudio.src = e.detail.url; // URL provided by backend
     voiceAudio.classList.add('visible');
-    voiceAudio.play();
-    setStatus(voicePreviewStatus, 'Playing audio…', true);
+    // Handle autoplay policy: .play() returns a promise that may reject
+    const playPromise = voiceAudio.play();
+    if (playPromise !== undefined) {
+        playPromise.then(() => {
+            setStatus(voicePreviewStatus, 'Playing audio…', true);
+        }).catch(() => {
+            // Autoplay blocked — audio controls are visible, user can click play
+            setStatus(voicePreviewStatus, 'Audio ready — click ▶ to play', true);
+        });
+    }
     speakBtn.disabled = false;
 });
 
@@ -212,7 +227,14 @@ function loadPersonas() {
 personaSelect.addEventListener('change', () => {
     const id = personaSelect.value;
     activePersonaId = id;
-    if (!id) { setActivePersona(null); return; }
+    if (!id) { 
+        setActivePersona(null); 
+        return; 
+    }
+    if (id === '__new__') {
+        setActivePersona(null); 
+        return;
+    }
     conn.send('get_persona', { id });
 });
 
@@ -261,6 +283,7 @@ function setActivePersona(persona) {
         exprSection.classList.add('hidden');
         voicePreviewSection.classList.add('hidden');
         saveVoiceBtn.style.display = 'none';
+        refAudioPlayer.style.display = 'none';
         return;
     }
 
@@ -291,16 +314,33 @@ function setActivePersona(persona) {
     // Restore voice speaker (saved in persona.persona_voice)
     if (persona.persona_voice && persona.persona_voice.speaker_uuid) {
         activeSpeakerId = persona.persona_voice.speaker_uuid;
-        // The language/gender/instruct may not be explicitly in Python's Voice class right now, but we'll try to populate them if they exist in standard fields
+
+        // Populate voice design form fields from saved data
         voiceLanguage.value = persona.language || "English";
         voiceGender.value = persona.gender || "Female";
+        voiceName.value = persona.name ? `${persona.name}_voice` : '';
+        // Join the saved voice_instruct array into the textarea
+        if (persona.persona_voice.voice_instruct && persona.persona_voice.voice_instruct.length) {
+            voiceInstruct.value = persona.persona_voice.voice_instruct.join('\n');
+        } else {
+            voiceInstruct.value = '';
+        }
+
         voicePreviewSection.classList.remove('hidden');
         saveVoiceBtn.style.display = 'block';
         setStatus(voiceDesignStatus, `Using saved voice: ${activeSpeakerId}`, true);
+
+        // Show the reference audio player for the existing designed voice
+        const refUrl = `${HTTP_API}/api/speakers/${activeSpeakerId}/ref_audio`;
+        refAudioPlayer.src = refUrl;
+        refAudioPlayer.style.display = 'block';
     } else {
         activeSpeakerId = null;
         saveVoiceBtn.style.display = 'none';
         voicePreviewSection.classList.add('hidden');
+        refAudioPlayer.style.display = 'none';
+        voiceInstruct.value = '';
+        voiceName.value = '';
         setStatus(voiceDesignStatus, ''); // clear status
     }
 }
@@ -348,19 +388,24 @@ uploadModelBtn.addEventListener('click', async () => {
     }
 });
 
-// ── Load avatar ───────────────────────────────────────────────────────────────
+let isAvatarLoading = false;
 async function loadAvatar(url) {
+    if (isAvatarLoading) return;
     // Only reload if URL changed
     if (currentModel && currentModel.userData.avatarUrl === url) return;
 
     try {
+        isAvatarLoading = true;
         setStatus(modelStatus, 'Loading 3D model…');
         const { model, skinnedMeshes, vrm } = await loadModel(url, prog => {
             const pct = prog.total ? Math.round(prog.loaded / prog.total * 100) : '…';
             setStatus(modelStatus, `Loading ${pct}%`);
         });
 
-        if (currentModel) scene.remove(currentModel);
+        if (currentModel) {
+            scene.remove(currentModel);
+            // Free memory if necessary, but at least remove from scene immediately
+        }
         currentModel = model;
         currentModel.userData.avatarUrl = url;
         currentVrm = vrm;
@@ -373,6 +418,8 @@ async function loadAvatar(url) {
         buildExpressionUI(vrm, exprManager);
     } catch (e) {
         setStatus(modelStatus, `Load failed: ${e.message}`, false);
+    } finally {
+        isAvatarLoading = false;
     }
 }
 
@@ -528,17 +575,22 @@ designVoiceBtn.addEventListener('click', () => {
 saveVoiceBtn.addEventListener('click', () => {
     if (!activePersona || !activeSpeakerId) return;
 
-    // Send update_persona with the new voice structure
+    // Build voice_instruct array from textarea (one entry per non-empty line)
+    const instructLines = voiceInstruct.value
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+
+    // Send update_persona with the new voice structure — persists to persona.json
     activePersona.persona_voice = {
         speaker_uuid: activeSpeakerId,
-        voice_instruct: [voiceInstruct.value.trim()]
-        // We also set language and gender globally on the persona
+        voice_instruct: instructLines
     };
     activePersona.language = voiceLanguage.value;
     activePersona.gender = voiceGender.value;
 
     conn.send('update_persona', activePersona);
-    setStatus(voiceDesignStatus, 'Saved voice to JSON.', true);
+    setStatus(voiceDesignStatus, 'Voice saved to persona JSON.', true);
 });
 
 // ── Voice preview WS ──────────────────────────────────────────────────────────
