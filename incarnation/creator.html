@@ -8,64 +8,38 @@
 </head>
 <body>
 
-    <!-- Ornamental top strip -->
     <div class="forge-strip"></div>
 
     <!-- ╔════════════ HEADER ════════════╗ -->
     <header class="forge-header">
-        <h1 class="forge-title">
-            <span class="forge-mark">◆</span>
-            PERSONA FORGE
-        </h1>
         <div class="forge-persona-select">
             <label for="persona-select">Active</label>
             <select id="persona-select">
                 <option value="">— none —</option>
             </select>
-            <button id="new-persona-btn" class="btn btn-gold">＋ NEW</button>
-            <button id="save-persona-btn" class="btn btn-red">✦ SAVE</button>
+            <button id="new-persona-btn"    class="btn btn-gold">＋ NEW</button>
+            <button id="save-persona-btn"   class="btn btn-red">✦ SAVE</button>
+            <button id="delete-persona-btn" class="btn btn-ghost btn-danger" title="Delete this persona" disabled>🗑 DELETE</button>
+            <button id="talk-btn"           class="btn btn-gold" title="Open the viewer to talk with this persona" disabled>▶ TALK</button>
             <span id="conn-dot" class="conn-dot" title="connection status"></span>
         </div>
+        <h1 class="forge-title">
+            <span class="forge-mark">◆</span>
+            PERSONA FORGE
+        </h1>
     </header>
 
     <!-- ╔════════════ MAIN ════════════╗ -->
     <main class="forge-main">
 
-        <!-- Left: character stage -->
-        <section class="forge-stage">
-            <div class="stage-card">
-                <span class="corner tl"></span>
-                <span class="corner tr"></span>
-                <span class="corner bl"></span>
-                <span class="corner br"></span>
-                <canvas id="viewer"></canvas>
-                <div class="stage-band">
-                    <span class="band-label">VESSEL</span>
-                    <span id="stage-name" class="band-name">— No Persona —</span>
-                </div>
-            </div>
-            <div class="stage-controls">
-                <button id="preview-anim-btn" class="btn btn-ghost">▶ PREVIEW</button>
-                <button id="focus-head-btn"   class="btn btn-ghost">◎ FACE</button>
-                <button id="reset-cam-btn"    class="btn btn-ghost">↺ RESET</button>
-            </div>
-        </section>
-
-        <!-- Right: tab panel -->
+        <!-- LEFT: scrollable panel, every section stacked -->
         <aside class="forge-panel">
-            <nav class="panel-tabs" role="tablist">
-                <button class="tab active" data-tab="identity">❂ IDENTITY</button>
-                <button class="tab"        data-tab="vessel">⌬ VESSEL</button>
-                <button class="tab"        data-tab="repertoire">⚘ REPERTOIRE</button>
-                <button class="tab"        data-tab="voice">♫ VOICE</button>
-            </nav>
-
             <div class="panel-body">
 
                 <!-- ── IDENTITY ─────────────────────────────────── -->
-                <section class="tab-panel active" data-panel="identity">
+                <section class="section" data-section="identity">
                     <h2 class="panel-heading">IDENTITY <span class="heading-dot"></span></h2>
-                    <p class="panel-subtext">Define who this persona is. Name them, write their story, shape their spirit.</p>
+                    <p class="panel-subtext">Name this persona, write their story, shape their spirit.</p>
 
                     <label for="p-name">Name</label>
                     <input id="p-name" type="text" placeholder="e.g. Handy" autocomplete="off" />
@@ -73,23 +47,28 @@
                     <label for="p-background">Background</label>
                     <textarea id="p-background" placeholder="A short origin — where they came from, what drives them."></textarea>
 
-                    <label for="p-gender">Gender</label>
-                    <select id="p-gender">
-                        <option>Female</option>
-                        <option>Male</option>
-                        <option>Nonbinary</option>
-                        <option>Other</option>
-                    </select>
-
-                    <label for="p-language">Language</label>
-                    <select id="p-language">
-                        <option>English</option>
-                        <option>Japanese</option>
-                        <option>Korean</option>
-                        <option>Chinese</option>
-                        <option>Spanish</option>
-                        <option>French</option>
-                    </select>
+                    <div class="row-2">
+                        <div>
+                            <label for="p-gender">Gender</label>
+                            <select id="p-gender">
+                                <option>Female</option>
+                                <option>Male</option>
+                                <option>Nonbinary</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="p-language">Language</label>
+                            <select id="p-language">
+                                <option>English</option>
+                                <option>Japanese</option>
+                                <option>Korean</option>
+                                <option>Chinese</option>
+                                <option>Spanish</option>
+                                <option>French</option>
+                            </select>
+                        </div>
+                    </div>
 
                     <h3 class="panel-subheading">Psyche · Traits</h3>
                     <div id="traits-list" class="trait-pills"></div>
@@ -100,7 +79,7 @@
                 </section>
 
                 <!-- ── VESSEL ───────────────────────────────────── -->
-                <section class="tab-panel" data-panel="vessel">
+                <section class="section" data-section="vessel">
                     <h2 class="panel-heading">VESSEL <span class="heading-dot"></span></h2>
                     <p class="panel-subtext">Bind the persona to a body. Drop a <code>.vrm</code> file onto the altar.</p>
 
@@ -116,9 +95,9 @@
                 </section>
 
                 <!-- ── REPERTOIRE ───────────────────────────────── -->
-                <section class="tab-panel" data-panel="repertoire">
+                <section class="section" data-section="repertoire">
                     <h2 class="panel-heading">REPERTOIRE <span class="heading-dot"></span></h2>
-                    <p class="panel-subtext">Teach your persona the art of motion. Choose from defaults or bring your own <code>.vrma</code>.</p>
+                    <p class="panel-subtext">Click an animation to play it on the vessel. Pause / resume from the stage controls.</p>
 
                     <h3 class="panel-subheading">Defaults</h3>
                     <ul id="default-anims" class="anim-list"></ul>
@@ -141,7 +120,7 @@
                 </section>
 
                 <!-- ── VOICE ────────────────────────────────────── -->
-                <section class="tab-panel" data-panel="voice">
+                <section class="section" data-section="voice">
                     <h2 class="panel-heading">VOICE <span class="heading-dot"></span></h2>
                     <p class="panel-subtext">Forge the voice that carries this persona's words.</p>
 
@@ -170,9 +149,35 @@
             </div>
         </aside>
 
+        <!-- RIGHT: character stage -->
+        <section class="forge-stage">
+            <div class="stage-card">
+                <span class="corner tl"></span>
+                <span class="corner tr"></span>
+                <span class="corner bl"></span>
+                <span class="corner br"></span>
+                <canvas id="viewer"></canvas>
+                <div class="stage-band">
+                    <span class="band-label">VESSEL</span>
+                    <span id="stage-name" class="band-name">— No Persona —</span>
+                </div>
+                <!-- Currently-playing animation badge, top-right -->
+                <div id="now-playing" class="now-playing" hidden>
+                    <span class="np-dot"></span>
+                    <span class="np-label">PLAYING</span>
+                    <span id="np-name" class="np-name">—</span>
+                </div>
+            </div>
+            <div class="stage-controls">
+                <button id="play-toggle-btn" class="btn btn-ghost" disabled>▶ PLAY</button>
+                <button id="stop-btn"        class="btn btn-ghost" disabled>■ STOP</button>
+                <button id="focus-head-btn"  class="btn btn-ghost">◎ FACE</button>
+                <button id="reset-cam-btn"   class="btn btn-ghost">↺ RESET</button>
+            </div>
+        </section>
+
     </main>
 
-    <!-- Toast container -->
     <div id="toast-bar"></div>
 
     <script type="module" src="/src/creator.js"></script>

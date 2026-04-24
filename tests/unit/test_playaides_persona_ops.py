@@ -144,3 +144,25 @@ class TestUpdatePersona:
         play.update_persona("fresh", {"name": "Fresh", "back_ground": "b",
                                         "psyche": {"traits": []}, "gender": "Female"})
         assert (tmp_personas_dir / "fresh" / "persona.json").exists()
+
+
+class TestDeletePersona:
+    def test_deletes_existing(self, play: PlayAIdes, tmp_personas_dir: Path):
+        # Create a separate persona so we don't touch the active one
+        play.create_persona("Doomed", "to be deleted")
+        target_dir = tmp_personas_dir / "doomed"
+        assert target_dir.exists()
+        assert play.delete_persona("doomed") is True
+        assert not target_dir.exists()
+
+    def test_returns_false_for_missing(self, play: PlayAIdes):
+        assert play.delete_persona("never_existed") is False
+
+    def test_refuses_active_persona(self, play: PlayAIdes, tmp_personas_dir: Path):
+        # The fixture loads "testbot" as the active persona — must be protected.
+        assert play.delete_persona("testbot") is False
+        assert (tmp_personas_dir / "testbot" / "persona.json").exists()
+
+    @pytest.mark.parametrize("bad_id", ["", "..", ".", "../etc", "foo/bar", "foo\\bar"])
+    def test_rejects_path_traversal(self, play: PlayAIdes, bad_id):
+        assert play.delete_persona(bad_id) is False

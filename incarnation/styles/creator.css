@@ -41,7 +41,7 @@
 
 /* ── Reset ────────────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; }
+html, body { height: 100%; min-height: 100%; }
 
 body {
     font-family: 'Inter', system-ui, sans-serif;
@@ -50,7 +50,11 @@ body {
         radial-gradient(circle at 85% 85%, rgba(212, 167, 75, .06), transparent 50%),
         linear-gradient(180deg, #0a0812 0%, #120e1d 100%);
     color: var(--cream);
-    overflow: hidden;
+    /* Allow page-level vertical scroll as a safety net: when the viewport
+       is too short for the two-column layout's min-height to fit, the
+       whole page can scroll rather than silently cropping content. */
+    overflow-x: hidden;
+    overflow-y: auto;
     letter-spacing: .01em;
 }
 
@@ -155,19 +159,31 @@ body::before {
 /* ── Main layout ──────────────────────────────────────────── */
 .forge-main {
     display: grid;
-    grid-template-columns: minmax(420px, 1fr) minmax(420px, 520px);
+    /* Controls on the LEFT (fixed-ish width), stage on the RIGHT (flexes).
+       Minimum column widths lowered to 360px so the two-column layout
+       survives moderately-narrow windows before the media-query fallback
+       stacks them. */
+    grid-template-columns: minmax(360px, 480px) minmax(360px, 1fr);
     gap: 28px;
     padding: 28px 36px;
     height: calc(100vh - 78px);
+    /* Don't let the content crush below a usable size on short viewports.
+       Combined with `body { overflow-y: auto }`, if the window is really
+       small the whole page scrolls instead of cropping. */
+    min-height: 560px;
     align-items: stretch;
 }
 
-/* ── Left: character stage card ───────────────────────────── */
+/* ── Right: character stage card ──────────────────────────── */
 .forge-stage {
     display: flex;
     flex-direction: column;
     gap: 14px;
     min-width: 0;
+    /* Allow the flex child (.stage-card) to shrink below its intrinsic
+       content height — otherwise the card pushes the grid row taller
+       than the viewport and nothing scrolls. */
+    min-height: 0;
 }
 
 .stage-card {
@@ -184,14 +200,15 @@ body::before {
         0 0 40px rgba(0, 0, 0, .6),
         0 0 80px rgba(225, 26, 58, .06);
     overflow: hidden;
-    /* P5 angular cut: shave top-left + bottom-right */
+    /* P5 angular cut: shave top-right + bottom-left (mirrors the
+       left-side panel so the two faces lean toward each other). */
     clip-path: polygon(
-        22px 0,
-        100% 0,
-        100% calc(100% - 22px),
-        calc(100% - 22px) 100%,
-        0 100%,
-        0 22px
+        0 0,
+        calc(100% - 22px) 0,
+        100% 22px,
+        100% 100%,
+        22px 100%,
+        0 calc(100% - 22px)
     );
 }
 
@@ -234,12 +251,12 @@ body::before {
 .corner.br::before { bottom: 0; right: 0; }
 .corner.br::after { bottom: 0; right: 0; }
 
-/* P5 red accent diagonals at top-left and bottom-right */
+/* P5 red accent wedge at top-right (mirrors the left-side panel). */
 .stage-card::before {
     content: '';
     position: absolute;
     top: -20px;
-    left: -20px;
+    right: -20px;
     width: 120px;
     height: 120px;
     background: var(--red);
@@ -252,14 +269,14 @@ body::before {
     content: 'PERSONA';
     position: absolute;
     top: 18px;
-    left: 10px;
+    right: 10px;
     font-family: 'Cinzel', serif;
     font-size: 9px;
     letter-spacing: .3em;
     color: var(--cream);
     z-index: 3;
-    transform: rotate(-45deg);
-    transform-origin: left top;
+    transform: rotate(45deg);
+    transform-origin: right top;
     pointer-events: none;
 }
 
@@ -300,70 +317,40 @@ body::before {
     justify-content: center;
 }
 
-/* ── Right panel (tabs + body) ───────────────────────────── */
+/* ── Left panel (stacked sections, no tabs) ───────────────── */
 .forge-panel {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    /* Critical for internal scrolling: a flex container in a grid row
+       defaults to min-height: auto (= content height), which forces the
+       child's `overflow-y: auto` to never actually engage. Setting
+       min-height: 0 here lets .panel-body scroll properly when the
+       stacked sections are taller than the viewport. */
+    min-height: 0;
     background: linear-gradient(180deg, rgba(24, 20, 35, .92) 0%, rgba(18, 14, 28, .92) 100%);
     border: var(--hair) solid var(--gold-dim);
     box-shadow:
         inset 0 0 0 1px rgba(244, 236, 216, .03),
         0 0 40px rgba(0, 0, 0, .5);
-    /* Angular cut opposite of stage card */
+    /* Angular cut: shave top-left + bottom-right so it "leans" toward
+       the right-side stage card (which is cut on the opposite diagonal). */
     clip-path: polygon(
-        0 0,
-        calc(100% - 22px) 0,
-        100% 22px,
-        100% 100%,
-        22px 100%,
-        0 calc(100% - 22px)
+        22px 0,
+        100% 0,
+        100% calc(100% - 22px),
+        calc(100% - 22px) 100%,
+        0 100%,
+        0 22px
     );
 }
 
-.panel-tabs {
-    display: flex;
-    border-bottom: var(--hair) solid var(--gold-dim);
-    background: rgba(10, 8, 18, .4);
+/* Each section is just a stacked block — no tab switching. */
+.section + .section {
+    margin-top: 38px;
+    padding-top: 28px;
+    border-top: var(--hair) solid rgba(212, 167, 75, .18);
 }
-
-.tab {
-    flex: 1;
-    padding: 16px 10px;
-    background: transparent;
-    border: none;
-    border-right: var(--hair) solid var(--gold-dim);
-    color: var(--cream-dim);
-    font-family: 'Chakra Petch', sans-serif;
-    font-size: 11px;
-    letter-spacing: .22em;
-    font-weight: 600;
-    cursor: pointer;
-    position: relative;
-    transition: color .2s var(--ease-snap), background .2s var(--ease-snap);
-}
-.tab:last-child { border-right: none; }
-.tab:hover { color: var(--cream); background: rgba(225, 26, 58, .08); }
-
-.tab::after {
-    /* Red slash underline, expands on hover, locks on active */
-    content: '';
-    position: absolute;
-    left: 50%;
-    bottom: -1px;
-    width: 0;
-    height: 3px;
-    background: var(--red);
-    transform: translateX(-50%);
-    transition: width .28s var(--ease-slash);
-    box-shadow: 0 0 10px rgba(225, 26, 58, .7);
-}
-.tab:hover::after { width: 40%; }
-.tab.active {
-    color: var(--cream);
-    background: linear-gradient(180deg, rgba(225, 26, 58, .12), transparent);
-}
-.tab.active::after { width: 78%; }
 
 /* Panel body */
 .panel-body {
@@ -373,15 +360,51 @@ body::before {
     position: relative;
 }
 
-.tab-panel { display: none; }
-.tab-panel.active {
-    display: block;
-    animation: panelFadeIn .35s var(--ease-snap);
+/* Two-column form row (e.g. Gender + Language side by side). */
+.row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
 }
 
-@keyframes panelFadeIn {
-    from { opacity: 0; transform: translate3d(0, 8px, 0) skewX(-1deg); }
-    to   { opacity: 1; transform: translate3d(0, 0, 0) skewX(0); }
+/* Currently-playing animation badge, top-right of the stage card. */
+.now-playing {
+    position: absolute;
+    top: 28px;
+    right: 28px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(10, 8, 18, .82);
+    border: var(--hair) solid var(--gold);
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 10px;
+    letter-spacing: .25em;
+    color: var(--cream);
+    z-index: 4;
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+    backdrop-filter: blur(4px);
+}
+.now-playing .np-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red);
+    animation: pulseDot 1.2s ease-in-out infinite;
+}
+.now-playing.paused .np-dot {
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+    animation: none;
+}
+.now-playing .np-label { color: var(--gold); }
+.now-playing .np-name  { color: var(--cream); letter-spacing: .1em; }
+
+@keyframes pulseDot {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: .35; }
 }
 
 /* Panel heading */
@@ -541,6 +564,13 @@ select {
 }
 .btn-ghost:hover { color: var(--cream); border-color: var(--gold); }
 
+.btn-danger {
+    color: rgba(255, 130, 145, .85);
+    border-color: rgba(225, 26, 58, .35);
+}
+.btn-danger:hover { color: #fff; border-color: var(--red); }
+.btn-danger::before { background: linear-gradient(90deg, transparent 0, var(--red) 0) left/0% 100% no-repeat; }
+
 .btn-red-mini {
     padding: 8px 14px;
     font-size: 10px;
@@ -661,18 +691,26 @@ select {
     transition: border-color .2s var(--ease-snap), background .2s var(--ease-snap);
 }
 .anim-list li:hover { border-color: var(--red); background: rgba(225, 26, 58, .06); }
-.anim-list li.selected {
-    border-color: var(--gold);
-    background: linear-gradient(180deg, rgba(212, 167, 75, .18), transparent);
-    box-shadow: inset 0 0 0 1px rgba(212, 167, 75, .4);
+.anim-list li.playing {
+    border-color: var(--red);
+    background: linear-gradient(180deg, rgba(225, 26, 58, .22), rgba(225, 26, 58, .05));
+    box-shadow: inset 0 0 0 1px rgba(225, 26, 58, .55), 0 0 14px rgba(225, 26, 58, .25);
+    color: var(--cream);
 }
 .anim-list li::before {
     content: '▸';
     color: var(--gold);
     margin-right: 6px;
-    transition: transform .2s;
+    transition: transform .2s, color .2s;
 }
-.anim-list li.selected::before { color: var(--red); transform: rotate(90deg); }
+.anim-list li.playing::before {
+    content: '▶';
+    color: var(--red);
+}
+.anim-list li.paused::before {
+    content: '⏸';
+    color: var(--gold);
+}
 
 .idle-row { margin-top: 18px; }
 .idle-row select { margin-top: 6px; }
@@ -752,9 +790,39 @@ select {
 .conn-dot.error     { background: var(--red-hi); }
 
 /* ── Responsive fallback ──────────────────────────────────── */
-@media (max-width: 1100px) {
+/*
+ * When the window is too narrow for two columns side-by-side, stack them
+ * and let the whole page scroll (height: auto) instead of forcing
+ * everything into the viewport. This is the main fix for "I can only see
+ * a portion of the page when the window isn't fully open".
+ */
+@media (max-width: 960px) {
     .forge-main {
         grid-template-columns: 1fr;
-        grid-template-rows: minmax(320px, 45vh) 1fr;
+        grid-template-rows: minmax(320px, 55vh) auto;
+        height: auto;
+        min-height: calc(100vh - 78px);
+        padding: 20px 16px;
+    }
+    .forge-panel {
+        /* No longer trapped in a fixed viewport-height cell — let the
+           stacked sections flow naturally and rely on page-level scroll. */
+        min-height: 0;
+    }
+    .panel-body {
+        overflow-y: visible;
+        padding: 22px 20px;
+    }
+}
+
+/* Very short viewports (landscape phones, etc.) — also release the
+   viewport-locked height so content can scroll. */
+@media (max-height: 640px) {
+    .forge-main {
+        height: auto;
+        min-height: calc(100vh - 78px);
+    }
+    .panel-body {
+        overflow-y: visible;
     }
 }

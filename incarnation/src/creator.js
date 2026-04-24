@@ -3,9 +3,9 @@
  *
  * Wires:
  *   • The 3D stage (creatorScene.js) to the current persona's VRM
- *   • Tab navigation (Identity / Vessel / Repertoire / Voice)
  *   • Persona CRUD via the /ws WebSocket (handled server-side by PlayAIdes)
  *   • File uploads (VRM, VRMA) via REST endpoints on IncarnationServer
+ *   • Click-to-play animation preview on the loaded VRM
  *   • Voice design + preview via the same WS channel
  */
 import { createCreatorScene } from './creatorScene.js';
@@ -31,6 +31,8 @@ const $ = (id) => document.getElementById(id);
 const personaSelect = $('persona-select');
 const newBtn        = $('new-persona-btn');
 const saveBtn       = $('save-persona-btn');
+const deleteBtn     = $('delete-persona-btn');
+const talkBtn       = $('talk-btn');
 const connDot       = $('conn-dot');
 const stageName     = $('stage-name');
 
@@ -59,19 +61,40 @@ const voiceRef     = $('voice-ref');
 const vTestText    = $('v-test-text');
 const testVoiceBtn = $('test-voice-btn');
 
-const previewBtn   = $('preview-anim-btn');
-const focusBtn     = $('focus-head-btn');
-const resetBtn     = $('reset-cam-btn');
+const playToggleBtn = $('play-toggle-btn');
+const stopBtn       = $('stop-btn');
+const focusBtn      = $('focus-head-btn');
+const resetBtn      = $('reset-cam-btn');
 
-// ── Tabs ──────────────────────────────────────────────────────────────────
-document.querySelectorAll('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-        const name = tab.dataset.tab;
-        document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-        document.querySelectorAll('.tab-panel').forEach((p) =>
-            p.classList.toggle('active', p.dataset.panel === name)
-        );
+const nowPlayingEl  = $('now-playing');
+const npNameEl      = $('np-name');
+
+// ── Animation playback state reflected in the UI ──────────────────────────
+// The stage owns the truth; we subscribe and mirror in the DOM.
+stage.onAnimStateChange((name, state) => {
+    // state: 'play' | 'pause' | 'stop'
+    document.querySelectorAll('.anim-list li').forEach((li) => {
+        li.classList.remove('playing', 'paused');
+        if (li.dataset.name === name && state !== 'stop') {
+            li.classList.add(state === 'pause' ? 'paused' : 'playing');
+        }
     });
+
+    if (!name || state === 'stop') {
+        nowPlayingEl.hidden = true;
+        nowPlayingEl.classList.remove('paused');
+        playToggleBtn.textContent = '▶ PLAY';
+        playToggleBtn.disabled = true;
+        stopBtn.disabled = true;
+        return;
+    }
+
+    nowPlayingEl.hidden = false;
+    nowPlayingEl.classList.toggle('paused', state === 'pause');
+    npNameEl.textContent = name;
+    playToggleBtn.textContent = state === 'pause' ? '▶ PLAY' : '⏸ PAUSE';
+    playToggleBtn.disabled = false;
+    stopBtn.disabled = false;
 });
 
 // ── Connection ────────────────────────────────────────────────────────────
@@ -117,6 +140,17 @@ conn.addEventListener('persona_updated', (ev) => {
     const p = ev.detail?.persona;
     if (!p) return;
     toast('ok', 'Saved', `"${p.name}" updated`);
+    conn.send('get_personas');
+});
+
+conn.addEventListener('persona_deleted', (ev) => {
+    const { id, ok } = ev.detail || {};
+    if (!ok) {
+        toast('err', 'Delete', `Could not delete "${id}". Is it the active persona?`);
+        return;
+    }
+    toast('ok', 'Deleted', `"${id}" removed`);
+    if (activePersona?.id === id) clearActivePersona();
     conn.send('get_personas');
 });
 
@@ -184,6 +218,28 @@ saveBtn.addEventListener('click', () => {
     conn.send('update_persona', { id: activePersona.id, ...payload });
 });
 
+deleteBtn.addEventListener('click', () => {
+    if (!activePersona?.id) return;
+    const id = activePersona.id;
+    const name = activePersona.name || id;
+    if (!confirm(`Permanently delete persona "${name}"?\nThis removes the directory under personas/${id}/ on disk.`)) {
+        return;
+    }
+    conn.send('delete_persona', { id });
+});
+
+talkBtn.addEventListener('click', () => {
+    if (!activePersona?.id) return;
+    // The viewer page connects to whichever PlayAIdes process is running.
+    // We can't switch the active persona of an already-running CLI from
+    // here, so the most useful thing is to (a) open the viewer and (b)
+    // remind the user how to launch playAIdes pointed at this persona.
+    const cmd = `python main.py --persona personas/${activePersona.id}/persona.json --use_voice --use_avatar`;
+    navigator.clipboard?.writeText(cmd).catch(() => { /* fine, just no clipboard */ });
+    toast('ok', 'Talk', `Launch command copied to clipboard:  ${cmd}`);
+    window.open('/index.html', '_blank', 'noopener');
+});
+
 function buildPersonaPayload() {
     const traits = [...traitsList.querySelectorAll('.trait-pill')]
         .map((el) => el.dataset.trait)
@@ -223,13 +279,45 @@ function setActivePersona(p) {
         voiceRef.src = `${API_BASE}/api/speakers/${p.persona_voice.speaker_uuid}/ref_audio`;
     }
 
-    // Load avatar into stage
+    // Load avatar into stage; auto-play idle animation if configured
     if (p.avatar?.model_url) {
-        loadVesselFromUrl(p.avatar.model_url);
+        loadVesselFromUrl(p.avatar.model_url).then(() => playIdleIfConfigured(p));
     } else {
         stage.clearVrm();
         modelStatus.textContent = 'No vessel bound to this persona yet.';
         modelStatus.className = 'status';
+    }
+
+    // Header buttons
+    deleteBtn.disabled = false;
+    talkBtn.disabled = false;
+}
+
+/**
+ * If the persona has an `avatar.idle_animation` set and we can find a
+ * matching default or custom animation URL, start playing it on the
+ * freshly-loaded VRM.
+ */
+async function playIdleIfConfigured(p) {
+    const idle = p?.avatar?.idle_animation;
+    if (!idle) return;
+    const defaultLi = defaultAnims.querySelector(`li[data-name="${CSS.escape(idle)}"]`);
+    const customLi  = customAnims.querySelector(`li[data-name="${CSS.escape(idle)}"]`);
+    const li = defaultLi || customLi;
+    if (!li) {
+        // The default-animations fetch may still be in flight on first load.
+        // Try once after a short delay.
+        setTimeout(() => {
+            const retry = defaultAnims.querySelector(`li[data-name="${CSS.escape(idle)}"]`)
+                       || customAnims.querySelector(`li[data-name="${CSS.escape(idle)}"]`);
+            if (retry) triggerAnim(retry);
+        }, 600);
+        return;
+    }
+    try {
+        await stage.playAnimation(li.dataset.url, li.dataset.name, { loop: true });
+    } catch (err) {
+        console.warn('[creator] idle auto-play failed:', err);
     }
 }
 
@@ -243,6 +331,8 @@ function clearActivePersona() {
     vInstruct.value = '';
     voiceRef.removeAttribute('src');
     stage.clearVrm();
+    deleteBtn.disabled = true;
+    talkBtn.disabled = true;
 }
 
 // ── Traits ────────────────────────────────────────────────────────────────
@@ -338,7 +428,7 @@ async function loadDefaults() {
             li.textContent = anim.name;
             li.dataset.name = anim.name;
             li.dataset.url = anim.url;
-            li.addEventListener('click', () => selectDefault(li));
+            li.addEventListener('click', () => triggerAnim(li));
             defaultAnims.appendChild(li);
         }
         refreshIdleOptions();
@@ -348,9 +438,32 @@ async function loadDefaults() {
 }
 loadDefaults();
 
-function selectDefault(li) {
-    li.classList.toggle('selected');
-    refreshIdleOptions();
+/**
+ * Click handler for any animation list item.
+ *
+ * Behavior:
+ *   • Clicking a different animation → play it on the current vessel.
+ *   • Clicking the currently-playing one → toggle play/pause.
+ *   • If no VRM is loaded, toast an explanation.
+ */
+async function triggerAnim(li) {
+    const { name, url } = li.dataset;
+    if (!name || !url) return;
+    if (!stage.vrm) {
+        toast('err', 'Animation', 'Load a vessel (.vrm) before playing animations.');
+        return;
+    }
+    // Toggle if clicking the already-playing one
+    if (stage.getCurrentAnimationName() === name) {
+        stage.togglePlayPause();
+        return;
+    }
+    try {
+        await stage.playAnimation(url, name, { loop: true });
+    } catch (err) {
+        console.error('[creator] playAnimation failed:', err);
+        toast('err', 'Animation', `${name}: ${err.message}`);
+    }
 }
 
 function renderCustomAnims(anims, idle) {
@@ -360,7 +473,7 @@ function renderCustomAnims(anims, idle) {
         li.textContent = a.name;
         li.dataset.name = a.name;
         li.dataset.url = a.url;
-        li.addEventListener('click', () => { li.classList.toggle('selected'); refreshIdleOptions(); });
+        li.addEventListener('click', () => triggerAnim(li));
         customAnims.appendChild(li);
     }
     refreshIdleOptions(idle);
@@ -434,14 +547,8 @@ function updateIdleSelect(p) {
 }
 
 // ── Stage controls ────────────────────────────────────────────────────────
-previewBtn.addEventListener('click', () => {
-    // Find first "selected" custom animation, else idle
-    const sel = customAnims.querySelector('li.selected') || defaultAnims.querySelector('li.selected');
-    if (!sel) { toast('err', 'Preview', 'Select an animation first.'); return; }
-    toast('ok', 'Preview', `Playing "${sel.dataset.name}" — WIP, not yet wired to mixer`);
-    // TODO: wire to stage's animation mixer once default animation loading is
-    // extracted from Incarnation into creatorScene.
-});
+playToggleBtn.addEventListener('click', () => stage.togglePlayPause());
+stopBtn.addEventListener('click', () => stage.stopAnimation());
 focusBtn.addEventListener('click', () => stage.focusOnFace());
 resetBtn.addEventListener('click', () => stage.resetCamera());
 

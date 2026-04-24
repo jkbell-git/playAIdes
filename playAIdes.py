@@ -128,6 +128,29 @@ class PlayAIdes:
         data["id"] = persona_id
         return data
 
+    def delete_persona(self, persona_id: str) -> bool:
+        """Permanently delete a persona's directory.
+
+        Returns True if the persona existed and was removed. False if no
+        persona by that id was found. Refuses path-traversal attempts and
+        silently no-ops if the requested id is the currently-active one
+        (the running session would crash if we yanked its files out).
+        """
+        if not persona_id or "/" in persona_id or "\\" in persona_id or persona_id in {".", ".."}:
+            logger.warning("Refusing to delete persona with suspicious id: %r", persona_id)
+            return False
+        if (self.current_persona
+                and self.current_persona.name.strip().lower().replace(" ", "_") == persona_id):
+            logger.warning("Refusing to delete the currently-active persona: %s", persona_id)
+            return False
+        p_dir = os.path.join("personas", persona_id)
+        if not os.path.isdir(p_dir):
+            return False
+        import shutil
+        shutil.rmtree(p_dir)
+        logger.info("Deleted persona: %s", persona_id)
+        return True
+
     def _validate_persona(self,p:Persona):
         
         # validate voice
@@ -224,6 +247,16 @@ class PlayAIdes:
             if pid:
                 p = self.update_persona(pid, payload)
                 self.incarnation_server.send_command("persona_updated", {"persona": p})
+            return
+
+        if msg_type == "delete_persona":
+            pid = payload.get("id")
+            if pid:
+                ok = self.delete_persona(pid)
+                self.incarnation_server.send_command(
+                    "persona_deleted",
+                    {"id": pid, "ok": ok},
+                )
             return
             
         if msg_type == "model_uploaded":

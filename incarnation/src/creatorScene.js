@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VRMLoaderPlugin } from '@pixiv/three-vrm';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadVRMAAnimation } from './vrmaLoader.js';
 
 export function createCreatorScene(canvas) {
     // ── Renderer ────────────────────────────────────────────────────
@@ -86,9 +87,17 @@ export function createCreatorScene(canvas) {
     placeholder.add(ghost);
     scene.add(placeholder);
 
-    // ── VRM state ───────────────────────────────────────────────────
+    // ── VRM + animation state ───────────────────────────────────────
     let currentVrm = null;
     let mixer = null;
+    /** Map of animationName → AnimationClip for the currently loaded VRM. */
+    const clipCache = new Map();
+    /** The AnimationAction currently playing (or paused). */
+    let currentAction = null;
+    /** Name of the currently-playing clip, for UI state. */
+    let currentClipName = null;
+    /** Callback fired with (name, state) where state is 'play'|'pause'|'stop'. */
+    let onAnimStateChange = () => {};
 
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
@@ -100,6 +109,11 @@ export function createCreatorScene(canvas) {
             currentVrm.dispose?.();
             currentVrm = null;
         }
+        // Clear animation state tied to the old VRM
+        clipCache.clear();
+        currentAction = null;
+        currentClipName = null;
+        onAnimStateChange(null, 'stop');
         // Hide placeholder
         placeholder.visible = false;
 
@@ -113,6 +127,15 @@ export function createCreatorScene(canvas) {
             scene.add(vrm.scene);
             currentVrm = vrm;
             mixer = new THREE.AnimationMixer(vrm.scene);
+            mixer.addEventListener('finished', (e) => {
+                // When a non-looping clip finishes, mark stopped.
+                if (e.action === currentAction) {
+                    currentAction = null;
+                    const name = currentClipName;
+                    currentClipName = null;
+                    onAnimStateChange(name, 'stop');
+                }
+            });
             focusOnModel();
             return vrm;
         } catch (err) {
@@ -128,7 +151,98 @@ export function createCreatorScene(canvas) {
             currentVrm = null;
             mixer = null;
         }
+        clipCache.clear();
+        currentAction = null;
+        currentClipName = null;
+        onAnimStateChange(null, 'stop');
         placeholder.visible = true;
+    }
+
+    // ── Animation playback ──────────────────────────────────────────
+
+    /**
+     * Load (if needed) and play a VRMA animation by URL.
+     * Subsequent calls with the same URL are cheap — clips are cached.
+     * Replaces any currently-playing animation with a short crossfade.
+     *
+     * @param {string} url   VRMA file URL
+     * @param {string} name  Display name; used for state/caching
+     * @param {{loop?: boolean, fadeIn?: number, fadeOut?: number}} [opts]
+     */
+    async function playAnimation(url, name, opts = {}) {
+        if (!currentVrm || !mixer) {
+            throw new Error('No VRM loaded — cannot play animation');
+        }
+        const { loop = true, fadeIn = 0.25, fadeOut = 0.25 } = opts;
+
+        // Load + cache clip
+        let clip = clipCache.get(name);
+        if (!clip) {
+            clip = await loadVRMAAnimation(url, currentVrm);
+            if (!clip) throw new Error(`VRMA "${name}" produced no clip`);
+            clipCache.set(name, clip);
+        }
+
+        // Crossfade from any existing action
+        const prev = currentAction;
+        const next = mixer.clipAction(clip);
+        next.reset();
+        next.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity);
+        next.clampWhenFinished = !loop;
+        next.enabled = true;
+        next.setEffectiveTimeScale(1);
+        next.setEffectiveWeight(1);
+        next.play();
+
+        if (prev && prev !== next) {
+            prev.crossFadeTo(next, fadeIn, false);
+            // Stop the old one shortly after crossfade completes
+            setTimeout(() => prev.stop(), Math.max(fadeIn, fadeOut) * 1000 + 50);
+        } else {
+            next.fadeIn(fadeIn);
+        }
+
+        mixer.timeScale = 1; // in case we were paused
+        currentAction = next;
+        currentClipName = name;
+        onAnimStateChange(name, 'play');
+    }
+
+    function pauseAnimation() {
+        if (!mixer || !currentAction) return;
+        mixer.timeScale = 0;
+        onAnimStateChange(currentClipName, 'pause');
+    }
+
+    function resumeAnimation() {
+        if (!mixer || !currentAction) return;
+        mixer.timeScale = 1;
+        onAnimStateChange(currentClipName, 'play');
+    }
+
+    function togglePlayPause() {
+        if (!mixer || !currentAction) return;
+        if (mixer.timeScale === 0) resumeAnimation();
+        else pauseAnimation();
+    }
+
+    function stopAnimation(fadeOut = 0.2) {
+        if (!mixer || !currentAction) return;
+        const action = currentAction;
+        action.fadeOut(fadeOut);
+        setTimeout(() => action.stop(), fadeOut * 1000 + 20);
+        const name = currentClipName;
+        currentAction = null;
+        currentClipName = null;
+        onAnimStateChange(name, 'stop');
+    }
+
+    function isPlaying() {
+        return !!(mixer && currentAction && mixer.timeScale !== 0);
+    }
+
+    function getCurrentAnimationName() {
+        return currentClipName;
     }
 
     function focusOnModel() {
@@ -206,6 +320,16 @@ export function createCreatorScene(canvas) {
         focusOnModel,
         resetCamera,
         dispose,
+        // Animation API
+        playAnimation,
+        pauseAnimation,
+        resumeAnimation,
+        togglePlayPause,
+        stopAnimation,
+        isPlaying,
+        getCurrentAnimationName,
+        /** @param {(name: string|null, state: 'play'|'pause'|'stop') => void} fn */
+        onAnimStateChange(fn) { onAnimStateChange = fn || (() => {}); },
         get vrm() { return currentVrm; },
     };
 }

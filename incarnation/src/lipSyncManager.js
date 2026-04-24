@@ -127,6 +127,19 @@ export class LipSyncManager {
         this.stop();
         await this._ensureContextResumed();
 
+        // Loud warning if the AudioContext is still suspended here.
+        // This is the #1 cause of "audio streams but nothing plays":
+        // MediaElementAudioSourceNode routes the <audio> through Web
+        // Audio, and if the context is suspended the whole pipeline is
+        // silent — bytes stream, server logs 200 OK, but no sound.
+        if (this._ctx.state !== 'running') {
+            console.warn(
+                '[LipSync] ⚠ AudioContext is "%s" — audio will NOT play. ' +
+                'Click anywhere on the browser tab to unlock it.',
+                this._ctx.state
+            );
+        }
+
         this._analyser = this._ctx.createAnalyser();
         this._analyser.fftSize = 256;
         this._freqData = new Uint8Array(this._analyser.frequencyBinCount);
