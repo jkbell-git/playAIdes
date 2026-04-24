@@ -6,8 +6,6 @@ from typing import Protocol,runtime_checkable,Optional
 from datetime import datetime
 import os
 from voice_generation.voice_server.service.voice_server_api import SpeechGenerationRequest,VoiceDesignRequest
-import sounddevice as sd
-import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 # class SpeechGenerationRequest(BaseModel):    
@@ -33,10 +31,10 @@ class PersonaTTS(Protocol):
         pass
 
 class Qwen3TTS_local:
-    BASE_URL = "http://localhost:8008"
+    BASE_URL = os.environ.get("TTS_URL", "http://localhost:8009")
     def __init__(self):
         pass
-    def generate_voice(self, voice_design_request: VoiceDesignRequest) -> Speaker:        
+    def generate_voice(self, voice_design_request: VoiceDesignRequest) -> Optional[str]:
         id = None
         response = requests.post(f"{self.BASE_URL}/design", json=voice_design_request.model_dump())
         
@@ -66,7 +64,11 @@ class Qwen3TTS_local:
         return output_file
 
     def generate_speech_stream(self, speech_generation_request: SpeechGenerationRequest,output_path:Optional[str] = None) -> str:
-        SAMPLE_RATE = 24000 
+        # Lazy-import audio deps so the module can be used on machines without portaudio
+        # (e.g. test containers). Only needed for live speaker playback.
+        import sounddevice as sd
+        import numpy as np
+        SAMPLE_RATE = 24000
         CHANNELS = 1
         with sd.OutputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype='int16') as stream:
             logger.debug(f"Streaming and playing: '{speech_generation_request.text}'")     

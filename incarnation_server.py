@@ -27,22 +27,7 @@ class PersonaCreate(BaseModel):
     description: str = ""
 
 
-class VoiceDesignRequest(BaseModel):
-    persona_id: str
-    name: str
-    gender: str = "Female"
-    language: str = "English"
-    instruct: str
-    sample_text: str
-
-
-class VoiceGenerateRequest(BaseModel):
-    speaker_id: str
-    text: str
-    language: str = "English"
-
-
-TTS_BASE = "http://localhost:8008"
+TTS_BASE = os.environ.get("TTS_URL", "http://localhost:8009")
 
 
 class IncarnationServer:
@@ -95,6 +80,11 @@ class IncarnationServer:
         self.thread.start()
 
     def _setup_routes(self):
+
+        # ── Health ───────────────────────────────────────────────────────────
+        @self.app.get("/health")
+        async def health():
+            return {"status": "ok"}
 
         # ── WebSocket ────────────────────────────────────────────────────────
         @self.app.websocket("/ws")
