@@ -3,10 +3,28 @@ __pycache__
 public/models/
 service/outputs
 hf_models
-__pycache__
 *.db
 *.wav
 models/
 vite.svg
 .env
 tts/
+
+# Test / coverage artifacts
+.test-output/
+.pytest_cache/
+.coverage
+coverage.xml
+*.egg-info/
+build/
+dist/
+
+# Editor / env
+.vscode/
+
+# Claude Code scratch
+.claude/
+
+# Runtime-generated persona assets (models, tts outputs)
+personas/*/avatar/
+personas/*/tts/

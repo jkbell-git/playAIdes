@@ -1,7 +1,7 @@
 import requests
 import os
 
-BASE_URL = "http://localhost:8008"
+BASE_URL = "http://localhost:8009"
 
 def test_voice_design():
     print("Testing Voice Design...")

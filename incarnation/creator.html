@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Persona Forge — PlayAIdes</title>
+    <link rel="stylesheet" href="/styles/creator.css" />
+</head>
+<body>
+
+    <!-- Ornamental top strip -->
+    <div class="forge-strip"></div>
+
+    <!-- ╔════════════ HEADER ════════════╗ -->
+    <header class="forge-header">
+        <h1 class="forge-title">
+            <span class="forge-mark">◆</span>
+            PERSONA FORGE
+        </h1>
+        <div class="forge-persona-select">
+            <label for="persona-select">Active</label>
+            <select id="persona-select">
+                <option value="">— none —</option>
+            </select>
+            <button id="new-persona-btn" class="btn btn-gold">＋ NEW</button>
+            <button id="save-persona-btn" class="btn btn-red">✦ SAVE</button>
+            <span id="conn-dot" class="conn-dot" title="connection status"></span>
+        </div>
+    </header>
+
+    <!-- ╔════════════ MAIN ════════════╗ -->
+    <main class="forge-main">
+
+        <!-- Left: character stage -->
+        <section class="forge-stage">
+            <div class="stage-card">
+                <span class="corner tl"></span>
+                <span class="corner tr"></span>
+                <span class="corner bl"></span>
+                <span class="corner br"></span>
+                <canvas id="viewer"></canvas>
+                <div class="stage-band">
+                    <span class="band-label">VESSEL</span>
+                    <span id="stage-name" class="band-name">— No Persona —</span>
+                </div>
+            </div>
+            <div class="stage-controls">
+                <button id="preview-anim-btn" class="btn btn-ghost">▶ PREVIEW</button>
+                <button id="focus-head-btn"   class="btn btn-ghost">◎ FACE</button>
+                <button id="reset-cam-btn"    class="btn btn-ghost">↺ RESET</button>
+            </div>
+        </section>
+
+        <!-- Right: tab panel -->
+        <aside class="forge-panel">
+            <nav class="panel-tabs" role="tablist">
+                <button class="tab active" data-tab="identity">❂ IDENTITY</button>
+                <button class="tab"        data-tab="vessel">⌬ VESSEL</button>
+                <button class="tab"        data-tab="repertoire">⚘ REPERTOIRE</button>
+                <button class="tab"        data-tab="voice">♫ VOICE</button>
+            </nav>
+
+            <div class="panel-body">
+
+                <!-- ── IDENTITY ─────────────────────────────────── -->
+                <section class="tab-panel active" data-panel="identity">
+                    <h2 class="panel-heading">IDENTITY <span class="heading-dot"></span></h2>
+                    <p class="panel-subtext">Define who this persona is. Name them, write their story, shape their spirit.</p>
+
+                    <label for="p-name">Name</label>
+                    <input id="p-name" type="text" placeholder="e.g. Handy" autocomplete="off" />
+
+                    <label for="p-background">Background</label>
+                    <textarea id="p-background" placeholder="A short origin — where they came from, what drives them."></textarea>
+
+                    <label for="p-gender">Gender</label>
+                    <select id="p-gender">
+                        <option>Female</option>
+                        <option>Male</option>
+                        <option>Nonbinary</option>
+                        <option>Other</option>
+                    </select>
+
+                    <label for="p-language">Language</label>
+                    <select id="p-language">
+                        <option>English</option>
+                        <option>Japanese</option>
+                        <option>Korean</option>
+                        <option>Chinese</option>
+                        <option>Spanish</option>
+                        <option>French</option>
+                    </select>
+
+                    <h3 class="panel-subheading">Psyche · Traits</h3>
+                    <div id="traits-list" class="trait-pills"></div>
+                    <div class="trait-input-row">
+                        <input id="trait-input" type="text" placeholder="add a trait and press Enter…" autocomplete="off" />
+                        <button id="trait-add-btn" class="btn btn-red-mini">＋</button>
+                    </div>
+                </section>
+
+                <!-- ── VESSEL ───────────────────────────────────── -->
+                <section class="tab-panel" data-panel="vessel">
+                    <h2 class="panel-heading">VESSEL <span class="heading-dot"></span></h2>
+                    <p class="panel-subtext">Bind the persona to a body. Drop a <code>.vrm</code> file onto the altar.</p>
+
+                    <div id="model-drop" class="drop-zone">
+                        <div class="drop-inner">
+                            <span class="drop-icon">⌬</span>
+                            <span class="drop-title">Drop .vrm here</span>
+                            <span class="drop-sub">or click to browse</span>
+                        </div>
+                    </div>
+                    <input id="model-file" type="file" accept=".vrm" hidden />
+                    <div id="model-status" class="status"></div>
+                </section>
+
+                <!-- ── REPERTOIRE ───────────────────────────────── -->
+                <section class="tab-panel" data-panel="repertoire">
+                    <h2 class="panel-heading">REPERTOIRE <span class="heading-dot"></span></h2>
+                    <p class="panel-subtext">Teach your persona the art of motion. Choose from defaults or bring your own <code>.vrma</code>.</p>
+
+                    <h3 class="panel-subheading">Defaults</h3>
+                    <ul id="default-anims" class="anim-list"></ul>
+
+                    <h3 class="panel-subheading">Custom</h3>
+                    <div id="anim-drop" class="drop-zone sm">
+                        <div class="drop-inner">
+                            <span class="drop-icon">⚘</span>
+                            <span class="drop-title">Drop .vrma here</span>
+                            <span class="drop-sub">multiple files supported</span>
+                        </div>
+                    </div>
+                    <input id="anim-file" type="file" accept=".vrma" multiple hidden />
+                    <ul id="custom-anims" class="anim-list"></ul>
+
+                    <label for="idle-anim">Idle Animation</label>
+                    <select id="idle-anim">
+                        <option value="">— none selected —</option>
+                    </select>
+                </section>
+
+                <!-- ── VOICE ────────────────────────────────────── -->
+                <section class="tab-panel" data-panel="voice">
+                    <h2 class="panel-heading">VOICE <span class="heading-dot"></span></h2>
+                    <p class="panel-subtext">Forge the voice that carries this persona's words.</p>
+
+                    <label for="v-instruct">Voice Style / Instruct</label>
+                    <textarea id="v-instruct" placeholder="e.g. A warm, slightly mischievous voice with medium pitch and gentle lilt."></textarea>
+
+                    <label for="v-sample">Sample Text</label>
+                    <input id="v-sample" type="text" value="Welcome, traveller. I am at your service." />
+
+                    <div class="v-row">
+                        <button id="design-voice-btn" class="btn btn-red">⚒ DESIGN</button>
+                        <button id="save-voice-btn" class="btn btn-gold" disabled>✦ SAVE VOICE</button>
+                    </div>
+
+                    <div class="v-preview">
+                        <h3 class="panel-subheading">Preview</h3>
+                        <audio id="voice-ref" controls preload="none"></audio>
+
+                        <div class="v-test-row">
+                            <input id="v-test-text" type="text" placeholder="Speak a test line…" />
+                            <button id="test-voice-btn" class="btn btn-red-mini">▶</button>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- Toast container -->
+    <div id="toast-bar"></div>
+
+    <script type="module" src="/src/creator.js"></script>
+</body>
+</html>
