@@ -17,7 +17,24 @@ export class VisemeManager {
     constructor(meshes = []) {
         /** @type {import('three').Mesh[]} */
         this.meshes = meshes;
+        /** @type {any|null} */
+        this.expressionManager = null;
         this._sequenceTimer = null;
+
+        // Mapping from standard (Oculus) viseme names to VRM preset names
+        this._vrmMap = {
+            'viseme_aa': 'aa',
+            'viseme_I': 'i',
+            'viseme_U': 'u',
+            'viseme_E': 'e',
+            'viseme_O': 'o',
+            'viseme_sil': 'neutral'
+        };
+    }
+
+    /** Set the VRM expression manager for preset-based visemes. */
+    setExpressionManager(mgr) {
+        this.expressionManager = mgr;
     }
 
     /** Replace the mesh list (e.g. after loading a new model). */
@@ -32,6 +49,18 @@ export class VisemeManager {
      */
     setViseme(visemeName, weight) {
         const clamped = Math.max(0, Math.min(1, weight));
+
+        // Use VRM expression manager if available
+        if (this.expressionManager) {
+            const vrmName = this._vrmMap[visemeName] || visemeName;
+            try {
+                this.expressionManager.setValue(vrmName, clamped);
+            } catch (e) {
+                // Ignore if expression not supported
+            }
+        }
+
+        // Fallback or parallel: drive raw morph targets
         for (const mesh of this.meshes) {
             const dict = mesh.morphTargetDictionary;
             if (dict && visemeName in dict) {
@@ -42,6 +71,12 @@ export class VisemeManager {
 
     /** Reset all viseme morph targets to 0. */
     clearVisemes() {
+        if (this.expressionManager) {
+            for (const vrmName of Object.values(this._vrmMap)) {
+                try { this.expressionManager.setValue(vrmName, 0); } catch (e) {}
+            }
+        }
+
         for (const mesh of this.meshes) {
             if (!mesh.morphTargetDictionary) continue;
             for (const [name, idx] of Object.entries(mesh.morphTargetDictionary)) {

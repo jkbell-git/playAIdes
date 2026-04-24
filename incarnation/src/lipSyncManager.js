@@ -19,6 +19,7 @@ export class LipSyncManager {
 
         /** @type {AudioContext|null} */
         this._ctx = null;
+        this._initContext();
 
         /** @type {AnalyserNode|null} */
         this._analyser = null;
@@ -55,25 +56,53 @@ export class LipSyncManager {
          * @type {number}
          */
         this.threshold = 0.01;
+
+        /** @type {WeakMap<HTMLAudioElement, MediaElementAudioSourceNode>} */
+        this._elementSourcesMap = new WeakMap();
+    }
+
+    /**
+     * Explicitly resume the AudioContext.
+     * MUST be called from a user gesture (e.g. click) to unlock audio in browsers.
+     */
+    async resume() {
+        await this._ensureContextResumed();
+    }
+
+    _initContext() {
+        if (!this._ctx) {
+            this._ctx = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('[LipSync] AudioContext initialized. State:', this._ctx.state);
+        }
+    }
+
+    async _ensureContextResumed() {
+        this._initContext();
+        if (this._ctx.state === 'suspended') {
+            console.log('[LipSync] Resuming AudioContext...');
+            await this._ctx.resume();
+            console.log('[LipSync] AudioContext resumed. State:', this._ctx.state);
+        }
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
 
-    /**
-     * Start lip-sync from an HTML <audio> element.
-     * The audio continues to play through speakers as normal.
-     * @param {HTMLAudioElement} audioEl
-     */
-    startFromAudioElement(audioEl) {
+    async startFromAudioElement(audioEl) {
         this.stop();
+        await this._ensureContextResumed();
 
-        this._ctx = new (window.AudioContext || window.webkitAudioContext)();
         this._analyser = this._ctx.createAnalyser();
         this._analyser.fftSize = 256;
         this._freqData = new Uint8Array(this._analyser.frequencyBinCount);
 
         // Connect: audioElement → analyser → destination (speakers)
-        this._elementSource = this._ctx.createMediaElementSource(audioEl);
+        // Note: A MediaElementSource can only be created ONCE per element.
+        if (!this._elementSourcesMap.has(audioEl)) {
+            const source = this._ctx.createMediaElementSource(audioEl);
+            this._elementSourcesMap.set(audioEl, source);
+        }
+        
+        this._elementSource = this._elementSourcesMap.get(audioEl);
         this._elementSource.connect(this._analyser);
         this._analyser.connect(this._ctx.destination);
 
@@ -89,43 +118,58 @@ export class LipSyncManager {
 
     /**
      * Start lip-sync from an audio URL.
-     * The audio is fetched, decoded, and analyzed silently —
-     * it does NOT play through speakers (PlayAIdes handles that).
+     * The audio is played through the browser speakers and analyzed for lip sync.
+     *
+     * Uses a hidden <audio> element to support streaming playback.
      * @param {string} url
      */
     async startFromUrl(url) {
         this.stop();
+        await this._ensureContextResumed();
 
-        this._ctx = new (window.AudioContext || window.webkitAudioContext)();
         this._analyser = this._ctx.createAnalyser();
         this._analyser.fftSize = 256;
         this._freqData = new Uint8Array(this._analyser.frequencyBinCount);
 
+        const audio = new Audio(url);
+        audio.crossOrigin = "anonymous";
+
+        // Some browsers require the element to be in the DOM for certain features
+        audio.style.display = 'none';
+        document.body.appendChild(audio);
+
+        // Reuse existing MediaElementSource if we've seen this element before
+        if (!this._elementSourcesMap.has(audio)) {
+            const source = this._ctx.createMediaElementSource(audio);
+            this._elementSourcesMap.set(audio, source);
+        }
+
+        this._elementSource = this._elementSourcesMap.get(audio);
+        this._elementSource.connect(this._analyser);
+        // Connect to destination so audio plays through browser speakers
+        this._analyser.connect(this._ctx.destination);
+
+        this._boundAudioEl = audio;
+        this._active = true;
+
+        audio.addEventListener('ended', this._onAudioEnded);
+        audio.addEventListener('error', (e) => {
+            // Only log if we didn't just stop it ourselves
+            if (this._active && this._boundAudioEl === audio) {
+                console.error('[LipSync] Audio stream error:', e);
+                this.stop();
+            }
+        });
+
         try {
-            const response = await fetch(url);
-            const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer = await this._ctx.decodeAudioData(arrayBuffer);
-
-            this._bufferSource = this._ctx.createBufferSource();
-            this._bufferSource.buffer = audioBuffer;
-
-            // Connect: source → analyser only (no destination = silent)
-            this._bufferSource.connect(this._analyser);
-            // We do NOT connect to ctx.destination so no audio comes out of speakers
-
-            this._bufferSource.onended = () => {
-                console.log('[LipSync] Audio buffer finished');
-                this._active = false;
-                this.visemeManager.clearVisemes();
-            };
-
-            this._bufferSource.start(0);
-            this._active = true;
-
-            console.log('[LipSync] Started from URL (silent analysis):', url);
+            await audio.play();
+            console.log('[LipSync] Started audio playback + lip sync for stream:', url);
         } catch (err) {
-            console.error('[LipSync] Failed to load audio from URL:', err);
-            this.stop();
+            // AbortError is expected if stop() is called before play() finishes
+            if (err.name !== 'AbortError') {
+                console.error('[LipSync] Failed to play audio stream:', err);
+                this.stop();
+            }
         }
     }
 
@@ -138,6 +182,17 @@ export class LipSyncManager {
         if (this._boundAudioEl) {
             this._boundAudioEl.removeEventListener('ended', this._onAudioEnded);
             this._boundAudioEl.removeEventListener('pause', this._onAudioEnded);
+            
+            // Explicitly stop playback/streaming for URL mode
+            try {
+                this._boundAudioEl.pause();
+                this._boundAudioEl.src = "";
+                this._boundAudioEl.load();
+                if (this._boundAudioEl.parentNode) {
+                    this._boundAudioEl.parentNode.removeChild(this._boundAudioEl);
+                }
+            } catch (e) { /* ignore cleanup errors */ }
+            
             this._boundAudioEl = null;
         }
 
@@ -157,10 +212,13 @@ export class LipSyncManager {
             this._analyser = null;
         }
 
+        // We do NOT close the context here so we can reuse it
+        /*
         if (this._ctx) {
             this._ctx.close().catch(() => {});
             this._ctx = null;
         }
+        */
 
         this._freqData = null;
         this._smoothVolume = 0;
@@ -185,18 +243,23 @@ export class LipSyncManager {
     update() {
         if (!this._active || !this._analyser || !this._freqData) return;
 
-        // Get frequency data
-        this._analyser.getByteFrequencyData(this._freqData);
+        // Use TimeDomainData for cleaner amplitude (volume) analysis
+        this._analyser.getByteTimeDomainData(this._freqData);
 
-        // Compute average volume (0–1)
         let sum = 0;
         for (let i = 0; i < this._freqData.length; i++) {
-            sum += this._freqData[i];
+            const amplitude = Math.abs(this._freqData[i] - 128); // 128 is neutral in Uint8 bytes
+            sum += amplitude;
         }
-        const rawVolume = sum / (this._freqData.length * 255);
+        const rawVolume = sum / (this._freqData.length * 128);
 
         // Smooth the volume to reduce jitter
         this._smoothVolume += (rawVolume - this._smoothVolume) * (1 - this.smoothing);
+
+        // Occasional debug log
+        if (this._smoothVolume > 0.05 && Math.random() < 0.01) {
+            console.log(`[LipSync] Volume: ${this._smoothVolume.toFixed(3)} (Raw: ${rawVolume.toFixed(3)})`);
+        }
 
         // Apply visemes based on volume
         this._applyVisemes(this._smoothVolume);

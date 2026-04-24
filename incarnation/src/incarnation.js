@@ -85,6 +85,9 @@ export class Incarnation {
 
         this.expressionManager.setMeshes(skinnedMeshes);
         this.visemeManager.setMeshes(skinnedMeshes);
+        if (vrm && vrm.expressionManager) {
+            this.visemeManager.setExpressionManager(vrm.expressionManager);
+        }
 
         this._loaded = true;
 
@@ -321,6 +324,16 @@ export class Incarnation {
 
             default:
                 console.warn('[Incarnation] Unknown command:', type);
+        }
+    }
+
+    /**
+     * Unlock audio/lip-sync context. 
+     * Must be called from a user gesture.
+     */
+    async resumeAudio() {
+        if (this.lipSyncManager) {
+            await this.lipSyncManager.resume();
         }
     }
 

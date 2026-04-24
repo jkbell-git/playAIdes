@@ -349,10 +349,25 @@ class PlayAIdes:
         
         response = self.llm.chat(self.chat_history, system_prompt=system_prompt)
         if self.args.use_voice:
-            self.tts.generate_speech_stream(SpeechGenerationRequest(
-                text=response,
-                speaker_id=self.current_persona.persona_voice.speaker_uuid),        
-            )
+            if self.args.use_avatar and self.incarnation_server:
+                import urllib.parse
+                safe_text = urllib.parse.quote(response)
+                # Use the proxy endpoint — the browser will play audio and do lip sync
+                proxy_url = f"http://localhost:8765/api/tts/proxy?text={safe_text}&speaker_id={self.current_persona.persona_voice.speaker_uuid}"
+                if self.current_persona.language:
+                    proxy_url += f"&language={urllib.parse.quote(self.current_persona.language)}"
+
+                logger.info(f"Sending start_lip_sync: {proxy_url}")
+                self.incarnation_server.send_command("start_lip_sync", {"url": proxy_url})
+                # Audio playback and lip sync are handled by the browser.
+                # Lip sync auto-stops when the audio stream ends.
+            else:
+                # No avatar — play audio on the server side
+                self.tts.generate_speech_stream(SpeechGenerationRequest(
+                    text=response,
+                    speaker_id=self.current_persona.persona_voice.speaker_uuid,
+                    language=self.current_persona.language or "English")
+                )
         
         return response
             

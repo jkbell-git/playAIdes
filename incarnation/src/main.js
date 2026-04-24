@@ -126,3 +126,9 @@ connection.connect(wsUrl);
 animate();
 
 console.log('[Incarnation] Service started — ws:', wsUrl);
+
+// ── Audio Unlock ───────────────────────────────────────────────────────────
+// Browsers block AudioContext until a user gesture.
+window.addEventListener('click', () => {
+  incarnation.resumeAudio();
+}, { once: true });

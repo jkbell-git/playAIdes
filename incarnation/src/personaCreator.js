@@ -427,6 +427,9 @@ async function loadAvatar(url) {
         animManager = new AnimationManager(model, null);
         exprManager.setMeshes(skinnedMeshes);
         visemeManager.setMeshes(skinnedMeshes);
+        if (vrm && vrm.expressionManager) {
+            visemeManager.setExpressionManager(vrm.expressionManager);
+        }
 
         // Stop existing lip sync and create a new one for this model
         if (lipSyncManager) lipSyncManager.stop();
