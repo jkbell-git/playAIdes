@@ -1,0 +1,828 @@
+/* =============================================================
+   PERSONA FORGE — creator.css
+   Aesthetic fusion: Persona 5 (bold crimson, angular cuts, punchy
+   typography) × Genshin Impact (warm gold filigree, elegant serif,
+   character-card framing).
+   ============================================================= */
+
+/* ── Fonts ────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+/* ── Design tokens ────────────────────────────────────────── */
+:root {
+    --ink:        #0a0812;
+    --ink-2:      #14111d;
+    --ink-3:      #1e1a2a;
+    --panel:      #181423;
+    --panel-hi:   #221c30;
+
+    --gold:       #d4a74b;
+    --gold-hi:    #f6d37a;
+    --gold-dim:   #87712e;
+
+    --red:        #e11a3a;
+    --red-hi:     #ff3a5a;
+    --red-dim:    #7a0d20;
+
+    --cream:      #f4ecd8;
+    --cream-dim:  #b9b0a0;
+    --muted:      #6b6478;
+
+    --ok:         #7ed87a;
+
+    --hair:       1px;
+    --pad-lg:     28px;
+    --pad-md:     18px;
+    --pad-sm:     10px;
+
+    --ease-snap:  cubic-bezier(.2, .8, .2, 1);
+    --ease-slash: cubic-bezier(.7, .1, .2, 1);
+}
+
+/* ── Reset ────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; min-height: 100%; }
+
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background:
+        radial-gradient(circle at 15% 10%, rgba(225, 26, 58, .08), transparent 55%),
+        radial-gradient(circle at 85% 85%, rgba(212, 167, 75, .06), transparent 50%),
+        linear-gradient(180deg, #0a0812 0%, #120e1d 100%);
+    color: var(--cream);
+    /* Allow page-level vertical scroll as a safety net: when the viewport
+       is too short for the two-column layout's min-height to fit, the
+       whole page can scroll rather than silently cropping content. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    letter-spacing: .01em;
+}
+
+/* Subtle film-grain overlay */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10000;
+    opacity: .035;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .4 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* Selection */
+::selection { background: var(--red); color: var(--cream); }
+
+/* Scrollbar (webkit) */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+/* ── Ornamental top strip (P5 angled slashes) ─────────────── */
+.forge-strip {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: linear-gradient(90deg,
+        var(--red) 0 6%,
+        transparent 6% 8%,
+        var(--red) 8% 14%,
+        transparent 14% 50%,
+        var(--gold) 50% 54%,
+        transparent 54% 56%,
+        var(--gold) 56% 62%
+    );
+    z-index: 100;
+    clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, 24px 100%);
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+.forge-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 36px 14px;
+    border-bottom: var(--hair) solid var(--gold-dim);
+    background: linear-gradient(180deg, rgba(20, 17, 29, .98) 0%, rgba(20, 17, 29, .6) 100%);
+    position: relative;
+    z-index: 20;
+}
+
+.forge-header::after {
+    /* Thin double-line Genshin gold trim underneath */
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: -4px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0, var(--gold) 10%, var(--gold) 90%, transparent 100%);
+    opacity: .45;
+}
+
+.forge-title {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: 24px;
+    letter-spacing: .28em;
+    color: var(--cream);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+}
+.forge-title .forge-mark {
+    color: var(--red);
+    font-size: 20px;
+    text-shadow: 0 0 12px rgba(225, 26, 58, .7);
+}
+.forge-title::after {
+    content: '✦';
+    color: var(--gold);
+    font-size: 14px;
+    margin-left: 10px;
+    text-shadow: 0 0 8px rgba(212, 167, 75, .7);
+}
+
+.forge-persona-select {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.forge-persona-select label {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 11px;
+    letter-spacing: .25em;
+    color: var(--cream-dim);
+    text-transform: uppercase;
+    margin-right: 6px;
+}
+
+/* ── Main layout ──────────────────────────────────────────── */
+.forge-main {
+    display: grid;
+    /* Controls on the LEFT (fixed-ish width), stage on the RIGHT (flexes).
+       Minimum column widths lowered to 360px so the two-column layout
+       survives moderately-narrow windows before the media-query fallback
+       stacks them. */
+    grid-template-columns: minmax(360px, 480px) minmax(360px, 1fr);
+    gap: 28px;
+    padding: 28px 36px;
+    height: calc(100vh - 78px);
+    /* Don't let the content crush below a usable size on short viewports.
+       Combined with `body { overflow-y: auto }`, if the window is really
+       small the whole page scrolls instead of cropping. */
+    min-height: 560px;
+    align-items: stretch;
+}
+
+/* ── Right: character stage card ──────────────────────────── */
+.forge-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    /* Allow the flex child (.stage-card) to shrink below its intrinsic
+       content height — otherwise the card pushes the grid row taller
+       than the viewport and nothing scrolls. */
+    min-height: 0;
+}
+
+.stage-card {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    background:
+        radial-gradient(ellipse at center top, rgba(225, 26, 58, .12), transparent 60%),
+        radial-gradient(ellipse at center bottom, rgba(212, 167, 75, .14), transparent 65%),
+        linear-gradient(180deg, #161124 0%, #0c0916 100%);
+    border: var(--hair) solid var(--gold-dim);
+    box-shadow:
+        inset 0 0 0 1px rgba(244, 236, 216, .04),
+        0 0 40px rgba(0, 0, 0, .6),
+        0 0 80px rgba(225, 26, 58, .06);
+    overflow: hidden;
+    /* P5 angular cut: shave top-right + bottom-left (mirrors the
+       left-side panel so the two faces lean toward each other). */
+    clip-path: polygon(
+        0 0,
+        calc(100% - 22px) 0,
+        100% 22px,
+        100% 100%,
+        22px 100%,
+        0 calc(100% - 22px)
+    );
+}
+
+.stage-card canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Gold filigree corners (Genshin) */
+.corner {
+    position: absolute;
+    width: 42px;
+    height: 42px;
+    pointer-events: none;
+    z-index: 3;
+}
+.corner::before, .corner::after {
+    content: '';
+    position: absolute;
+    background: var(--gold);
+    box-shadow: 0 0 6px rgba(212, 167, 75, .5);
+}
+.corner::before { width: 100%; height: 2px; }
+.corner::after { height: 100%; width: 2px; }
+
+.corner.tl { top: 10px; left: 10px; }
+.corner.tl::before { top: 0; left: 0; }
+.corner.tl::after { top: 0; left: 0; }
+
+.corner.tr { top: 10px; right: 10px; }
+.corner.tr::before { top: 0; right: 0; }
+.corner.tr::after { top: 0; right: 0; }
+
+.corner.bl { bottom: 10px; left: 10px; }
+.corner.bl::before { bottom: 0; left: 0; }
+.corner.bl::after { bottom: 0; left: 0; }
+
+.corner.br { bottom: 10px; right: 10px; }
+.corner.br::before { bottom: 0; right: 0; }
+.corner.br::after { bottom: 0; right: 0; }
+
+/* P5 red accent wedge at top-right (mirrors the left-side panel). */
+.stage-card::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 120px;
+    height: 120px;
+    background: var(--red);
+    transform: rotate(45deg);
+    z-index: 2;
+    box-shadow: 0 0 30px rgba(225, 26, 58, .6);
+    pointer-events: none;
+}
+.stage-card::after {
+    content: 'PERSONA';
+    position: absolute;
+    top: 18px;
+    right: 10px;
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: .3em;
+    color: var(--cream);
+    z-index: 3;
+    transform: rotate(45deg);
+    transform-origin: right top;
+    pointer-events: none;
+}
+
+/* Bottom name-band */
+.stage-band {
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    bottom: 24px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: linear-gradient(180deg, rgba(10, 8, 18, .82), rgba(10, 8, 18, .95));
+    border: var(--hair) solid var(--gold);
+    z-index: 3;
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 100%, 14px 100%);
+    backdrop-filter: blur(4px);
+}
+.stage-band .band-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: .4em;
+    color: var(--gold);
+}
+.stage-band .band-name {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--cream);
+    letter-spacing: .06em;
+}
+
+/* Stage control row below the card */
+.stage-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+/* ── Left panel (stacked sections, no tabs) ───────────────── */
+.forge-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* Critical for internal scrolling: a flex container in a grid row
+       defaults to min-height: auto (= content height), which forces the
+       child's `overflow-y: auto` to never actually engage. Setting
+       min-height: 0 here lets .panel-body scroll properly when the
+       stacked sections are taller than the viewport. */
+    min-height: 0;
+    background: linear-gradient(180deg, rgba(24, 20, 35, .92) 0%, rgba(18, 14, 28, .92) 100%);
+    border: var(--hair) solid var(--gold-dim);
+    box-shadow:
+        inset 0 0 0 1px rgba(244, 236, 216, .03),
+        0 0 40px rgba(0, 0, 0, .5);
+    /* Angular cut: shave top-left + bottom-right so it "leans" toward
+       the right-side stage card (which is cut on the opposite diagonal). */
+    clip-path: polygon(
+        22px 0,
+        100% 0,
+        100% calc(100% - 22px),
+        calc(100% - 22px) 100%,
+        0 100%,
+        0 22px
+    );
+}
+
+/* Each section is just a stacked block — no tab switching. */
+.section + .section {
+    margin-top: 38px;
+    padding-top: 28px;
+    border-top: var(--hair) solid rgba(212, 167, 75, .18);
+}
+
+/* Panel body */
+.panel-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 28px 32px;
+    position: relative;
+}
+
+/* Two-column form row (e.g. Gender + Language side by side). */
+.row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+/* Currently-playing animation badge, top-right of the stage card. */
+.now-playing {
+    position: absolute;
+    top: 28px;
+    right: 28px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(10, 8, 18, .82);
+    border: var(--hair) solid var(--gold);
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 10px;
+    letter-spacing: .25em;
+    color: var(--cream);
+    z-index: 4;
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+    backdrop-filter: blur(4px);
+}
+.now-playing .np-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px var(--red);
+    animation: pulseDot 1.2s ease-in-out infinite;
+}
+.now-playing.paused .np-dot {
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+    animation: none;
+}
+.now-playing .np-label { color: var(--gold); }
+.now-playing .np-name  { color: var(--cream); letter-spacing: .1em; }
+
+@keyframes pulseDot {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: .35; }
+}
+
+/* Panel heading */
+.panel-heading {
+    font-family: 'Cinzel', serif;
+    font-size: 22px;
+    letter-spacing: .18em;
+    font-weight: 700;
+    color: var(--cream);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.panel-heading .heading-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: var(--red);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--red);
+}
+.panel-heading::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+    margin-left: 6px;
+}
+
+.panel-subheading {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    letter-spacing: .3em;
+    font-weight: 500;
+    color: var(--gold);
+    margin-top: 26px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    padding-bottom: 6px;
+    border-bottom: var(--hair) solid rgba(212, 167, 75, .25);
+}
+
+.panel-subtext {
+    color: var(--cream-dim);
+    font-size: 13px;
+    line-height: 1.55;
+    margin-top: 4px;
+    margin-bottom: 18px;
+}
+
+/* ── Form elements ────────────────────────────────────────── */
+label {
+    display: block;
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 10px;
+    letter-spacing: .28em;
+    text-transform: uppercase;
+    color: var(--cream-dim);
+    margin-top: 16px;
+    margin-bottom: 6px;
+}
+
+input[type="text"], input:not([type]), input[type="search"],
+textarea, select {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--ink-2);
+    border: var(--hair) solid rgba(212, 167, 75, .3);
+    color: var(--cream);
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 14px;
+    letter-spacing: .04em;
+    outline: none;
+    transition: border-color .2s var(--ease-snap), box-shadow .2s var(--ease-snap);
+}
+
+textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold), 0 0 16px rgba(212, 167, 75, .3);
+}
+
+select {
+    appearance: none;
+    background-image:
+        linear-gradient(45deg, transparent 48%, var(--gold) 48% 52%, transparent 52%),
+        linear-gradient(-45deg, transparent 48%, var(--gold) 48% 52%, transparent 52%);
+    background-size: 6px 6px, 6px 6px;
+    background-position: right 16px top 18px, right 10px top 18px;
+    background-repeat: no-repeat;
+    padding-right: 34px;
+}
+
+/* Standalone persona-select header dropdown is smaller */
+.forge-persona-select select {
+    width: auto;
+    min-width: 180px;
+    padding: 8px 34px 8px 12px;
+    background-position: right 14px top 13px, right 8px top 13px;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    padding: 11px 22px;
+    background: var(--ink-2);
+    color: var(--cream);
+    border: var(--hair) solid var(--gold-dim);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    /* Pointy P5 clip */
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+    transition: color .18s var(--ease-snap), transform .12s var(--ease-snap);
+    z-index: 0;
+}
+.btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0, var(--red) 0) left/0% 100% no-repeat;
+    transition: background-size .32s var(--ease-slash);
+    z-index: -1;
+}
+.btn:hover::before { background-size: 100% 100%; }
+.btn:hover { color: var(--cream); transform: translateY(-1px); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+.btn-red {
+    background: var(--red);
+    border-color: var(--red-hi);
+    color: var(--cream);
+    box-shadow: 0 0 14px rgba(225, 26, 58, .4);
+}
+.btn-red::before { background: linear-gradient(90deg, transparent 0, #ff5473 0) left/0% 100% no-repeat; }
+
+.btn-gold {
+    background: transparent;
+    color: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 0 14px rgba(212, 167, 75, .15);
+}
+.btn-gold::before { background: linear-gradient(90deg, transparent 0, var(--gold) 0) left/0% 100% no-repeat; }
+.btn-gold:hover { color: var(--ink); }
+
+.btn-ghost {
+    background: transparent;
+    color: var(--cream-dim);
+    border-color: rgba(212, 167, 75, .3);
+}
+.btn-ghost:hover { color: var(--cream); border-color: var(--gold); }
+
+.btn-danger {
+    color: rgba(255, 130, 145, .85);
+    border-color: rgba(225, 26, 58, .35);
+}
+.btn-danger:hover { color: #fff; border-color: var(--red); }
+.btn-danger::before { background: linear-gradient(90deg, transparent 0, var(--red) 0) left/0% 100% no-repeat; }
+
+.btn-red-mini {
+    padding: 8px 14px;
+    font-size: 10px;
+    background: var(--red);
+    color: var(--cream);
+    border-color: var(--red-hi);
+    clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+
+/* ── Drop zones ───────────────────────────────────────────── */
+.drop-zone {
+    position: relative;
+    border: 2px dashed rgba(212, 167, 75, .35);
+    background: rgba(10, 8, 18, .5);
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .25s var(--ease-snap), background .25s var(--ease-snap), transform .12s;
+    margin-bottom: 18px;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+.drop-zone.sm { padding: 20px 16px; }
+.drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--red);
+    background: rgba(225, 26, 58, .08);
+}
+.drop-zone.dragover { transform: scale(1.01); }
+
+.drop-inner { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.drop-icon {
+    font-size: 34px;
+    color: var(--gold);
+    text-shadow: 0 0 12px rgba(212, 167, 75, .6);
+    margin-bottom: 4px;
+}
+.drop-title {
+    font-family: 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    letter-spacing: .22em;
+    font-size: 12px;
+    color: var(--cream);
+    text-transform: uppercase;
+}
+.drop-sub {
+    font-size: 11px;
+    color: var(--cream-dim);
+    letter-spacing: .1em;
+}
+
+.status {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 12px;
+    letter-spacing: .1em;
+    color: var(--cream-dim);
+    padding: 8px 0;
+    min-height: 22px;
+}
+.status.ok  { color: var(--ok); }
+.status.err { color: var(--red-hi); }
+
+/* ── Traits pills ─────────────────────────────────────────── */
+.trait-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 38px;
+    margin-bottom: 10px;
+}
+.trait-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 14px;
+    background: linear-gradient(90deg, rgba(225, 26, 58, .15), rgba(212, 167, 75, .1));
+    border: var(--hair) solid var(--gold-dim);
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    color: var(--cream);
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 2px) 50%, 100% 100%, 8px 100%, 0 50%);
+}
+.trait-pill .rm {
+    cursor: pointer;
+    color: var(--red-hi);
+    font-weight: 900;
+    opacity: .7;
+    transition: opacity .15s;
+}
+.trait-pill .rm:hover { opacity: 1; }
+
+.trait-input-row {
+    display: flex;
+    gap: 8px;
+}
+.trait-input-row input {
+    flex: 1;
+}
+
+/* ── Animation lists ──────────────────────────────────────── */
+.anim-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+.anim-list li {
+    position: relative;
+    padding: 10px 12px;
+    background: var(--ink-2);
+    border: var(--hair) solid rgba(212, 167, 75, .25);
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    cursor: pointer;
+    transition: border-color .2s var(--ease-snap), background .2s var(--ease-snap);
+}
+.anim-list li:hover { border-color: var(--red); background: rgba(225, 26, 58, .06); }
+.anim-list li.playing {
+    border-color: var(--red);
+    background: linear-gradient(180deg, rgba(225, 26, 58, .22), rgba(225, 26, 58, .05));
+    box-shadow: inset 0 0 0 1px rgba(225, 26, 58, .55), 0 0 14px rgba(225, 26, 58, .25);
+    color: var(--cream);
+}
+.anim-list li::before {
+    content: '▸';
+    color: var(--gold);
+    margin-right: 6px;
+    transition: transform .2s, color .2s;
+}
+.anim-list li.playing::before {
+    content: '▶';
+    color: var(--red);
+}
+.anim-list li.paused::before {
+    content: '⏸';
+    color: var(--gold);
+}
+
+.idle-row { margin-top: 18px; }
+.idle-row select { margin-top: 6px; }
+
+/* ── Voice section extras ─────────────────────────────────── */
+.v-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+}
+.v-preview { margin-top: 28px; }
+
+.v-preview audio {
+    width: 100%;
+    margin-top: 4px;
+    filter: sepia(.35) saturate(1.2) hue-rotate(-10deg);
+}
+
+.v-test-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+.v-test-row input { flex: 1; }
+
+/* ── Toast bar ────────────────────────────────────────────── */
+#toast-bar {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+    pointer-events: none;
+}
+.toast {
+    pointer-events: auto;
+    padding: 14px 26px;
+    background: var(--ink-2);
+    border: var(--hair) solid var(--gold);
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 12px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--cream);
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+    animation: toastIn .3s var(--ease-snap);
+    box-shadow: 0 0 20px rgba(0, 0, 0, .7);
+}
+.toast.ok  { border-color: var(--ok); }
+.toast.err { border-color: var(--red-hi); color: var(--red-hi); }
+.toast .prefix {
+    color: var(--gold);
+    margin-right: 10px;
+}
+.toast.ok .prefix  { color: var(--ok); }
+.toast.err .prefix { color: var(--red-hi); }
+
+@keyframes toastIn {
+    from { opacity: 0; transform: translate(-50%, 12px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ── Tiny connection status dot in header ─────────────────── */
+.conn-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    margin-left: 14px;
+    box-shadow: 0 0 8px currentColor;
+    transition: background .3s;
+}
+.conn-dot.connected { background: var(--ok); }
+.conn-dot.error     { background: var(--red-hi); }
+
+/* ── Responsive fallback ──────────────────────────────────── */
+/*
+ * When the window is too narrow for two columns side-by-side, stack them
+ * and let the whole page scroll (height: auto) instead of forcing
+ * everything into the viewport. This is the main fix for "I can only see
+ * a portion of the page when the window isn't fully open".
+ */
+@media (max-width: 960px) {
+    .forge-main {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(320px, 55vh) auto;
+        height: auto;
+        min-height: calc(100vh - 78px);
+        padding: 20px 16px;
+    }
+    .forge-panel {
+        /* No longer trapped in a fixed viewport-height cell — let the
+           stacked sections flow naturally and rely on page-level scroll. */
+        min-height: 0;
+    }
+    .panel-body {
+        overflow-y: visible;
+        padding: 22px 20px;
+    }
+}
+
+/* Very short viewports (landscape phones, etc.) — also release the
+   viewport-locked height so content can scroll. */
+@media (max-height: 640px) {
+    .forge-main {
+        height: auto;
+        min-height: calc(100vh - 78px);
+    }
+    .panel-body {
+        overflow-y: visible;
+    }
+}

@@ -5,7 +5,7 @@ from voice_server_api import VoiceDesignRequest, SpeechGenerationRequest
 import sounddevice as sd
 import numpy as np
 
-BASE_URL = "http://localhost:8008"
+BASE_URL = "http://localhost:8009"
 id = ""generate_speech
 def test_voice_design():
      print("Testing Voice Design...")

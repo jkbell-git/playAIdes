@@ -1,0 +1,23 @@
+# Default test stack — unit + integration tests, no external services.
+# Run with: make test  (or: docker compose -f docker-compose.test.yml run --rm tests)
+
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    image: playaides-tests:latest
+    container_name: playaides-tests
+    working_dir: /app
+    volumes:
+      # Repo bind-mounted read-only so the test container always sees current source.
+      - .:/app:ro
+      # Writable mount for coverage artifacts and any tmp output.
+      - ./.test-output:/out
+    environment:
+      - PYTHONPATH=/app
+      # Live backends intentionally unset here — live tests will skip.
+      - OLLAMA_URL=
+      - TTS_URL=
+    # Default invocation: skip live tests.
+    command: ["pytest", "-m", "not live"]

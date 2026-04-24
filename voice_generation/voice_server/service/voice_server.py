@@ -21,28 +21,33 @@ logger = logging.getLogger(__name__)
 app_data={}
 
 @asynccontextmanager
-async def lifespan(app:FastAPI):
-    #initialize database
+async def lifespan(app: FastAPI):
+    # ── Database ──────────────────────────────────────────────────────
     try:
-        logger.info("Initializing database...")        
-        db = voice_database.VoiceDataBase()    
-
+        logger.info("Initializing database...")
+        db = voice_database.VoiceDataBase()
     except Exception as e:
-
-        logger.error(f"Failed to initialize database: {e}")
+        logger.exception("Failed to initialize database: %s", e)
         db = None
-    
-    app_data["DB"] = db 
-    
+    app_data["DB"] = db
+
+    # ── TTS engine ────────────────────────────────────────────────────
+    # We deliberately preload the base model at startup so any CUDA /
+    # model-loading failure is visible in the server log before any request
+    # arrives (rather than surfacing as a mysterious 500 inside a streaming
+    # response).  If the load fails we leave the engine as None and /health
+    # will report engine_loaded=False.
     try:
-        engine: BaseTTSEngine = Qwen3TTSEngine()
+        logger.info("Initializing Qwen3 TTS engine (this may take a while on first run)...")
+        engine: BaseTTSEngine = Qwen3TTSEngine(preload_base=True)
+        logger.info("Qwen3 TTS engine ready.")
     except Exception as e:
-        logger.error(f"Failed to initialize TTS Engine: {e}")
+        logger.exception("Failed to initialize TTS engine: %s", e)
         engine = None
-    
-    app_data["TTS_ENGINE"] = engine   
-    yield 
-    #after app closes
+
+    app_data["TTS_ENGINE"] = engine
+    yield
+    # ── Shutdown ──────────────────────────────────────────────────────
     app_data.clear()
 
 app = FastAPI(title="Voice Generation Server", lifespan=lifespan)
@@ -163,4 +168,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8008)
+    uvicorn.run(app, host="0.0.0.0", port=8009)

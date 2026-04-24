@@ -25,6 +25,6 @@ RUN pip install -e .
 
 #COPY . .
 
-EXPOSE 8008
+EXPOSE 8009
 CMD ["pwd"]
 #CMD ["python", "voice_server.py"]

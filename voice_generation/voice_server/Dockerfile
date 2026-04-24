@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 #COPY . .
 
 # Expose the API port
-EXPOSE 8008
+EXPOSE 8009
 
 # Command to run the server
 #CMD ["python", "voice_server.py"]

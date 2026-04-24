@@ -27,22 +27,7 @@ class PersonaCreate(BaseModel):
     description: str = ""
 
 
-class VoiceDesignRequest(BaseModel):
-    persona_id: str
-    name: str
-    gender: str = "Female"
-    language: str = "English"
-    instruct: str
-    sample_text: str
-
-
-class VoiceGenerateRequest(BaseModel):
-    speaker_id: str
-    text: str
-    language: str = "English"
-
-
-TTS_BASE = "http://localhost:8008"
+TTS_BASE = os.environ.get("TTS_URL", "http://localhost:8009")
 
 
 class IncarnationServer:
@@ -76,12 +61,30 @@ class IncarnationServer:
         self.app.mount("/personas", StaticFiles(directory="personas"), name="personas")
         self.app.mount("/outputs", StaticFiles(directory="incarnation/public/outputs"), name="outputs")
         self.app.mount("/default_animations", StaticFiles(directory="incarnation/public/vrma/animations"), name="default_animations")
+        
+        # Serve Vite production build if it exists
+        if os.path.exists("incarnation/dist"):
+            logger.info("Serving incarnation/dist production build")
+            self.app.mount("/assets", StaticFiles(directory="incarnation/dist/assets"), name="assets")
+            
+            @self.app.get("/")
+            async def serve_index():
+                from fastapi.responses import FileResponse
+                return FileResponse("incarnation/dist/index.html")
+        else:
+            logger.warning("incarnation/dist not found. Production build will not be served.")
+
         self._setup_routes()
 
         self.thread = threading.Thread(target=self._run_server, daemon=True)
         self.thread.start()
 
     def _setup_routes(self):
+
+        # ── Health ───────────────────────────────────────────────────────────
+        @self.app.get("/health")
+        async def health():
+            return {"status": "ok"}
 
         # ── WebSocket ────────────────────────────────────────────────────────
         @self.app.websocket("/ws")
@@ -182,6 +185,66 @@ class IncarnationServer:
                 )
             except httpx.HTTPError as e:
                 raise HTTPException(status_code=502, detail=f"Voice server error: {e}")
+
+        # ── TTS Stream Proxy ──────────────────────────────────────────────────
+        @self.app.get("/api/tts/proxy")
+        async def proxy_tts_stream(text: str, speaker_id: str, language: str = "English"):
+            """
+            Proxies a TTS generation request from GET (browser) to POST (voice server).
+            Wraps the raw PCM L16 stream in a WAV header so the browser can play it.
+            """
+            try:
+                payload = {
+                    "text": text,
+                    "speaker_id": speaker_id,
+                    "language": language
+                }
+
+                async def pcm_to_wav_stream():
+                    # WAV Header for L16 PCM 24000Hz Mono
+                    # Using 0xFFFFFFFF for streaming sizes (unspecified length)
+                    
+                    sample_rate = 24000
+                    bits_per_sample = 16
+                    channels = 1
+                    
+                    header = bytearray(b"RIFF")
+                    header.extend([0xFF, 0xFF, 0xFF, 0xFF]) # ChunkSize (unknown)
+                    header.extend(b"WAVEfmt ")
+                    header.extend([16, 0, 0, 0])          # Subchunk1Size
+                    header.extend([1, 0])                 # AudioFormat (PCM)
+                    header.extend([channels, 0])          # NumChannels
+                    header.extend(sample_rate.to_bytes(4, 'little'))
+                    byte_rate = sample_rate * channels * bits_per_sample // 8
+                    header.extend(byte_rate.to_bytes(4, 'little'))
+                    block_align = channels * bits_per_sample // 8
+                    header.extend(block_align.to_bytes(2, 'little'))
+                    header.extend(bits_per_sample.to_bytes(2, 'little'))
+                    header.extend(b"data")
+                    header.extend([0xFF, 0xFF, 0xFF, 0xFF]) # Subchunk2Size (unknown)
+                    
+                    yield bytes(header)
+
+                    async with httpx.AsyncClient() as client:
+                        async with client.stream("POST", f"{TTS_BASE}/generate_stream", json=payload, timeout=60.0) as resp:
+                            if resp.status_code != 200:
+                                logger.error(f"TTS server error: {resp.status_code}")
+                                return
+                            async for chunk in resp.aiter_bytes():
+                                yield chunk
+
+                return StreamingResponse(
+                    pcm_to_wav_stream(),
+                    media_type="audio/wav",
+                    headers={
+                        "Accept-Ranges": "none",
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive"
+                    }
+                )
+            except Exception as e:
+                logger.exception(f"TTS Proxy error: {e}")
+                raise HTTPException(status_code=502, detail=f"TTS Proxy error: {e}")
 
     # ── Server lifecycle ──────────────────────────────────────────────────────
     def _run_server(self):

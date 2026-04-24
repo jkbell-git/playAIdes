@@ -126,3 +126,16 @@ connection.connect(wsUrl);
 animate();
 
 console.log('[Incarnation] Service started — ws:', wsUrl);
+
+// ── Audio Unlock ───────────────────────────────────────────────────────────
+// Browsers block AudioContext playback until a user gesture. Listen for the
+// first gesture of any common type and resume once. If lip-sync fires
+// before then, lipSyncManager logs a clear warning telling the user to
+// click the tab.
+const GESTURES = ['click', 'keydown', 'touchstart', 'pointerdown'];
+async function unlockAudio() {
+  GESTURES.forEach((type) => window.removeEventListener(type, unlockAudio, true));
+  await incarnation.resumeAudio();
+  console.log('[main] Audio unlocked.');
+}
+GESTURES.forEach((type) => window.addEventListener(type, unlockAudio, true));

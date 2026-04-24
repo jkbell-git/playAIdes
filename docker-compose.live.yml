@@ -1,0 +1,89 @@
+# Overlay for live E2E tests. Layer on top of docker-compose.test.yml:
+#   make test-live
+# or:
+#   docker compose -f docker-compose.test.yml -f docker-compose.live.yml run --rm tests
+#
+# Requires an NVIDIA GPU for the TTS service (Qwen3). Ollama will run CPU-only
+# by default — point it at a GPU too by uncommenting the `deploy` block below
+# if you want faster LLM responses.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: playaides-ollama
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    restart: unless-stopped
+
+  # Tiny sidecar: pulls the model once, then exits 0 so Ollama is ready with
+  # gemma3:4b baked in before live tests run. Safe to re-run (no-op if cached).
+  ollama-model-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        export OLLAMA_HOST=http://ollama:11434
+        ollama pull "${OLLAMA_MODEL:-gemma3:4b}"
+    restart: "no"
+
+  tts:
+    build:
+      context: ./voice_generation/voice_server
+      dockerfile: Dockerfile_streaming_tts
+    container_name: playaides-tts
+    volumes:
+      - ./voice_generation/voice_server/hf_models:/root/.cache/huggingface
+      - ./voice_generation/voice_server/service:/app/Qwen3-TTS-streaming/service
+    working_dir: /app/Qwen3-TTS-streaming/service
+    command: ["python3", "voice_server.py"]
+    environment:
+      - TORCH_CUDA_ARCH_LIST=8.9;10.0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8009/health', timeout=2).status==200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 120s
+    restart: unless-stopped
+
+  tests:
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-model-pull:
+        condition: service_completed_successfully
+      tts:
+        condition: service_healthy
+    environment:
+      - PYTHONPATH=/app
+      - OLLAMA_URL=http://ollama:11434
+      - TTS_URL=http://tts:8009
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
+    command: ["pytest", "-m", "live"]
+
+volumes:
+  ollama-models:

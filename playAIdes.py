@@ -3,13 +3,18 @@ from pydantic import BaseModel,ConfigDict, field_validator
 from model_interfaces import LLMInterface, OllamaLLM
 from typing import Optional, List, Dict
 from voice_generation.voice_api import PersonaTTS, Qwen3TTS_local, VoiceDesignRequest, SpeechGenerationRequest
-from playsound3 import playsound
 import json
 import logging
 from incarnation_server import IncarnationServer
 import os
 
 logger = logging.getLogger(__name__)
+
+
+class PersonaLoadError(RuntimeError):
+    """Raised when a persona file cannot be loaded or parsed."""
+
+
 #this will be the main class for PlayAIdes and manage all currently loaded personas
 # will be in charge of routing requests to the service to handle a personas actions/tasks
 # I believe we should do as much async as possible due to the nature of how we will be waiting for our services to perform actions
@@ -49,12 +54,19 @@ class PlayAIdes:
         try:
             with open(filepath, 'r') as f:
                 data = json.load(f)
+        except FileNotFoundError as e:
+            logger.error("Persona file not found: %s", filepath)
+            raise PersonaLoadError(f"Persona file not found: {filepath}") from e
+        except json.JSONDecodeError as e:
+            logger.error("Persona file %s contains invalid JSON: %s", filepath, e)
+            raise PersonaLoadError(f"Invalid JSON in persona file {filepath}: {e}") from e
+        try:
             self.current_persona = Persona(**data)
-            logger.info(f"Loaded persona: {self.current_persona.name}")
-            self._validate_persona(self.current_persona)
         except Exception as e:
-            logger.exception(f"Error loading persona from {filepath}: {e}")
-            return
+            logger.error("Persona file %s failed schema validation: %s", filepath, e)
+            raise PersonaLoadError(f"Persona file {filepath} failed validation: {e}") from e
+        logger.info("Loaded persona: %s", self.current_persona.name)
+        self._validate_persona(self.current_persona)
     def _update_persona_file(self,p:Persona):
         with open(f"personas/{p.name.lower()}/persona.json", 'w') as f:
             json.dump(p.model_dump(), f, indent=2)
@@ -115,6 +127,29 @@ class PlayAIdes:
             json.dump(data, f, indent=2)
         data["id"] = persona_id
         return data
+
+    def delete_persona(self, persona_id: str) -> bool:
+        """Permanently delete a persona's directory.
+
+        Returns True if the persona existed and was removed. False if no
+        persona by that id was found. Refuses path-traversal attempts and
+        silently no-ops if the requested id is the currently-active one
+        (the running session would crash if we yanked its files out).
+        """
+        if not persona_id or "/" in persona_id or "\\" in persona_id or persona_id in {".", ".."}:
+            logger.warning("Refusing to delete persona with suspicious id: %r", persona_id)
+            return False
+        if (self.current_persona
+                and self.current_persona.name.strip().lower().replace(" ", "_") == persona_id):
+            logger.warning("Refusing to delete the currently-active persona: %s", persona_id)
+            return False
+        p_dir = os.path.join("personas", persona_id)
+        if not os.path.isdir(p_dir):
+            return False
+        import shutil
+        shutil.rmtree(p_dir)
+        logger.info("Deleted persona: %s", persona_id)
+        return True
 
     def _validate_persona(self,p:Persona):
         
@@ -212,6 +247,16 @@ class PlayAIdes:
             if pid:
                 p = self.update_persona(pid, payload)
                 self.incarnation_server.send_command("persona_updated", {"persona": p})
+            return
+
+        if msg_type == "delete_persona":
+            pid = payload.get("id")
+            if pid:
+                ok = self.delete_persona(pid)
+                self.incarnation_server.send_command(
+                    "persona_deleted",
+                    {"id": pid, "ok": ok},
+                )
             return
             
         if msg_type == "model_uploaded":
@@ -349,10 +394,25 @@ class PlayAIdes:
         
         response = self.llm.chat(self.chat_history, system_prompt=system_prompt)
         if self.args.use_voice:
-            self.tts.generate_speech_stream(SpeechGenerationRequest(
-                text=response,
-                speaker_id=self.current_persona.persona_voice.speaker_uuid),        
-            )
+            if self.args.use_avatar and self.incarnation_server:
+                import urllib.parse
+                safe_text = urllib.parse.quote(response)
+                # Use the proxy endpoint — the browser will play audio and do lip sync
+                proxy_url = f"http://localhost:8765/api/tts/proxy?text={safe_text}&speaker_id={self.current_persona.persona_voice.speaker_uuid}"
+                if self.current_persona.language:
+                    proxy_url += f"&language={urllib.parse.quote(self.current_persona.language)}"
+
+                logger.info(f"Sending start_lip_sync: {proxy_url}")
+                self.incarnation_server.send_command("start_lip_sync", {"url": proxy_url})
+                # Audio playback and lip sync are handled by the browser.
+                # Lip sync auto-stops when the audio stream ends.
+            else:
+                # No avatar — play audio on the server side
+                self.tts.generate_speech_stream(SpeechGenerationRequest(
+                    text=response,
+                    speaker_id=self.current_persona.persona_voice.speaker_uuid,
+                    language=self.current_persona.language or "English")
+                )
         
         return response
             

@@ -5,6 +5,7 @@ import { loadVRMAAnimation } from './vrmaLoader.js';
 import { AnimationManager } from './animationManager.js';
 import { ExpressionManager } from './expressionManager.js';
 import { VisemeManager } from './visemeManager.js';
+import { LipSyncManager } from './lipSyncManager.js';
 import { retargetAnimation } from 'vrm-mixamo-retarget'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 /**
@@ -35,6 +36,9 @@ export class Incarnation {
 
         /** @type {VisemeManager} */
         this.visemeManager = new VisemeManager();
+
+        /** @type {LipSyncManager} */
+        this.lipSyncManager = new LipSyncManager(this.visemeManager);
 
         this._loaded = false;
 
@@ -81,6 +85,9 @@ export class Incarnation {
 
         this.expressionManager.setMeshes(skinnedMeshes);
         this.visemeManager.setMeshes(skinnedMeshes);
+        if (vrm && vrm.expressionManager) {
+            this.visemeManager.setExpressionManager(vrm.expressionManager);
+        }
 
         this._loaded = true;
 
@@ -293,6 +300,16 @@ export class Incarnation {
                 await this.visemeManager.playVisemeSequence(payload.sequence || []);
                 break;
 
+            case 'start_lip_sync':
+                if (payload.url) {
+                    await this.lipSyncManager.startFromUrl(payload.url);
+                }
+                break;
+
+            case 'stop_lip_sync':
+                this.lipSyncManager.stop();
+                break;
+
             case 'set_background':
                 console.log('[Incarnation] Loading background:', payload.url);
                 setBackground(payload.url);
@@ -310,6 +327,16 @@ export class Incarnation {
         }
     }
 
+    /**
+     * Unlock audio/lip-sync context. 
+     * Must be called from a user gesture.
+     */
+    async resumeAudio() {
+        if (this.lipSyncManager) {
+            await this.lipSyncManager.resume();
+        }
+    }
+
     // ── Per-frame update ────────────────────────────────────────────────────
 
     /** Call every frame with delta seconds. */
@@ -317,6 +344,8 @@ export class Incarnation {
         if (this.animationManager) {
             this.animationManager.update(delta);
         }
+        // Drive lip-sync visemes from audio analysis
+        this.lipSyncManager.update();
         // VRM models need per-frame updates for spring bones, expressions, etc.
         if (this.vrm) {
             this.vrm.update(delta);
