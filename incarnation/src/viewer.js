@@ -175,7 +175,12 @@ incarnation.lipSyncManager.onAudioEnd(() => {
 
 // ── Voice input → LISTENING → THINKING → user_input WS send ───────────────
 audioCapture.addEventListener('voicestart', () => {
-    if (stateMachine.current === State.AMBIENT || stateMachine.current === State.EMPTY) {
+    // AMBIENT → LISTENING: normal active-conversation flow.
+    // EMPTY: no UI transition (state machine forbids EMPTY → LISTENING by
+    // design); the audio is still being recorded and will be sent to STT
+    // on voiceend. The voiceend handler then checks for the wake word
+    // before re-summoning the persona.
+    if (stateMachine.current === State.AMBIENT) {
         safeTransition(State.LISTENING);
     }
 });
