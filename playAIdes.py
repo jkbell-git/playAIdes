@@ -239,7 +239,17 @@ class PlayAIdes:
                 if p:
                     self.incarnation_server.send_command("persona_data", {"persona": p})
             return
-            
+
+        if msg_type == "user_input":
+            text = (payload.get("text") or "").strip()
+            if not text:
+                return
+            try:
+                self.chat(text)
+            except Exception as e:
+                logger.exception(f"user_input chat() failed: {e}")
+            return
+
         if msg_type == "create_persona":
             name = payload.get("name", "Unknown")
             desc = payload.get("description", "")
