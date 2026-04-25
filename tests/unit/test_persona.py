@@ -106,3 +106,25 @@ class TestPersona:
         data = json.loads(path.read_text())
         p = Persona(**data)
         assert p.name == "Handy"
+
+
+class TestAvatarIntroAnimation:
+    def test_intro_animation_optional(self):
+        """Avatar without intro_animation parses fine (backwards compat)."""
+        a = Avatar(model_url="m.vrm")
+        assert a.intro_animation is None
+
+    def test_intro_animation_set(self):
+        """Avatar with intro_animation set carries the string through."""
+        a = Avatar(model_url="m.vrm", intro_animation="cute_greeting_twirl")
+        assert a.intro_animation == "cute_greeting_twirl"
+
+    def test_intro_animation_distinct_from_idle(self):
+        """intro_animation and idle_animation can be set independently."""
+        a = Avatar(
+            model_url="m.vrm",
+            intro_animation="wave",
+            idle_animation="stand",
+        )
+        assert a.intro_animation == "wave"
+        assert a.idle_animation == "stand"

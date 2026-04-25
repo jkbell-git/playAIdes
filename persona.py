@@ -14,6 +14,7 @@ class Avatar(BaseModel): #optional
     model_url: str # this can also be a local file path
     animations_url: Optional[str] = None # this can also be a local folder path
     idle_animation: Optional[str] = "idle" # default idle animation name
+    intro_animation: Optional[str] = None # plays once on activation, before idle
     animation_list: Optional[List[str]] = None # we need to get the animation list from the model and also
     #add animations we have loaded
     background_url: Optional[str] = None
