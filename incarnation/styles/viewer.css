@@ -1,0 +1,163 @@
+/* =============================================================
+   viewer.css — voice-driven viewer page.
+   Quieter than creator.css: canvas dominates, chrome appears only
+   when active. Imports shared tokens from tokens.css.
+   ============================================================= */
+
+@import url('./tokens.css');
+
+/* ── Reset ────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #000;
+    color: var(--cream);
+    overflow: hidden;
+    letter-spacing: .01em;
+}
+
+/* ── Canvas (full page) ────────────────────────────────────── */
+#viewer {
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+}
+
+/* ── Top P5 strip (gold + crimson, decorative) ─────────────── */
+.viewer-strip {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg,
+        var(--red) 0 6%,
+        transparent 6% 8%,
+        var(--red) 8% 14%,
+        transparent 14% 50%,
+        var(--gold) 50% 54%,
+        transparent 54% 56%,
+        var(--gold) 56% 62%
+    );
+    z-index: 100;
+    clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, 24px 100%);
+    pointer-events: none;
+}
+
+/* ── Mic / state indicator (bottom-left) ───────────────────── */
+.mic-indicator {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--gold-dim);
+    box-shadow: 0 0 12px rgba(212, 167, 75, .25);
+    z-index: 80;
+    transition: background .3s var(--ease-snap), box-shadow .3s var(--ease-snap);
+}
+
+.mic-indicator.state-empty,
+.mic-indicator.state-ambient {
+    background: var(--gold-dim);
+    box-shadow: 0 0 10px rgba(212, 167, 75, .35);
+    animation: micSlowPulse 3s ease-in-out infinite;
+}
+
+.mic-indicator.state-intro {
+    background: var(--gold-hi);
+    box-shadow: 0 0 14px rgba(246, 211, 122, .65);
+}
+
+.mic-indicator.state-listening {
+    background: var(--red);
+    box-shadow:
+        0 0 18px rgba(225, 26, 58, .9),
+        0 0 36px rgba(225, 26, 58, .35);
+    animation: micFastPulse .5s ease-in-out infinite;
+}
+
+.mic-indicator.state-thinking {
+    background: var(--gold);
+    box-shadow: 0 0 14px rgba(212, 167, 75, .55);
+    animation: micSpin 1.3s linear infinite;
+}
+
+.mic-indicator.state-speaking {
+    background: var(--red-dim);
+    box-shadow: 0 0 10px rgba(122, 13, 32, .55);
+}
+
+@keyframes micSlowPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes micFastPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.4); } }
+@keyframes micSpin     { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
+
+/* ── Subtitle band (bottom centre) ─────────────────────────── */
+.subtitle-band {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 80px;
+    max-width: min(80vw, 900px);
+    padding: 16px 28px;
+    background: linear-gradient(180deg, rgba(10, 8, 18, .82), rgba(10, 8, 18, .95));
+    border: var(--hair) solid var(--gold);
+    color: var(--cream);
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    letter-spacing: .04em;
+    text-align: center;
+    line-height: 1.5;
+    backdrop-filter: blur(8px);
+    clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+    opacity: 0;
+    transform-origin: bottom center;
+    transition: opacity .35s var(--ease-snap);
+    z-index: 70;
+    pointer-events: none;
+}
+
+.subtitle-band.visible {
+    opacity: 1;
+}
+
+/* ── Name plate (top-left under strip) ─────────────────────── */
+.nameplate {
+    position: fixed;
+    top: 18px;
+    left: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: rgba(10, 8, 18, .7);
+    border: var(--hair) solid var(--gold);
+    backdrop-filter: blur(8px);
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 12px;
+    letter-spacing: .2em;
+    color: var(--cream);
+    z-index: 60;
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.nameplate-name {
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.nameplate-conn {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    box-shadow: 0 0 6px currentColor;
+    transition: background .3s;
+}
+.nameplate-conn.connected    { background: var(--ok); }
+.nameplate-conn.disconnected { background: var(--muted); }
+.nameplate-conn.error        { background: var(--red-hi); }
