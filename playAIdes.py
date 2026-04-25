@@ -51,6 +51,12 @@ class PlayAIdes:
         self.chat_history: List[Dict[str, str]] = []
         self.args: PlayAIdesArgs = args
         self.expected_animations = set()
+        # Tracks animation names the frontend has actually loaded. The
+        # post-load play branch consults this so configured-but-missing
+        # clip names (or a missing DEFAULT_IDLE_ANIMATION) gracefully
+        # degrade to whatever clips are available, instead of sending
+        # name=<unknown> and leaving the model T-posed.
+        self.loaded_animations: set = set()
         for persona in args.persona:
             self._load_persona_from_file(persona)
             break  # currently only support one persona at a time
@@ -223,6 +229,26 @@ class PlayAIdes:
                             "name": anim_name
                         })
 
+    def _resolve_clip_name(self, preferred: Optional[str]) -> str:
+        """Pick an animation name to play, gracefully degrading when the
+        preferred or default name isn't actually loaded.
+
+        Resolution order:
+          1. `preferred` (caller's intro_animation or idle_animation), if loaded
+          2. DEFAULT_IDLE_ANIMATION, if loaded
+          3. First loaded clip alphabetically (resilient to any VRMA pack —
+             generic "VRMA_01.vrma" filenames work without persona config)
+          4. DEFAULT_IDLE_ANIMATION as a last-ditch (won't actually play but
+             the frontend logs "[AnimationManager] clip not found" cleanly)
+        """
+        if preferred and preferred in self.loaded_animations:
+            return preferred
+        if DEFAULT_IDLE_ANIMATION in self.loaded_animations:
+            return DEFAULT_IDLE_ANIMATION
+        if self.loaded_animations:
+            return sorted(self.loaded_animations)[0]
+        return DEFAULT_IDLE_ANIMATION
+
     def _handle_incarnation_message(self, msg: dict):
         logger.info(f"Incarnation callback: {msg}")
         msg_type = msg.get("type")
@@ -359,10 +385,11 @@ class PlayAIdes:
                         anim_name = loaded_arr[0]
                 
                 if anim_name:
+                    self.loaded_animations.add(anim_name)
                     logger.info(f"Animation {anim_name} loaded. Expected animations: {self.expected_animations}")
                     if anim_name in self.expected_animations:
                         self.expected_animations.remove(anim_name)
-                        
+
                 if not self.expected_animations:
                     intro = (self.current_persona.avatar.intro_animation
                              if (self.current_persona and self.current_persona.avatar)
@@ -370,22 +397,22 @@ class PlayAIdes:
                     fallback_idle = (self.current_persona.avatar.idle_animation
                                      if (self.current_persona and self.current_persona.avatar)
                                      else None)
-                    # Final fallback to a clip from the shared VRMA pack so
-                    # personas without explicit animation config still animate
-                    # instead of staying in T-pose (animationManager silently
-                    # ignores names it can't resolve).
-                    clip_name = intro or fallback_idle or DEFAULT_IDLE_ANIMATION
+                    clip_name = self._resolve_clip_name(intro or fallback_idle)
+                    # Loop only when we did NOT successfully play the configured
+                    # intro (intros are one-shot greetings; idles loop).
+                    is_intro = bool(intro) and clip_name == intro
                     logger.info(f"All auto-loaded animations finished loading. Playing clip: {clip_name}")
                     self.incarnation_server.send_command("play_animation", {
                         "name": clip_name,
-                        "loop": False if intro else True,
+                        "loop": False if is_intro else True,
                     })
             if state == "animation_finished":
                 anim_name = payload.get("name")
                 logger.info(f"Animation {anim_name} finished playing.")
-                idle_anim = (self.current_persona.avatar.idle_animation
-                             if (self.current_persona and self.current_persona.avatar)
-                             else None) or DEFAULT_IDLE_ANIMATION
+                configured_idle = (self.current_persona.avatar.idle_animation
+                                   if (self.current_persona and self.current_persona.avatar)
+                                   else None)
+                idle_anim = self._resolve_clip_name(configured_idle)
                 logger.info(f"Switching to idle animation '{idle_anim}' and focusing camera...")
                 self.incarnation_server.send_command("play_animation", {
                      "name": idle_anim,
