@@ -14,6 +14,8 @@ import { ConnectionManager } from './connectionManager.js';
 import { ViewerState, State } from './viewerState.js';
 import { ViewerOverlays } from './viewerOverlays.js';
 import { loadConfig } from './viewerConfig.js';
+import { AudioCapture } from './audioCapture.js';
+import { SttClient } from './sttClient.js';
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
@@ -23,6 +25,12 @@ const stateMachine = new ViewerState(State.EMPTY);
 const overlays = new ViewerOverlays(document, config, stateMachine);
 const incarnation = new Incarnation();
 const connection = new ConnectionManager();
+const audioCapture = new AudioCapture();
+const stt = new SttClient(config.apiBase);
+
+// Last user utterance text — populated when STT returns, attached to the
+// THINKING state's meta so the subtitle band can render it (greyed).
+let lastUserUtterance = '';
 
 // Pending text from the most recent assistant_message event — attached
 // to the next SPEAKING transition so the subtitle band can render.
@@ -150,6 +158,43 @@ incarnation.lipSyncManager.onAudioEnd(() => {
     }
 });
 
+// ── Voice input → LISTENING → THINKING → user_input WS send ───────────────
+audioCapture.addEventListener('voicestart', () => {
+    if (stateMachine.current === State.AMBIENT || stateMachine.current === State.EMPTY) {
+        safeTransition(State.LISTENING);
+    }
+});
+
+audioCapture.addEventListener('voiceend', async (e) => {
+    if (stateMachine.current !== State.LISTENING) return;
+    safeTransition(State.THINKING, { lastUtterance: '…' });
+    try {
+        const { text } = await stt.transcribe(e.detail.blob);
+        lastUserUtterance = (text || '').trim();
+        if (!lastUserUtterance) {
+            // No speech detected — just bounce back to AMBIENT.
+            safeTransition(State.AMBIENT);
+            return;
+        }
+        // Meta refresh inside THINKING — dispatch a synthetic change event
+        // so the overlay layer can re-render the subtitle text. (Same-state
+        // transitions are illegal in the state machine by design.)
+        stateMachine.dispatchEvent(new CustomEvent('change', {
+            detail: {
+                prev: State.THINKING, next: State.THINKING,
+                prevMeta: { lastUtterance: '…' },
+                meta: { lastUtterance: lastUserUtterance },
+            },
+        }));
+        connection.send('user_input', { text: lastUserUtterance });
+        // The reply comes back via assistant_message + start_lip_sync,
+        // already wired in Phase 1 — no further action needed here.
+    } catch (err) {
+        console.error('[viewer] STT failed:', err);
+        safeTransition(State.AMBIENT);
+    }
+});
+
 // Generic catch-all for non-load_ commands (set_expression, focus_camera,
 // set_background, etc.) — preserve existing behavior.
 connection.addEventListener('message', (e) => {
@@ -173,7 +218,13 @@ async function unlockAudio() {
     if (incarnation.lipSyncManager) {
         await incarnation.lipSyncManager.resume();
     }
-    console.log('[viewer] audio unlocked');
+    try {
+        await audioCapture.start();
+        console.log('[viewer] mic + audio unlocked');
+    } catch (err) {
+        // Permission denied or no mic — viewer remains usable but no voice in.
+        console.warn('[viewer] mic unavailable:', err);
+    }
 }
 GESTURES.forEach((t) => window.addEventListener(t, unlockAudio, true));
 
