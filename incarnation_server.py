@@ -28,6 +28,7 @@ class PersonaCreate(BaseModel):
 
 
 TTS_BASE = os.environ.get("TTS_URL", "http://localhost:8009")
+WHISPER_BASE = os.environ.get("WHISPER_URL", "http://localhost:9000")
 
 
 class IncarnationServer:
@@ -245,6 +246,43 @@ class IncarnationServer:
             except Exception as e:
                 logger.exception(f"TTS Proxy error: {e}")
                 raise HTTPException(status_code=502, detail=f"TTS Proxy error: {e}")
+
+        # ── STT Proxy (browser → Whisper container) ──────────────────────────
+        @self.app.post("/api/stt/proxy")
+        async def proxy_stt(audio: UploadFile = File(...)):
+            """
+            Forwards an audio upload to the Whisper container and returns
+            its transcription + detected language. Symmetric with
+            /api/tts/proxy: the Whisper container is never directly
+            reachable from the browser.
+            """
+            try:
+                audio_bytes = await audio.read()
+                async with httpx.AsyncClient() as client:
+                    upstream = await client.post(
+                        f"{WHISPER_BASE}/asr",
+                        files={"audio_file": (audio.filename or "clip.wav",
+                                              audio_bytes,
+                                              audio.content_type or "audio/wav")},
+                        params={"output": "json"},
+                        timeout=30.0,
+                    )
+                if upstream.status_code != 200:
+                    logger.error(f"STT upstream error: {upstream.status_code} {upstream.text!r}")
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"STT upstream error: {upstream.status_code}",
+                    )
+                data = upstream.json()
+                return {
+                    "text": data.get("text", "").strip(),
+                    "language": data.get("language", ""),
+                }
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.exception(f"STT Proxy error: {e}")
+                raise HTTPException(status_code=502, detail=f"STT Proxy error: {e}")
 
     # ── Server lifecycle ──────────────────────────────────────────────────────
     def _run_server(self):
