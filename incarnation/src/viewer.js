@@ -16,6 +16,7 @@ import { ViewerOverlays } from './viewerOverlays.js';
 import { loadConfig } from './viewerConfig.js';
 import { AudioCapture } from './audioCapture.js';
 import { SttClient } from './sttClient.js';
+import { matchPhrase } from './transcriptMatcher.js';
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
@@ -180,32 +181,76 @@ audioCapture.addEventListener('voicestart', () => {
 });
 
 audioCapture.addEventListener('voiceend', async (e) => {
-    if (stateMachine.current !== State.LISTENING) return;
-    safeTransition(State.THINKING, { lastUtterance: '…' });
+    const wasListening = stateMachine.current === State.LISTENING;
+    if (wasListening) {
+        safeTransition(State.THINKING, { lastUtterance: '…' });
+    }
     try {
         const { text } = await stt.transcribe(e.detail.blob);
-        lastUserUtterance = (text || '').trim();
-        if (!lastUserUtterance) {
-            // No speech detected — just bounce back to AMBIENT.
-            safeTransition(State.AMBIENT);
+        const transcript = (text || '').trim();
+        if (!transcript) {
+            if (wasListening) safeTransition(State.AMBIENT);
             return;
         }
-        // Meta refresh inside THINKING — dispatch a synthetic change event
-        // so the overlay layer can re-render the subtitle text. (Same-state
-        // transitions are illegal in the state machine by design.)
-        stateMachine.dispatchEvent(new CustomEvent('change', {
-            detail: {
-                prev: State.THINKING, next: State.THINKING,
-                prevMeta: { lastUtterance: '…' },
-                meta: { lastUtterance: lastUserUtterance },
-            },
-        }));
-        connection.send('user_input', { text: lastUserUtterance });
-        // The reply comes back via assistant_message + start_lip_sync,
-        // already wired in Phase 1 — no further action needed here.
+
+        // 1. Dismiss check — always runs, regardless of activation mode.
+        if (activePersona.dismiss_words.length) {
+            const dismiss = matchPhrase(transcript, activePersona.dismiss_words);
+            if (dismiss.matched) {
+                console.log('[viewer] dismiss matched:', dismiss.phrase);
+                // Already-EMPTY → safeTransition will warn and no-op (allowed).
+                safeTransition(State.EMPTY);
+                return;
+            }
+        }
+
+        // 2. Wake-word gate — applied in `wake` mode OR when in EMPTY.
+        let userInput = transcript;
+        const inEmpty = stateMachine.current === State.EMPTY;
+        const needsWake = config.activation === 'wake' || inEmpty;
+
+        if (needsWake) {
+            const wake = matchPhrase(transcript, activePersona.wake_words);
+            if (!wake.matched) {
+                console.log('[viewer] wake-mode drop, no wake-word in:', transcript);
+                if (wasListening || stateMachine.current === State.THINKING) {
+                    safeTransition(State.AMBIENT);
+                }
+                return;
+            }
+            userInput = wake.residual;
+            console.log('[viewer] wake matched:', wake.phrase, '→ residual:', userInput);
+        }
+
+        // 3. Re-summon from EMPTY: state-only transition; intro-anim replay
+        // is Phase 4 work.
+        if (inEmpty) {
+            safeTransition(State.INTRO);
+            safeTransition(State.AMBIENT);
+        }
+
+        // 4. If wake-only utterance (no residual), just acknowledge — stay AMBIENT.
+        if (!userInput) {
+            return;
+        }
+
+        // 5. Update THINKING meta with the actual user message and forward.
+        if (stateMachine.current === State.THINKING) {
+            stateMachine.dispatchEvent(new CustomEvent('change', {
+                detail: {
+                    prev: State.THINKING, next: State.THINKING,
+                    prevMeta: { lastUtterance: '…' },
+                    meta: { lastUtterance: userInput },
+                },
+            }));
+        }
+        lastUserUtterance = userInput;
+        connection.send('user_input', { text: userInput });
     } catch (err) {
         console.error('[viewer] STT failed:', err);
-        safeTransition(State.AMBIENT);
+        if (stateMachine.current === State.LISTENING || stateMachine.current === State.THINKING) {
+            safeTransition(State.AMBIENT);
+        }
     }
 });
 
