@@ -45,6 +45,9 @@ export class LipSyncManager {
          */
         this._smoothVolume = 0;
 
+        /** @type {(() => void) | null} fired when bound audio finishes */
+        this._onAudioEndCallback = null;
+
         /**
          * Smoothing factor — higher = smoother but slower to respond.
          * @type {number}
@@ -249,6 +252,11 @@ export class LipSyncManager {
         return this._active;
     }
 
+    /** Register a callback fired when bound audio playback ends or pauses. */
+    onAudioEnd(callback) {
+        this._onAudioEndCallback = callback;
+    }
+
     /**
      * Call every frame from the render loop.
      * Reads current audio amplitude and drives viseme morph targets.
@@ -326,6 +334,9 @@ export class LipSyncManager {
         this._active = false;
         if (this.visemeManager) {
             this.visemeManager.clearVisemes();
+        }
+        if (this._onAudioEndCallback) {
+            try { this._onAudioEndCallback(); } catch (e) { console.error(e); }
         }
     };
 }
