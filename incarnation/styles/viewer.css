@@ -26,6 +26,19 @@ body {
     position: fixed;
     inset: 0;
     z-index: 1;
+    /* Smooth fade for dismiss → EMPTY (canvas opacity 0) and
+       wake-word re-summon (canvas back to opacity 1). */
+    transition: opacity 250ms ease;
+}
+
+/* ── EMPTY state visuals (dismiss / no persona) ──────────── */
+body[data-viewer-state="EMPTY"] #viewer {
+    opacity: 0;
+}
+
+body[data-viewer-state="EMPTY"] .nameplate {
+    opacity: 0;
+    transition: opacity 200ms ease;
 }
 
 /* ── Top P5 strip (gold + crimson, decorative) ─────────────── */

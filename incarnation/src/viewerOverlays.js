@@ -62,6 +62,11 @@ export class ViewerOverlays {
     // ── State-driven rendering ──────────────────────────────────────────
 
     _onStateChange({ next, meta }) {
+        // Body-level state attribute drives canvas + nameplate visuals via CSS.
+        // (Selectors like `body[data-viewer-state="EMPTY"] #viewer` fade the
+        // VRM out when the active persona is dismissed.)
+        document.body.dataset.viewerState = next;
+
         // Mic indicator: color/animation per state. CSS owns the actual
         // styling — we just attach a class.
         if (this.elMic && !this.elMic.hidden) {
