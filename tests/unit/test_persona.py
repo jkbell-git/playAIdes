@@ -128,3 +128,42 @@ class TestAvatarIntroAnimation:
         )
         assert a.intro_animation == "wave"
         assert a.idle_animation == "stand"
+
+
+class TestPersonaWakeAndDismiss:
+    def test_wake_words_optional(self):
+        """Persona without wake_words parses fine (backwards compat)."""
+        p = Persona(
+            name="X", back_ground="bg", psyche=Psyche(traits=[]),
+            gender="Female", language="English",
+        )
+        assert p.wake_words is None
+
+    def test_dismiss_words_optional(self):
+        """Persona without dismiss_words parses fine (backwards compat)."""
+        p = Persona(
+            name="X", back_ground="bg", psyche=Psyche(traits=[]),
+            gender="Female", language="English",
+        )
+        assert p.dismiss_words is None
+
+    def test_is_default_defaults_to_false(self):
+        """Missing is_default defaults to False, not None."""
+        p = Persona(
+            name="X", back_ground="bg", psyche=Psyche(traits=[]),
+            gender="Female", language="English",
+        )
+        assert p.is_default is False
+
+    def test_wake_and_dismiss_set(self):
+        """List values pass through unchanged."""
+        p = Persona(
+            name="Silver", back_ground="bg", psyche=Psyche(traits=[]),
+            gender="Female", language="English",
+            wake_words=["hey silver", "silver", "シルバー"],
+            dismiss_words=["goodnight silver", "おやすみ"],
+            is_default=True,
+        )
+        assert p.wake_words == ["hey silver", "silver", "シルバー"]
+        assert p.dismiss_words == ["goodnight silver", "おやすみ"]
+        assert p.is_default is True

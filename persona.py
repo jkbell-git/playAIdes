@@ -36,12 +36,15 @@ class Memories(BaseModel):
 
 #we are going to want to load this frrom a json file to start
 class Persona(BaseModel):
-    name: str    
-    back_ground:str    
+    name: str
+    back_ground:str
     psyche: Psyche
     gender: str
-    language: str = "English"    
+    language: str = "English"
     avatar: Optional[Avatar] = None
-    persona_voice: Optional[Voice] = None    
+    persona_voice: Optional[Voice] = None
     memories: Optional[Memories] = None
+    wake_words: Optional[List[str]] = None
+    dismiss_words: Optional[List[str]] = None
+    is_default: Optional[bool] = False
     
