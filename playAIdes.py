@@ -349,14 +349,17 @@ class PlayAIdes:
                         self.expected_animations.remove(anim_name)
                         
                 if not self.expected_animations:
-                    logger.info("All auto-loaded animations finished loading. Playing intro animation...")
                     intro = (self.current_persona.avatar.intro_animation
                              if (self.current_persona and self.current_persona.avatar)
                              else None)
                     fallback_idle = (self.current_persona.avatar.idle_animation
                                      if (self.current_persona and self.current_persona.avatar)
-                                     else "idle")
-                    clip_name = intro or fallback_idle
+                                     else None)
+                    # Final fallback to a string so we never send name=None to
+                    # the frontend (animationManager silently fails on a None
+                    # name and the model stays in T-pose).
+                    clip_name = intro or fallback_idle or "idle"
+                    logger.info(f"All auto-loaded animations finished loading. Playing clip: {clip_name}")
                     self.incarnation_server.send_command("play_animation", {
                         "name": clip_name,
                         "loop": False if intro else True,
@@ -364,7 +367,9 @@ class PlayAIdes:
             if state == "animation_finished":
                 anim_name = payload.get("name")
                 logger.info(f"Animation {anim_name} finished playing.")
-                idle_anim = self.current_persona.avatar.idle_animation if (self.current_persona and self.current_persona.avatar) else "idle"
+                idle_anim = (self.current_persona.avatar.idle_animation
+                             if (self.current_persona and self.current_persona.avatar)
+                             else None) or "idle"
                 logger.info(f"Switching to idle animation '{idle_anim}' and focusing camera...")
                 self.incarnation_server.send_command("play_animation", {
                      "name": idle_anim,
