@@ -1,7 +1,9 @@
 # playAIdes test orchestration — everything runs in Docker, nothing on the host.
 #
 # Common targets:
-#   make test        # unit + integration (default, fast, offline)
+#   make test        # Python unit + integration (default, fast, offline)
+#   make test-js     # frontend Vitest (incarnation/ JS modules)
+#   make test-all    # Python + JS (runs both in sequence)
 #   make test-live   # full E2E against real Ollama + TTS containers (GPU required for TTS)
 #   make coverage    # run tests and copy coverage.xml out of the container
 #   make shell       # interactive shell in the test image for poking around
@@ -10,17 +12,25 @@
 COMPOSE_TEST := docker compose -f docker-compose.test.yml
 COMPOSE_LIVE := docker compose -f docker-compose.test.yml -f docker-compose.live.yml
 
-.PHONY: help test test-live test-unit test-integration coverage shell clean build
+.PHONY: help test test-js test-all test-live test-unit test-integration coverage shell js-shell clean build build-js
 
 help:
-	@echo "Targets: test, test-live, test-unit, test-integration, coverage, shell, clean, build"
+	@echo "Targets: test, test-js, test-all, test-live, test-unit, test-integration, coverage, shell, js-shell, clean, build, build-js"
 
 build:
 	$(COMPOSE_TEST) build tests
 
+build-js:
+	$(COMPOSE_TEST) build js-tests
+
 test: build
 	mkdir -p .test-output
 	$(COMPOSE_TEST) run --rm tests
+
+test-js: build-js
+	$(COMPOSE_TEST) run --rm js-tests
+
+test-all: test test-js
 
 test-unit: build
 	mkdir -p .test-output
@@ -43,6 +53,9 @@ coverage: test
 
 shell: build
 	$(COMPOSE_TEST) run --rm --entrypoint /bin/bash tests
+
+js-shell: build-js
+	$(COMPOSE_TEST) run --rm --entrypoint /bin/bash js-tests
 
 clean:
 	$(COMPOSE_LIVE) down -v --remove-orphans 2>/dev/null || true

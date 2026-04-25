@@ -1,0 +1,15 @@
+# Test runner image for the incarnation/ frontend.
+# Runs Vitest against the pure JS modules (viewerConfig, viewerState, etc.).
+# No browser / DOM APIs required at this stage.
+FROM node:22-slim
+
+WORKDIR /app/incarnation
+
+# Install deps at build time from lockfile so the container image is
+# self-contained and reproducible. Source is bind-mounted at runtime.
+COPY incarnation/package.json incarnation/package-lock.json ./
+RUN npm ci --include=dev
+
+WORKDIR /app
+
+CMD ["npx", "--prefix", "incarnation", "vitest", "run"]

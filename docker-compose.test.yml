@@ -1,5 +1,9 @@
 # Default test stack — unit + integration tests, no external services.
-# Run with: make test  (or: docker compose -f docker-compose.test.yml run --rm tests)
+# Run with: make test      (Python: unit + integration)
+#          make test-js   (frontend Vitest)
+#          make test-all  (both)
+#   or:     docker compose -f docker-compose.test.yml run --rm tests
+#   or:     docker compose -f docker-compose.test.yml run --rm js-tests
 
 services:
   tests:
@@ -21,3 +25,21 @@ services:
       - TTS_URL=
     # Default invocation: skip live tests.
     command: ["pytest", "-m", "not live"]
+
+  # Frontend JS test runner — Vitest against pure ES modules in incarnation/src.
+  # node_modules lives in a named volume so the image's baked install is not
+  # shadowed by the bind-mounted repo (which lacks node_modules in CI).
+  js-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test-js
+    image: playaides-js-tests:latest
+    container_name: playaides-js-tests
+    working_dir: /app/incarnation
+    volumes:
+      - .:/app
+      - js_node_modules:/app/incarnation/node_modules
+    command: ["npx", "vitest", "run"]
+
+volumes:
+  js_node_modules:
