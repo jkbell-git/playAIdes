@@ -42,7 +42,7 @@ test-integration: build
 
 test-live:
 	mkdir -p .test-output
-	$(COMPOSE_LIVE) up -d ollama tts
+	$(COMPOSE_LIVE) up -d ollama tts whisper
 	$(COMPOSE_LIVE) run --rm ollama-model-pull || true
 	$(COMPOSE_LIVE) run --rm tests pytest -m live
 	$(COMPOSE_LIVE) down
