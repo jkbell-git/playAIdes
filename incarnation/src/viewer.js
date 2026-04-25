@@ -203,7 +203,8 @@ audioCapture.addEventListener('voiceend', async (e) => {
             const dismiss = matchPhrase(transcript, activePersona.dismiss_words);
             if (dismiss.matched) {
                 console.log('[viewer] dismiss matched:', dismiss.phrase);
-                // Already-EMPTY → safeTransition will warn and no-op (allowed).
+                // If we're already in EMPTY, safeTransition catches the
+                // illegal EMPTY→EMPTY and warns; the dismiss is then a no-op.
                 safeTransition(State.EMPTY);
                 return;
             }
