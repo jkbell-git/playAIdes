@@ -27,8 +27,11 @@ class PersonaCreate(BaseModel):
     description: str = ""
 
 
-TTS_BASE = os.environ.get("TTS_URL", "http://localhost:8009")
-WHISPER_BASE = os.environ.get("WHISPER_URL", "http://localhost:9000")
+# `or` (not the dict default) so an explicitly-empty env var — set in
+# docker-compose.test.yml to skip live tests — still resolves to a usable
+# default URL for offline mocking via respx.
+TTS_BASE = os.environ.get("TTS_URL") or "http://localhost:8009"
+WHISPER_BASE = os.environ.get("WHISPER_URL") or "http://localhost:9000"
 
 
 class IncarnationServer:
