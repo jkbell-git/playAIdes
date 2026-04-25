@@ -5,39 +5,7 @@
    character-card framing).
    ============================================================= */
 
-/* ── Fonts ────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
-
-/* ── Design tokens ────────────────────────────────────────── */
-:root {
-    --ink:        #0a0812;
-    --ink-2:      #14111d;
-    --ink-3:      #1e1a2a;
-    --panel:      #181423;
-    --panel-hi:   #221c30;
-
-    --gold:       #d4a74b;
-    --gold-hi:    #f6d37a;
-    --gold-dim:   #87712e;
-
-    --red:        #e11a3a;
-    --red-hi:     #ff3a5a;
-    --red-dim:    #7a0d20;
-
-    --cream:      #f4ecd8;
-    --cream-dim:  #b9b0a0;
-    --muted:      #6b6478;
-
-    --ok:         #7ed87a;
-
-    --hair:       1px;
-    --pad-lg:     28px;
-    --pad-md:     18px;
-    --pad-sm:     10px;
-
-    --ease-snap:  cubic-bezier(.2, .8, .2, 1);
-    --ease-slash: cubic-bezier(.7, .1, .2, 1);
-}
+@import url('./tokens.css');
 
 /* ── Reset ────────────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -69,15 +37,6 @@ body::before {
     mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .4 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
-
-/* Selection */
-::selection { background: var(--red); color: var(--cream); }
-
-/* Scrollbar (webkit) */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--gold); }
 
 /* ── Ornamental top strip (P5 angled slashes) ─────────────── */
 .forge-strip {

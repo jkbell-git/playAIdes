@@ -1,0 +1,46 @@
+/* =============================================================
+   Shared design tokens for PlayAIdes pages.
+   Both creator.css and viewer.css @import this so they stay
+   visually in sync.
+   ============================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+    --ink:        #0a0812;
+    --ink-2:      #14111d;
+    --ink-3:      #1e1a2a;
+    --panel:      #181423;
+    --panel-hi:   #221c30;
+
+    --gold:       #d4a74b;
+    --gold-hi:    #f6d37a;
+    --gold-dim:   #87712e;
+
+    --red:        #e11a3a;
+    --red-hi:     #ff3a5a;
+    --red-dim:    #7a0d20;
+
+    --cream:      #f4ecd8;
+    --cream-dim:  #b9b0a0;
+    --muted:      #6b6478;
+
+    --ok:         #7ed87a;
+
+    --hair:       1px;
+    --pad-lg:     28px;
+    --pad-md:     18px;
+    --pad-sm:     10px;
+
+    --ease-snap:  cubic-bezier(.2, .8, .2, 1);
+    --ease-slash: cubic-bezier(.7, .1, .2, 1);
+}
+
+/* Selection color is shared across pages */
+::selection { background: var(--red); color: var(--cream); }
+
+/* Webkit scrollbar baseline */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
