@@ -68,20 +68,41 @@ export class ViewerOverlays {
             this.elMic.className = 'mic-indicator state-' + next.toLowerCase();
         }
 
-        // Subtitle band: only the SPEAKING state populates it; it fades
-        // out 2s after the state leaves SPEAKING.
         if (this.elSubtitle && !this.elSubtitle.hidden) {
-            if (next === State.SPEAKING) {
-                clearTimeout(this._subtitleTimer);
-                if (this.elSubText) this.elSubText.textContent = (meta && meta.text) || '';
-                this.elSubtitle.classList.add('visible');
-            } else if (this.state.current !== State.SPEAKING) {
-                // Just left SPEAKING — start the fade-out timer.
-                clearTimeout(this._subtitleTimer);
-                this._subtitleTimer = setTimeout(() => {
-                    this.elSubtitle.classList.remove('visible');
-                }, SUBTITLE_FADE_MS);
-            }
+            this._renderSubtitle(next, meta);
         }
+    }
+
+    _renderSubtitle(next, meta) {
+        const setText = (text, klass) => {
+            if (this.elSubText) this.elSubText.textContent = text;
+            this.elSubtitle.classList.remove('user', 'placeholder');
+            if (klass) this.elSubtitle.classList.add(klass);
+        };
+
+        clearTimeout(this._subtitleTimer);
+
+        if (next === State.LISTENING) {
+            const transcript = (meta && meta.lastUtterance) || '';
+            setText(transcript || 'listening…', transcript ? 'user' : 'placeholder');
+            this.elSubtitle.classList.add('visible');
+            return;
+        }
+        if (next === State.THINKING) {
+            const transcript = (meta && meta.lastUtterance) || '…';
+            setText(transcript, 'user');
+            this.elSubtitle.classList.add('visible');
+            return;
+        }
+        if (next === State.SPEAKING) {
+            setText((meta && meta.text) || '', null);
+            this.elSubtitle.classList.add('visible');
+            return;
+        }
+        // AMBIENT / EMPTY / INTRO — fade out over the next SUBTITLE_FADE_MS.
+        this._subtitleTimer = setTimeout(() => {
+            this.elSubtitle.classList.remove('visible');
+            this.elSubtitle.classList.remove('user', 'placeholder');
+        }, SUBTITLE_FADE_MS);
     }
 }

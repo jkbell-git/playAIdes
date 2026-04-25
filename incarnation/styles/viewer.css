@@ -125,6 +125,24 @@ body {
     opacity: 1;
 }
 
+/* User-utterance variant (LISTENING / THINKING) — greyed, italic. */
+.subtitle-band.user {
+    color: var(--cream-dim);
+    font-style: italic;
+    border-color: var(--gold-dim);
+}
+
+/* Placeholder variant (LISTENING with no transcript yet). */
+.subtitle-band.placeholder {
+    color: var(--gold-dim);
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 14px;
+    letter-spacing: .2em;
+    text-transform: lowercase;
+    font-style: normal;
+    border-color: var(--gold-dim);
+}
+
 /* ── Name plate (top-left under strip) ─────────────────────── */
 .nameplate {
     position: fixed;
