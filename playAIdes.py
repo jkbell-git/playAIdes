@@ -400,6 +400,16 @@ class PlayAIdes:
         self.chat_history.append({"role": "user", "content": user_input})
         
         response = self.llm.chat(self.chat_history, system_prompt=system_prompt)
+
+        # Broadcast the reply text to any connected viewer so its subtitle
+        # band can render before TTS audio arrives. No-op if the
+        # incarnation server isn't running (CLI-only mode).
+        if self.incarnation_server is not None:
+            self.incarnation_server.send_command(
+                "assistant_message",
+                {"text": response},
+            )
+
         if self.args.use_voice:
             if self.args.use_avatar and self.incarnation_server:
                 import urllib.parse

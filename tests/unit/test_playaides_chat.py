@@ -102,3 +102,51 @@ class TestValidateArgs:
                 use_avatar=False, generate_avatar=False,
                 llm=MockLLM(), tts=NotTTS(),
             )
+
+
+class TestAssistantMessageBroadcast:
+    """When use_avatar is on, chat() emits an assistant_message WS command
+    carrying the reply text, before any audio is dispatched. This drives
+    the new viewer's subtitle band even when the terminal is the input."""
+
+    def test_emits_assistant_message_with_reply_text(
+        self, persona_file, fake_tts, no_incarnation
+    ):
+        # use_avatar=True so an IncarnationServer (stub) is wired
+        args = PlayAIdesArgs(
+            persona=[str(persona_file)],
+            generate_voice=False,
+            use_voice=False,
+            use_avatar=True,
+            generate_avatar=False,
+            llm=MockLLM(),
+            tts=fake_tts,
+        )
+        play = PlayAIdes(args)
+        reply = play.chat("hello there")
+        cmds = play.incarnation_server.commands
+        assistant_messages = [
+            (cmd, payload) for cmd, payload in cmds if cmd == "assistant_message"
+        ]
+        assert len(assistant_messages) == 1
+        _, payload = assistant_messages[0]
+        assert payload["text"] == reply
+
+    def test_no_message_when_avatar_disabled(
+        self, persona_file, fake_tts, no_incarnation
+    ):
+        # use_avatar=False → no incarnation_server → nothing to emit to
+        args = PlayAIdesArgs(
+            persona=[str(persona_file)],
+            generate_voice=False,
+            use_voice=False,
+            use_avatar=False,
+            generate_avatar=False,
+            llm=MockLLM(),
+            tts=fake_tts,
+        )
+        play = PlayAIdes(args)
+        # incarnation_server is None when use_avatar=False
+        assert play.incarnation_server is None
+        # Should not raise
+        play.chat("hi")
