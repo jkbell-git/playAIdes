@@ -9,5 +9,10 @@
         ]
     },
     "gender": "Female",
-    "language": "English"
+    "language": "English",
+    "avatar": {
+        "model_url": "models/handy/handy.vrm",
+        "idle_animation": "idle",
+        "intro_animation": "wave_hello"
+    }
 }
