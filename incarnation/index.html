@@ -4,16 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Incarnation — PlayAIdes</title>
-    <link rel="stylesheet" href="/styles/main.css" />
+    <link rel="stylesheet" href="/styles/viewer.css" />
   </head>
   <body>
+    <!-- Decorative top strip (always visible regardless of cinematic mode) -->
+    <div class="viewer-strip"></div>
+
+    <!-- 3D canvas (full-page, behind everything) -->
     <canvas id="viewer"></canvas>
 
-    <div id="status-overlay">
-      <span id="status-indicator"></span>
-      <span id="status-text">Initialising…</span>
+    <!-- Overlays. Each is hidden by viewerOverlays.js when its config flag
+         (or the master cinematic flag) is off. -->
+    <div id="mic-indicator" class="mic-indicator state-empty"></div>
+
+    <div id="subtitle-band" class="subtitle-band">
+      <span id="subtitle-text"></span>
     </div>
 
-    <script type="module" src="/src/main.js"></script>
+    <div id="nameplate" class="nameplate">
+      <span id="nameplate-conn" class="nameplate-conn"></span>
+      <span id="nameplate-name" class="nameplate-name">—</span>
+    </div>
+
+    <script type="module" src="/src/viewer.js"></script>
   </body>
 </html>
