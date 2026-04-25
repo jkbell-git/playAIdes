@@ -421,6 +421,14 @@ class PlayAIdes:
                 })
                 self.incarnation_server.send_command("focus_camera")
             if state == "model_loaded":
+                # Push the active persona's matching config to the browser
+                # so it can dismiss/wake-gate STT transcripts client-side.
+                if self.current_persona:
+                    self.incarnation_server.send_command("persona_active", {
+                        "name": self.current_persona.name,
+                        "wake_words": list(self.current_persona.wake_words or []),
+                        "dismiss_words": list(self.current_persona.dismiss_words or []),
+                    })
                 self.load_default_animations()
 
     def chat(self, user_input: str) -> str:
