@@ -11,11 +11,12 @@
 
 COMPOSE_TEST := docker compose -f docker-compose.test.yml
 COMPOSE_LIVE := docker compose -f docker-compose.test.yml -f docker-compose.live.yml
+COMPOSE_DEV  := docker compose -f docker-compose.dev.yml
 
-.PHONY: help test test-js test-all test-live test-unit test-integration coverage shell js-shell clean build build-js
+.PHONY: help test test-js test-all test-live test-unit test-integration coverage shell js-shell clean build build-js whisper whisper-stop dev-up dev-down
 
 help:
-	@echo "Targets: test, test-js, test-all, test-live, test-unit, test-integration, coverage, shell, js-shell, clean, build, build-js"
+	@echo "Targets: test, test-js, test-all, test-live, test-unit, test-integration, coverage, shell, js-shell, clean, build, build-js, whisper, whisper-stop, dev-up, dev-down"
 
 build:
 	$(COMPOSE_TEST) build tests
@@ -57,7 +58,23 @@ shell: build
 js-shell: build-js
 	$(COMPOSE_TEST) run --rm --entrypoint /bin/bash js-tests
 
+# Local-dev backing services (host-port-exposed, distinct from test-live overlay).
+whisper:
+	$(COMPOSE_DEV) up -d whisper
+	@echo "Whisper running at http://localhost:9000 (first run pulls the base model — give it ~60s)."
+	@echo "Tail logs:  docker logs -f playaides-whisper-dev"
+
+whisper-stop:
+	$(COMPOSE_DEV) stop whisper
+	$(COMPOSE_DEV) rm -f whisper
+
+dev-up: whisper
+
+dev-down:
+	$(COMPOSE_DEV) down
+
 clean:
 	$(COMPOSE_LIVE) down -v --remove-orphans 2>/dev/null || true
 	$(COMPOSE_TEST) down -v --remove-orphans 2>/dev/null || true
+	$(COMPOSE_DEV)  down -v --remove-orphans 2>/dev/null || true
 	rm -rf .test-output coverage.xml .pytest_cache .coverage
