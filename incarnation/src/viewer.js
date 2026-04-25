@@ -32,6 +32,10 @@ const stt = new SttClient(config.apiBase);
 // THINKING state's meta so the subtitle band can render it (greyed).
 let lastUserUtterance = '';
 
+// Active persona's matching config — populated by the server-pushed
+// `persona_active` WS message after the avatar finishes loading.
+let activePersona = { name: '', wake_words: [], dismiss_words: [] };
+
 // Pending text from the most recent assistant_message event — attached
 // to the next SPEAKING transition so the subtitle band can render.
 let pendingAssistantText = '';
@@ -149,6 +153,16 @@ connection.addEventListener('start_lip_sync', (e) => {
 connection.addEventListener('stop_lip_sync', () => {
     incarnation.handleCommand('stop_lip_sync', {});
     safeTransition(State.AMBIENT);
+});
+
+connection.addEventListener('persona_active', (e) => {
+    activePersona = {
+        name: e.detail?.name || '',
+        wake_words: Array.isArray(e.detail?.wake_words) ? e.detail.wake_words : [],
+        dismiss_words: Array.isArray(e.detail?.dismiss_words) ? e.detail.dismiss_words : [],
+    };
+    overlays.setPersonaName(activePersona.name);
+    console.log('[viewer] persona_active:', activePersona);
 });
 
 // LipSyncManager fires this when the audio element ends or pauses.
