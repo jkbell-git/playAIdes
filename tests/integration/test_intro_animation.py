@@ -79,10 +79,12 @@ class TestIntroAnimation:
         names = [p.get("name") for c, p in cmds if c == "play_animation"]
         assert "stand" in names
 
-    def test_falls_back_to_string_idle_when_both_none(self, tmp_personas_dir, args_factory):
-        """When intro AND idle_animation are both None, fall back to the
-        literal string 'idle' so we never send name=None (which silently
-        fails in animationManager and leaves the model in T-pose)."""
+    def test_falls_back_to_default_when_both_none(self, tmp_personas_dir, args_factory):
+        """When intro AND idle_animation are both None, fall back to
+        DEFAULT_IDLE_ANIMATION (a clip from the shared VRMA pack) so we
+        never send name=None — animationManager silently ignores unknown
+        names and the model stays in T-pose."""
+        from playAIdes import DEFAULT_IDLE_ANIMATION
         avatar = {"model_url": "m.vrm", "idle_animation": None}
         persona = {
             "name": "Test", "back_ground": "test",
@@ -99,5 +101,5 @@ class TestIntroAnimation:
         cmds = play.incarnation_server.commands
         play_anims = [p for c, p in cmds if c == "play_animation"]
         assert len(play_anims) == 1
-        assert play_anims[0]["name"] == "idle"
+        assert play_anims[0]["name"] == DEFAULT_IDLE_ANIMATION
         assert play_anims[0]["name"] is not None

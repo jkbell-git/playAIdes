@@ -10,6 +10,11 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Default clip to fall back to when a persona has no intro_animation and no
+# idle_animation. Must match a file in incarnation/public/vrma/animations/
+# (the shared VRMA pack); model_pose is the standing-still T-pose-replacement.
+DEFAULT_IDLE_ANIMATION = "model_pose"
+
 
 class PersonaLoadError(RuntimeError):
     """Raised when a persona file cannot be loaded or parsed."""
@@ -355,10 +360,11 @@ class PlayAIdes:
                     fallback_idle = (self.current_persona.avatar.idle_animation
                                      if (self.current_persona and self.current_persona.avatar)
                                      else None)
-                    # Final fallback to a string so we never send name=None to
-                    # the frontend (animationManager silently fails on a None
-                    # name and the model stays in T-pose).
-                    clip_name = intro or fallback_idle or "idle"
+                    # Final fallback to a clip from the shared VRMA pack so
+                    # personas without explicit animation config still animate
+                    # instead of staying in T-pose (animationManager silently
+                    # ignores names it can't resolve).
+                    clip_name = intro or fallback_idle or DEFAULT_IDLE_ANIMATION
                     logger.info(f"All auto-loaded animations finished loading. Playing clip: {clip_name}")
                     self.incarnation_server.send_command("play_animation", {
                         "name": clip_name,
@@ -369,7 +375,7 @@ class PlayAIdes:
                 logger.info(f"Animation {anim_name} finished playing.")
                 idle_anim = (self.current_persona.avatar.idle_animation
                              if (self.current_persona and self.current_persona.avatar)
-                             else None) or "idle"
+                             else None) or DEFAULT_IDLE_ANIMATION
                 logger.info(f"Switching to idle animation '{idle_anim}' and focusing camera...")
                 self.incarnation_server.send_command("play_animation", {
                      "name": idle_anim,
