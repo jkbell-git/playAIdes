@@ -349,10 +349,17 @@ class PlayAIdes:
                         self.expected_animations.remove(anim_name)
                         
                 if not self.expected_animations:
-                    logger.info("All auto-loaded animations finished loading. Playing initial animation...")
+                    logger.info("All auto-loaded animations finished loading. Playing intro animation...")
+                    intro = (self.current_persona.avatar.intro_animation
+                             if (self.current_persona and self.current_persona.avatar)
+                             else None)
+                    fallback_idle = (self.current_persona.avatar.idle_animation
+                                     if (self.current_persona and self.current_persona.avatar)
+                                     else "idle")
+                    clip_name = intro or fallback_idle
                     self.incarnation_server.send_command("play_animation", {
-                        "name": "cute_greeting_twirl",
-                        "loop": False
+                        "name": clip_name,
+                        "loop": False if intro else True,
                     })
             if state == "animation_finished":
                 anim_name = payload.get("name")
