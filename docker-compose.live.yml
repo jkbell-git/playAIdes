@@ -95,10 +95,13 @@ services:
         condition: service_completed_successfully
       tts:
         condition: service_healthy
+      whisper:
+        condition: service_healthy
     environment:
       - PYTHONPATH=/app
       - OLLAMA_URL=http://ollama:11434
       - TTS_URL=http://tts:8009
+      - WHISPER_URL=http://whisper:9000
       - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
     command: ["pytest", "-m", "live"]
 
