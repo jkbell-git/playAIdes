@@ -23,6 +23,7 @@ services:
       # Live backends intentionally unset here — live tests will skip.
       - OLLAMA_URL=
       - TTS_URL=
+      - WHISPER_URL=
     # Default invocation: skip live tests.
     command: ["pytest", "-m", "not live"]
 

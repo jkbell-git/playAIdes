@@ -70,6 +70,23 @@ services:
       start_period: 120s
     restart: unless-stopped
 
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: playaides-whisper
+    environment:
+      # Multilingual base model — supports both English and Japanese.
+      # Do NOT switch to *.en — we lose Japanese.
+      - ASR_MODEL=base
+      - ASR_ENGINE=faster_whisper
+    ports: []
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/docs', timeout=2)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 60s
+    restart: unless-stopped
+
   tests:
     depends_on:
       ollama:
