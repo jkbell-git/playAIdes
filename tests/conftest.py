@@ -120,6 +120,14 @@ class StubIncarnationServer:
     def send_command(self, cmd_type: str, payload: dict = None):
         self.commands.append((cmd_type, payload or {}))
 
+    def broadcast_to_persona(self, persona_id: str, cmd_type: str, payload: dict = None):
+        # Record under .commands as (cmd, payload) for backward compat with
+        # tests that don't care about persona-binding routing.
+        self.commands.append((cmd_type, payload or {}))
+
+    def broadcast_to_all(self, cmd_type: str, payload: dict = None):
+        self.commands.append((cmd_type, payload or {}))
+
 
 @pytest.fixture
 def no_incarnation(monkeypatch: pytest.MonkeyPatch):

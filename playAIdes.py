@@ -655,7 +655,11 @@ class PlayAIdes:
         # band can render before TTS audio arrives. No-op if the
         # incarnation server isn't running (CLI-only mode).
         if self.incarnation_server is not None:
-            self.incarnation_server.send_command(
+            # Broadcast only to clients bound to this persona — every TV
+            # showing Silver sees Silver's reply; TVs showing other personas
+            # are unaffected. (Falls back gracefully when no clients are bound.)
+            self.incarnation_server.broadcast_to_persona(
+                target_id,
                 "assistant_message",
                 {"text": response, "persona_id": target_id},
             )

@@ -124,3 +124,32 @@ def test_dismiss_persona_clears_binding(server):
         msg = json.loads(ws.receive_text())
         assert msg["type"] == "global_ping"
         assert msg["payload"] == {"x": 1}
+
+
+def test_chat_assistant_message_routes_via_persona_binding(persona_file, fake_tts):
+    """chat() should call broadcast_to_persona, not broadcast_to_all,
+    so only clients bound to the persona see the reply."""
+    from playAIdes import PlayAIdes, PlayAIdesArgs
+    from model_interfaces import MockLLM
+    from unittest.mock import MagicMock
+
+    args = PlayAIdesArgs(
+        persona=[str(persona_file)],
+        generate_voice=False, use_voice=False,
+        use_avatar=True, generate_avatar=False,
+        llm=MockLLM(), tts=fake_tts,
+    )
+    play = PlayAIdes(args)
+    # Replace the stub server with a MagicMock so we can spy on the calls.
+    spy = MagicMock()
+    spy.broadcast_to_persona = MagicMock()
+    play.incarnation_server = spy
+
+    play.chat("hello")
+    # Find the assistant_message broadcast.
+    persona_id = play.current_persona.name.strip().lower().replace(" ", "_")
+    expected_text = "Mock Response: I heard you say 'hello'."
+    spy.broadcast_to_persona.assert_any_call(
+        persona_id, "assistant_message",
+        {"text": expected_text, "persona_id": persona_id},
+    )
