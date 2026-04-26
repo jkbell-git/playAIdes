@@ -15,6 +15,11 @@ logger = logging.getLogger(__name__)
 # (the shared VRMA pack); model_pose is the standing-still T-pose-replacement.
 DEFAULT_IDLE_ANIMATION = "model_pose"
 
+# Cap chat_histories at the most recent N messages on load. Older entries
+# are trimmed in-place so the LLM context window stays bounded. Configurable
+# later via env / persona-level override.
+CHAT_HISTORY_CAP = 80
+
 
 def find_default_persona_id(personas_dir) -> Optional[str]:
     """Pick the boot persona id from a personas directory.
@@ -91,6 +96,12 @@ class PlayAIdes:
         self.tts: Optional[PersonaTTS] = args.tts if args.tts else Qwen3TTS_local() #Default to Qwen3TTS_local
         self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(on_message_callback=self._handle_incarnation_message) if args.use_avatar else None
         self.current_persona: Optional[Persona] = None
+        # chat_histories: persona_id → list of message dicts. Loaded lazily
+        # per persona from personas/<id>/chat_history.json on first access.
+        # See _load_history / _save_history / delete_history for persistence.
+        self.chat_histories: Dict[str, List[Dict[str, str]]] = {}
+        # Backwards-compat alias for chat() — points at the active persona's
+        # history once a persona is loaded.
         self.chat_history: List[Dict[str, str]] = []
         self.args: PlayAIdesArgs = args
         self.expected_animations = set()
@@ -291,6 +302,56 @@ class PlayAIdes:
         if self.loaded_animations:
             return sorted(self.loaded_animations)[0]
         return DEFAULT_IDLE_ANIMATION
+
+    def _history_path(self, persona_id: str):
+        """Path to a persona's chat_history.json. Path-traversal guarded."""
+        from pathlib import Path
+        if not persona_id or "/" in persona_id or "\\" in persona_id or persona_id in {".", ".."}:
+            raise ValueError(f"Suspicious persona_id: {persona_id!r}")
+        return Path("personas") / persona_id / "chat_history.json"
+
+    def _load_history(self, persona_id: str) -> List[Dict[str, str]]:
+        """Load a persona's chat history from disk, cap at the most recent
+        CHAT_HISTORY_CAP messages, store in chat_histories, and return it.
+        Missing file → empty list. Idempotent."""
+        if persona_id in self.chat_histories:
+            return self.chat_histories[persona_id]
+        path = self._history_path(persona_id)
+        history: List[Dict[str, str]] = []
+        if path.exists():
+            try:
+                history = json.loads(path.read_text())
+            except (json.JSONDecodeError, OSError) as e:
+                logger.warning("Failed to read %s: %s — starting empty", path, e)
+                history = []
+        if len(history) > CHAT_HISTORY_CAP:
+            history = history[-CHAT_HISTORY_CAP:]
+        self.chat_histories[persona_id] = history
+        return history
+
+    def _save_history(self, persona_id: str):
+        """Persist a persona's chat history atomically via tempfile + os.replace.
+        If os.replace raises, the original file is left intact."""
+        import tempfile
+        path = self._history_path(persona_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        history = self.chat_histories.get(persona_id, [])
+        # Write to a sibling tempfile, then atomically rename over the target.
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=str(path.parent), delete=False,
+            prefix=".chat_history.", suffix=".json.tmp",
+        ) as tf:
+            json.dump(history, tf, ensure_ascii=False, indent=2)
+            tmp_path = tf.name
+        os.replace(tmp_path, str(path))
+
+    def delete_history(self, persona_id: str):
+        """Clear a persona's history both in memory and on disk.
+        Not exposed to the WS in v1 — callable for future /forget commands."""
+        self.chat_histories.pop(persona_id, None)
+        path = self._history_path(persona_id)
+        if path.exists():
+            path.unlink()
 
     def _handle_incarnation_message(self, msg: dict):
         logger.info(f"Incarnation callback: {msg}")
