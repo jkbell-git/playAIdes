@@ -83,6 +83,12 @@ export class ViewerOverlays {
             if (this.elSubText) this.elSubText.textContent = text;
             this.elSubtitle.classList.remove('user', 'placeholder');
             if (klass) this.elSubtitle.classList.add(klass);
+            // Auto-scroll to bottom so the latest line is always visible
+            // when the band overflows (long replies). Defer to the next
+            // frame so layout has settled before we measure scrollHeight.
+            requestAnimationFrame(() => {
+                this.elSubtitle.scrollTop = this.elSubtitle.scrollHeight;
+            });
         };
 
         clearTimeout(this._subtitleTimer);

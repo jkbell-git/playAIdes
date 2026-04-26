@@ -116,6 +116,12 @@ body[data-viewer-state="EMPTY"] .nameplate {
     transform: translateX(-50%);
     bottom: 80px;
     max-width: min(80vw, 900px);
+    /* Cap the height so a long reply doesn't blanket the canvas;
+       overflow scrolls and we auto-scroll-to-bottom in JS so the
+       latest line is always visible (TV-friendly: no mouse needed). */
+    max-height: min(40vh, 360px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 16px 28px;
     background: linear-gradient(180deg, rgba(10, 8, 18, .82), rgba(10, 8, 18, .95));
     border: var(--hair) solid var(--gold);
@@ -134,8 +140,19 @@ body[data-viewer-state="EMPTY"] .nameplate {
     pointer-events: none;
 }
 
+/* When visible, accept pointer events so desktop users can scroll
+   manually with the wheel; auto-scroll-to-bottom (in JS) handles
+   the TV case where no mouse is available. */
 .subtitle-band.visible {
     opacity: 1;
+    pointer-events: auto;
+}
+
+/* Slim, on-brand scrollbar — tokens.css already styles webkit
+   scrollbars repo-wide; ensure Firefox follows suit. */
+.subtitle-band {
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold-dim) transparent;
 }
 
 /* User-utterance variant (LISTENING / THINKING) — greyed, italic. */
