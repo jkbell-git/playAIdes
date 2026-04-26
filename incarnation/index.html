@@ -29,6 +29,26 @@
       <span id="nameplate-name" class="nameplate-name">—</span>
     </div>
 
+    <!-- Phase 5: collapsible chat panel — right-edge handle + 440px slide-in -->
+    <div id="chat-panel" class="chat-panel" aria-hidden="true">
+      <button id="chat-panel-handle" class="chat-panel-handle"
+              type="button" aria-label="Open chat panel">‹</button>
+      <div class="chat-panel-body">
+        <header class="chat-panel-header">
+          <span id="chat-panel-name" class="chat-panel-name">—</span>
+          <span id="chat-panel-wake" class="chat-panel-wake"></span>
+        </header>
+        <div id="chat-panel-transcript" class="chat-panel-transcript" aria-live="polite"></div>
+        <form id="chat-panel-input-row" class="chat-panel-input-row">
+          <input id="chat-panel-input" class="chat-panel-input"
+                 type="text" autocomplete="off"
+                 placeholder="type to speak…" />
+          <button id="chat-panel-send" class="chat-panel-send"
+                  type="submit" aria-label="Send">▶</button>
+        </form>
+      </div>
+    </div>
+
     <script type="module" src="/src/viewer.js"></script>
   </body>
 </html>
