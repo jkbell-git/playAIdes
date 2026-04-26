@@ -39,8 +39,16 @@ class IncarnationServer:
         self.host = host
         self.port = port
         self.on_message_callback = on_message_callback
-        self.connected_client = None
-        self.message_queue = []
+        # Multi-client support (Phase 4): every connected WebSocket lives in
+        # `_clients`; bindings map each socket to the persona id it's
+        # currently displaying so we can route assistant_message broadcasts.
+        self._clients: set = set()
+        self._bindings: dict = {}   # WebSocket → persona_id
+        # Captured on first WS connect so threadsafe broadcasts can dispatch
+        # onto the loop where the WS protocol lives (uvicorn thread in
+        # production, TestClient portal in tests).
+        self._ws_loop = None
+        self.message_queue: list = []
 
         if FastAPI is None:
             logger.error("FastAPI is not installed. Cannot start Incarnation Server.")
@@ -95,27 +103,51 @@ class IncarnationServer:
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
             logger.info("Incarnation client connected via WebSocket")
-            self.connected_client = websocket
+            self._clients.add(websocket)
+            # Capture the loop the WS protocol lives on so broadcast helpers
+            # (which may be called from any thread) can schedule sends here.
+            self._ws_loop = asyncio.get_running_loop()
 
+            # Drain any boot-time queued messages to this fresh client.
             while self.message_queue:
-                msg = self.message_queue.pop(0)
-                await self._send_to_client(msg)
+                msg_str = self.message_queue.pop(0)
+                try:
+                    await websocket.send_text(msg_str)
+                except Exception:
+                    break
 
             try:
                 while True:
                     raw = await websocket.receive_text()
                     try:
                         msg = json.loads(raw)
-                        logger.info(f"Incarnation message: {msg}")
-                        if self.on_message_callback:
-                            self.on_message_callback(msg)
                     except json.JSONDecodeError:
                         logger.warning(f"Invalid JSON: {raw}")
+                        continue
+
+                    msg_type = msg.get("type")
+                    payload = msg.get("payload", {}) or {}
+
+                    # Bind / unbind happen at the socket level, not via the
+                    # PlayAIdes callback (the callback can also see them — it
+                    # uses set_active_persona to swap current_persona).
+                    if msg_type == "set_active_persona":
+                        pid = payload.get("id")
+                        if pid:
+                            self._bindings[websocket] = pid
+                            logger.info(f"WS bound to persona {pid}")
+                    elif msg_type == "dismiss_persona":
+                        self._bindings.pop(websocket, None)
+                        logger.info("WS persona binding cleared")
+
+                    logger.info(f"Incarnation message: {msg}")
+                    if self.on_message_callback:
+                        self.on_message_callback(msg)
             except WebSocketDisconnect:
                 logger.info("Incarnation client disconnected")
             finally:
-                if self.connected_client == websocket:
-                    self.connected_client = None
+                self._clients.discard(websocket)
+                self._bindings.pop(websocket, None)
 
         # ── Fetch Default Animations ──────────────────────────────────────────
         @self.app.get("/api/default_animations")
@@ -299,14 +331,13 @@ class IncarnationServer:
         except Exception as e:
             logger.error(f"IncarnationServer failed to start: {e}")
 
-    async def _send_to_client(self, msg_str):
-        if self.connected_client:
-            try:
-                await self.connected_client.send_text(msg_str)
-            except Exception as e:
-                logger.exception(f"Failed to send message: {e}")
-
     def send_command(self, cmd_type: str, payload: dict = None):
+        """Legacy single-client API. Now broadcasts to ALL connected
+        clients — Phase 4 broadcast-to-persona is via broadcast_to_persona.
+
+        When no clients are connected, queues the message so it can be
+        flushed to the next client that connects (preserves Phase 1–3
+        boot-time behavior)."""
         if FastAPI is None:
             logger.error("FastAPI is not installed.")
             return
@@ -316,12 +347,43 @@ class IncarnationServer:
             msg["payload"] = payload
         msg_str = json.dumps(msg)
 
-        if self.connected_client is None:
+        if not self._clients:
             logger.info(f"No client connected. Queuing: {cmd_type}")
             self.message_queue.append(msg_str)
-        else:
-            if hasattr(self, "loop") and self.loop.is_running():
-                asyncio.run_coroutine_threadsafe(self._send_to_client(msg_str), self.loop)
-            else:
-                logger.warning("Event loop not running yet. Queuing message.")
-                self.message_queue.append(msg_str)
+            return
+
+        for ws in list(self._clients):
+            self._safe_send_text(ws, msg_str)
+
+    def broadcast_to_persona(self, persona_id: str, cmd_type: str, payload: dict = None):
+        """Send a WS frame to every connected client bound to persona_id.
+        No-op if no clients match (e.g. the persona has been dismissed
+        on every TV)."""
+        msg = {"type": cmd_type, "payload": payload or {}}
+        msg_str = json.dumps(msg)
+        targets = [ws for ws, pid in list(self._bindings.items()) if pid == persona_id]
+        for ws in targets:
+            self._safe_send_text(ws, msg_str)
+
+    def broadcast_to_all(self, cmd_type: str, payload: dict = None):
+        """Send a WS frame to every connected client, regardless of binding."""
+        msg = {"type": cmd_type, "payload": payload or {}}
+        msg_str = json.dumps(msg)
+        for ws in list(self._clients):
+            self._safe_send_text(ws, msg_str)
+
+    def _safe_send_text(self, websocket, msg_str: str):
+        """Best-effort send; drops the client on any send failure (likely
+        disconnected mid-broadcast). Schedules the send on the WS event
+        loop via run_coroutine_threadsafe so this is safe to call from
+        any thread."""
+        loop = self._ws_loop
+        if loop is None or not loop.is_running():
+            logger.warning("WS event loop not running; dropping broadcast.")
+            return
+        try:
+            asyncio.run_coroutine_threadsafe(websocket.send_text(msg_str), loop)
+        except Exception as e:
+            logger.warning(f"Broadcast send failed, dropping client: {e}")
+            self._clients.discard(websocket)
+            self._bindings.pop(websocket, None)
