@@ -178,3 +178,29 @@ class TestPersonaWakeAndDismiss:
                 gender="Female", language="English",
                 is_default=None,
             )
+
+
+class TestAvatarSpawnAndCamera:
+    def test_spawn_point_optional(self):
+        """Avatar without spawn_point parses fine (backwards compat)."""
+        a = Avatar(model_url="m.vrm")
+        assert a.spawn_point is None
+
+    def test_camera_target_optional(self):
+        """Avatar without camera_target parses fine."""
+        a = Avatar(model_url="m.vrm")
+        assert a.camera_target is None
+
+    def test_spawn_point_three_floats(self):
+        a = Avatar(model_url="m.vrm", spawn_point=[0.0, 0.0, 0.0])
+        assert a.spawn_point == [0.0, 0.0, 0.0]
+
+    def test_camera_target_three_floats(self):
+        a = Avatar(model_url="m.vrm", camera_target=[0.0, 1.1, 0.0])
+        assert a.camera_target == [0.0, 1.1, 0.0]
+
+    def test_spawn_point_accepts_ints(self):
+        """Persona JSON often has integer literals; ensure they coerce to float-friendly."""
+        a = Avatar(model_url="m.vrm", spawn_point=[0, 1, 2])
+        # Pydantic v2 will coerce int → float when the field type allows it.
+        assert list(a.spawn_point) == [0, 1, 2]

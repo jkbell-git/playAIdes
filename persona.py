@@ -18,6 +18,8 @@ class Avatar(BaseModel): #optional
     animation_list: Optional[List[str]] = None # we need to get the animation list from the model and also
     #add animations we have loaded
     background_url: Optional[str] = None
+    spawn_point: Optional[List[float]] = None
+    camera_target: Optional[List[float]] = None
 
 class Voice(BaseModel): #optional
     #speaker: Speaker # this can also be a local file path
