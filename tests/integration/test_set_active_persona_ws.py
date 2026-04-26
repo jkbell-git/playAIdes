@@ -124,3 +124,33 @@ class TestSetActivePersonaWS:
         assert "rin" in play.chat_histories
         rin_hist = play.chat_histories["rin"]
         assert any(m.get("content") == "hi rin" for m in rin_hist)
+
+    def test_replays_intro_on_same_persona_resummon(self, play, tmp_personas_dir):
+        """Same-persona set_active_persona should fire play_animation for
+        the intro_animation so re-summon plays the greeting."""
+        # `set_persona` is idempotent for same-id calls (returns the cached
+        # in-memory persona without re-reading from disk), so we mutate the
+        # active persona's avatar.intro_animation directly. In production
+        # this field is set when the persona is first loaded.
+        from persona import Avatar
+        active_id = play.current_persona.name.strip().lower().replace(" ", "_")
+        if play.current_persona.avatar is None:
+            play.current_persona.avatar = Avatar(
+                model_url="m.vrm", intro_animation="wave",
+            )
+        else:
+            play.current_persona.avatar.intro_animation = "wave"
+
+        # Clear command log to focus on what the resummon emits.
+        play.incarnation_server.commands.clear()
+
+        play._handle_incarnation_message({
+            "type": "set_active_persona",
+            "payload": {"id": active_id},
+        })
+
+        cmds = play.incarnation_server.commands
+        plays = [(c, p) for c, p in cmds if c == "play_animation"]
+        assert len(plays) == 1
+        assert plays[0][1]["name"] == "wave"
+        assert plays[0][1]["loop"] is False

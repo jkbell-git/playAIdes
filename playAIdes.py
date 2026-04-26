@@ -448,6 +448,19 @@ class PlayAIdes:
                     self.incarnation_server.send_command("set_background", {
                         "url": persona.avatar.background_url,
                     })
+                # Different persona: post-load animation flow handles intro
+                # replay once load_default_animations finishes (existing
+                # Phase-1 code).
+            else:
+                # Same persona re-summon (e.g. wake-after-dismiss). Model
+                # is still loaded; just replay the intro clip directly.
+                intro = (persona.avatar.intro_animation
+                         if (persona.avatar) else None)
+                if intro:
+                    self.incarnation_server.send_command("play_animation", {
+                        "name": intro,
+                        "loop": False,
+                    })
 
             # History rehydration (deferred chat-panel UI lands in Phase 5;
             # frame is sent now so phase-4 clients can stash it).
