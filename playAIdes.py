@@ -259,8 +259,12 @@ class PlayAIdes:
         if p.avatar is not None and p.avatar.model_url:
             self.expected_animations.clear()
             logger.info(f"Sending load_model command for avatar: {p.avatar.model_url}")
-            self.incarnation_server.send_command("load_model", {"url": p.avatar.model_url})
-            
+            self.incarnation_server.send_command("load_model", {
+                "url": p.avatar.model_url,
+                "spawn_point": list(p.avatar.spawn_point or []),
+                "camera_target": list(p.avatar.camera_target or []),
+            })
+
         else:
             logger.info("No avatar configured for this persona.")
 
@@ -456,7 +460,11 @@ class PlayAIdes:
                 if persona.avatar and persona.avatar.model_url:
                     self.incarnation_server.broadcast_to_persona(
                         requested_id, "load_model",
-                        {"url": persona.avatar.model_url},
+                        {
+                            "url": persona.avatar.model_url,
+                            "spawn_point": list(persona.avatar.spawn_point or []),
+                            "camera_target": list(persona.avatar.camera_target or []),
+                        },
                     )
                 # Background carries on the existing flat-image path until Phase 5.
                 if persona.avatar and persona.avatar.background_url:

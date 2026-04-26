@@ -1,4 +1,4 @@
-import { scene, setBackground, focusOnHead } from './scene.js';
+import { scene, controls, setBackground, focusOnHead } from './scene.js';
 import { loadModel, loadAnimationFile, listMorphTargets } from './modelLoader.js';
 import { loadMixamoAnimation } from './loadMixamoAnimation.js';
 import { loadVRMAAnimation } from './vrmaLoader.js';
@@ -279,7 +279,23 @@ export class Incarnation {
         console.log('[Incarnation] Received command:', type, payload);
         switch (type) {
             case 'load_model':
-                return await this.loadPersona({ url: payload.url });
+                {
+                    const result = await this.loadPersona({ url: payload.url });
+                    // Apply optional spawn_point and camera_target from the
+                    // persona's avatar config (Phase 5). Defaults match today's
+                    // behavior when omitted.
+                    if (Array.isArray(payload.spawn_point) && payload.spawn_point.length === 3 && this.vrm) {
+                        const [x, y, z] = payload.spawn_point;
+                        this.vrm.scene.position.set(x, y, z);
+                    }
+                    if (Array.isArray(payload.camera_target) && payload.camera_target.length === 3) {
+                        const [x, y, z] = payload.camera_target;
+                        // controls is imported at the top of incarnation.js from scene.js.
+                        controls.target.set(x, y, z);
+                        controls.update();
+                    }
+                    return result;
+                }
 
             case 'unload_model':
                 this.unloadModel();
