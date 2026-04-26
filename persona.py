@@ -46,5 +46,5 @@ class Persona(BaseModel):
     memories: Optional[Memories] = None
     wake_words: Optional[List[str]] = None
     dismiss_words: Optional[List[str]] = None
-    is_default: Optional[bool] = False
+    is_default: bool = False
     

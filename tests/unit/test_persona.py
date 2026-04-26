@@ -167,3 +167,14 @@ class TestPersonaWakeAndDismiss:
         assert p.wake_words == ["hey silver", "silver", "シルバー"]
         assert p.dismiss_words == ["goodnight silver", "おやすみ"]
         assert p.is_default is True
+
+    def test_is_default_rejects_none(self):
+        """is_default must be a real bool now (Phase 4 boot resolution
+        consumes it). None should fail validation."""
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            Persona(
+                name="X", back_ground="bg", psyche=Psyche(traits=[]),
+                gender="Female", language="English",
+                is_default=None,
+            )

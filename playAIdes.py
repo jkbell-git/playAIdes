@@ -16,6 +16,49 @@ logger = logging.getLogger(__name__)
 DEFAULT_IDLE_ANIMATION = "model_pose"
 
 
+def find_default_persona_id(personas_dir) -> Optional[str]:
+    """Pick the boot persona id from a personas directory.
+
+    Returns:
+        - Id of the persona whose `is_default: true`, if any.
+        - Else id of the first persona alphabetically (with a warning).
+        - Else None when no personas are found.
+
+    Skips directories that don't contain a parseable persona.json.
+    """
+    from pathlib import Path
+    personas_dir = Path(personas_dir)
+    if not personas_dir.is_dir():
+        return None
+
+    candidates = []
+    for entry in sorted(personas_dir.iterdir()):
+        if not entry.is_dir():
+            continue
+        pfile = entry / "persona.json"
+        if not pfile.exists():
+            continue
+        try:
+            data = json.loads(pfile.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        candidates.append((entry.name, bool(data.get("is_default", False))))
+
+    if not candidates:
+        return None
+
+    for pid, is_default in candidates:
+        if is_default:
+            return pid
+
+    fallback = candidates[0][0]
+    logger.warning(
+        "No is_default=true persona found; falling back to first alphabetically: %s",
+        fallback,
+    )
+    return fallback
+
+
 class PersonaLoadError(RuntimeError):
     """Raised when a persona file cannot be loaded or parsed."""
 
