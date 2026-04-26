@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /**
  * Scene — sets up the Three.js renderer, camera, lights, and controls.
@@ -120,6 +121,33 @@ function loadHDRIBackground(url) {
     });
 }
 
+// Track the currently-loaded 3D background so we can remove it on swap.
+let _bg3DScene = null;
+
+/**
+ * Load a 3D background scene (.glb / .gltf). The loaded scene is added
+ * to the main THREE.Scene next to the VRM. Existing rim/key lights still
+ * apply; any lights packed into the .glb are added on top. Spec §4b.
+ *
+ * On failure: falls back to a flat grey color and warns.
+ */
+function load3DBackground(url) {
+    if (_bg3DScene) {
+        scene.remove(_bg3DScene);
+        _bg3DScene = null;
+    }
+    const loader = new GLTFLoader();
+    loader.load(url, (gltf) => {
+        _bg3DScene = gltf.scene;
+        scene.add(_bg3DScene);
+        // Clear any HDRI env map / texture left over from a prior swap.
+        scene.background = null;
+    }, undefined, (err) => {
+        console.warn('[scene] 3D background load failed; falling back to grey:', err);
+        scene.background = new THREE.Color(0x1a1a2e);
+    });
+}
+
 function focusOnHead(model) {
     if (!model) return;
     console.log("[scene] Focusing on head");
@@ -165,4 +193,4 @@ function focusOnHead(model) {
     animateFocus();
 }
 
-export { scene, camera, renderer, controls, clock, setBackground, loadHDRIBackground, focusOnHead };
+export { scene, camera, renderer, controls, clock, setBackground, loadHDRIBackground, load3DBackground, focusOnHead };
