@@ -410,10 +410,58 @@ class PlayAIdes:
             text = (payload.get("text") or "").strip()
             if not text:
                 return
+            persona_id = (payload.get("persona_id") or "").strip() or None
             try:
-                self.chat(text)
+                self.chat(text, persona_id=persona_id)
             except Exception as e:
                 logger.exception(f"user_input chat() failed: {e}")
+            return
+
+        if msg_type == "set_active_persona":
+            requested_id = (payload.get("id") or "").strip()
+            prev_id = (self.current_persona.name.strip().lower().replace(" ", "_")
+                       if self.current_persona else None)
+            try:
+                persona = self.set_persona(requested_id)
+            except (PersonaLoadError, ValueError) as e:
+                self.incarnation_server.send_command("persona_changed", {
+                    "ok": False,
+                    "error": str(e),
+                })
+                return
+
+            self.incarnation_server.send_command("persona_changed", {
+                "ok": True,
+                "persona": persona.model_dump(),
+            })
+
+            # If we actually swapped, tell the browser to unload the old VRM
+            # and load the new one. Same persona → skip (model is still loaded).
+            if prev_id != requested_id:
+                self.incarnation_server.send_command("unload_model", {})
+                if persona.avatar and persona.avatar.model_url:
+                    self.incarnation_server.send_command("load_model", {
+                        "url": persona.avatar.model_url,
+                    })
+                # Background carries on the existing flat-image path until Phase 5.
+                if persona.avatar and persona.avatar.background_url:
+                    self.incarnation_server.send_command("set_background", {
+                        "url": persona.avatar.background_url,
+                    })
+
+            # History rehydration (deferred chat-panel UI lands in Phase 5;
+            # frame is sent now so phase-4 clients can stash it).
+            self.incarnation_server.send_command("history_loaded", {
+                "persona_id": requested_id,
+                "history": list(self.chat_histories.get(requested_id, [])),
+            })
+            return
+
+        if msg_type == "dismiss_persona":
+            # The WS endpoint already cleared this client's binding registry
+            # entry; PlayAIdes itself has no further action — chat history
+            # is preserved on disk per spec §2 dismiss subsection.
+            logger.info("Persona dismissed (binding cleared by WS layer)")
             return
 
         if msg_type == "create_persona":
