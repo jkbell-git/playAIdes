@@ -208,6 +208,17 @@ connection.addEventListener('connected', () => {
 connection.addEventListener('personas_list', (e) => {
     personasRegistry.replaceAll(e.detail?.personas || []);
     console.log('[viewer] personas_list:', personasRegistry.all().map((p) => p.id));
+
+    // Boot resolution: honor ?persona= URL param if it matches a known id;
+    // else fall back to the registry's default; else do nothing (server
+    // stays on whatever --persona it was launched with).
+    const wanted = config.persona && personasRegistry.get(config.persona)
+        ? personasRegistry.get(config.persona)
+        : personasRegistry.findDefault();
+    if (wanted && wanted.id) {
+        console.log('[viewer] boot persona:', wanted.id);
+        connection.send('set_active_persona', { id: wanted.id });
+    }
 });
 
 // LipSyncManager fires this when the audio element ends or pauses.
