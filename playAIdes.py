@@ -132,6 +132,11 @@ class PlayAIdes:
             raise PersonaLoadError(f"Persona file {filepath} failed validation: {e}") from e
         logger.info("Loaded persona: %s", self.current_persona.name)
         self._validate_persona(self.current_persona)
+        # Keep the legacy chat_history alias pointing at the active
+        # persona's history (so any caller that reads self.chat_history
+        # directly still works during the transition).
+        active_id = self.current_persona.name.strip().lower().replace(" ", "_")
+        self.chat_history = self._load_history(active_id)
     def _update_persona_file(self,p:Persona):
         with open(f"personas/{p.name.lower()}/persona.json", 'w') as f:
             json.dump(p.model_dump(), f, indent=2)
@@ -353,6 +358,37 @@ class PlayAIdes:
         if path.exists():
             path.unlink()
 
+    def set_persona(self, persona_id: str) -> Optional[Persona]:
+        """Reload the active persona at runtime.
+
+        Loads personas/<id>/persona.json, runs _validate_persona, swaps
+        current_persona, and ensures the per-persona chat history is
+        loaded into chat_histories. Idempotent: no-op if id matches the
+        currently-active persona.
+
+        Path-traversal guarded the same way delete_persona is. Raises
+        PersonaLoadError on any failure (the WS handler turns this into
+        a persona_changed{ok: false, error}).
+        """
+        if not persona_id or "/" in persona_id or "\\" in persona_id or persona_id in {".", ".."}:
+            raise PersonaLoadError(f"Suspicious persona_id: {persona_id!r}")
+
+        # Idempotency: same id as the currently-active persona → no-op.
+        if (self.current_persona and
+                self.current_persona.name.strip().lower().replace(" ", "_") == persona_id):
+            # Still ensure history is loaded.
+            self._load_history(persona_id)
+            return self.current_persona
+
+        path = os.path.join("personas", persona_id, "persona.json")
+        if not os.path.exists(path):
+            raise PersonaLoadError(f"Persona not found: {persona_id}")
+
+        # Re-use the existing loader (raises PersonaLoadError on bad input).
+        self._load_persona_from_file(path)
+        self._load_history(persona_id)
+        return self.current_persona
+
     def _handle_incarnation_message(self, msg: dict):
         logger.info(f"Incarnation callback: {msg}")
         msg_type = msg.get("type")
@@ -535,9 +571,15 @@ class PlayAIdes:
                     })
                 self.load_default_animations()
 
-    def chat(self, user_input: str) -> str:
+    def chat(self, user_input: str, persona_id: Optional[str] = None) -> str:
         if not self.current_persona:
             return "No persona loaded."
+
+        # Resolve the persona to route this turn against. Defaults to active.
+        target_id = persona_id or self.current_persona.name.strip().lower().replace(" ", "_")
+
+        # Ensure that persona's history is loaded (lazy from disk).
+        history = self._load_history(target_id)
 
         # Construct system prompt based on persona
         system_prompt = (f"You are impersonating a this character named"
@@ -550,16 +592,16 @@ class PlayAIdes:
         if self.current_persona.memories and self.current_persona.memories.memories:
             system_prompt += (f"your memories are: {self.current_persona.memories.memories}.")
 
-        
+
         system_prompt += "be a helpful assistant to the user. with yor responses in character"
 
         if self.current_persona.persona_voice and self.current_persona.persona_voice.is_voice_valid():
             system_prompt += (f"your response will be sent to a TTS service to be spoken."
             f"please make sure your response does not contain things not spoken. no emojis")
 
-        self.chat_history.append({"role": "user", "content": user_input})
-        
-        response = self.llm.chat(self.chat_history, system_prompt=system_prompt)
+        history.append({"role": "user", "content": user_input})
+
+        response = self.llm.chat(history, system_prompt=system_prompt)
 
         # Broadcast the reply text to any connected viewer so its subtitle
         # band can render before TTS audio arrives. No-op if the
@@ -567,7 +609,7 @@ class PlayAIdes:
         if self.incarnation_server is not None:
             self.incarnation_server.send_command(
                 "assistant_message",
-                {"text": response},
+                {"text": response, "persona_id": target_id},
             )
 
         if self.args.use_voice:
@@ -590,6 +632,13 @@ class PlayAIdes:
                     speaker_id=self.current_persona.persona_voice.speaker_uuid,
                     language=self.current_persona.language or "English")
                 )
-        
+
+        history.append({"role": "assistant", "content": response})
+
+        # Trim to cap and persist atomically.
+        if len(history) > CHAT_HISTORY_CAP:
+            history[:] = history[-CHAT_HISTORY_CAP:]
+        self._save_history(target_id)
+
         return response
             

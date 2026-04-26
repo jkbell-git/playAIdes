@@ -31,7 +31,9 @@ class TestChat:
         assert "hello there" in out
         # MockLLM echoes, so response contains the user's text.
         assert play.chat_history[0] == {"role": "user", "content": "hello there"}
-        assert len(play.chat_history) == 1  # only user is appended; reply isn't
+        # Both user and assistant turns are appended to the per-persona history.
+        assert len(play.chat_history) == 2
+        assert play.chat_history[1]["role"] == "assistant"
 
     def test_no_persona_loaded_returns_sentinel(
         self, tmp_path, monkeypatch, fake_tts, no_incarnation

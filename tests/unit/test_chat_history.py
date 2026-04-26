@@ -23,7 +23,9 @@ def play(persona_file, fake_tts, no_incarnation):
 
 class TestChatHistoryPersistence:
     def test_chat_histories_starts_empty(self, play):
-        assert play.chat_histories == {}
+        # The active persona's history is eagerly pre-loaded by
+        # _load_persona_from_file → expect a single empty entry, not {}.
+        assert play.chat_histories == {"testbot": []}
 
     def test_load_history_reads_existing_json(self, play, tmp_personas_dir):
         pid = "testbot"
@@ -32,6 +34,10 @@ class TestChatHistoryPersistence:
             {"role": "user", "content": "hi"},
             {"role": "assistant", "content": "hello"},
         ]))
+        # Active persona was eagerly pre-loaded by _load_persona_from_file
+        # (with no on-disk history at the time). Clear that cache so the
+        # newly-written history file is read.
+        play.chat_histories.pop(pid, None)
         loaded = play._load_history(pid)
         assert loaded == [
             {"role": "user", "content": "hi"},
@@ -49,6 +55,8 @@ class TestChatHistoryPersistence:
         # Seed 200 messages — should be trimmed to the most recent N.
         big = [{"role": "user", "content": f"msg-{i}"} for i in range(200)]
         history_file.write_text(json.dumps(big))
+        # Same eager-load consideration as above.
+        play.chat_histories.pop(pid, None)
         loaded = play._load_history(pid)
         assert len(loaded) == CHAT_HISTORY_CAP
         # Most-recent retention: last message is preserved.
