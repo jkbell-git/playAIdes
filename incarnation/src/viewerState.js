@@ -79,4 +79,23 @@ export class ViewerState extends EventTarget {
             detail: { prev, next, prevMeta, meta },
         }));
     }
+
+    /**
+     * Refresh the current state's metadata without changing state.
+     * Emits `change` with prev === next so listeners (e.g. the overlay
+     * subtitle renderer) can re-render. Useful for e.g. populating the
+     * THINKING state's `lastUtterance` once STT returns.
+     *
+     * @param {object|null} meta — replaces _meta wholesale
+     */
+    updateMeta(meta) {
+        const prevMeta = this._meta;
+        this._meta = meta;
+        this.dispatchEvent(new CustomEvent('change', {
+            detail: {
+                prev: this._state, next: this._state,
+                prevMeta, meta,
+            },
+        }));
+    }
 }

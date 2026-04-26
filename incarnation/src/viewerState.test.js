@@ -160,4 +160,26 @@ describe('ViewerState — change event and metadata', () => {
         sm.transition(State.AMBIENT);
         expect(sm.meta).toBeNull();
     });
+
+    it('updateMeta refreshes meta + emits change without changing state', () => {
+        const sm = new ViewerState(State.THINKING);
+        const events = [];
+        sm.addEventListener('change', (e) => events.push(e.detail));
+
+        sm.updateMeta({ lastUtterance: 'hello world' });
+
+        expect(sm.current).toBe(State.THINKING);
+        expect(sm.meta).toEqual({ lastUtterance: 'hello world' });
+        expect(events).toHaveLength(1);
+        expect(events[0].prev).toBe(State.THINKING);
+        expect(events[0].next).toBe(State.THINKING);
+        expect(events[0].meta).toEqual({ lastUtterance: 'hello world' });
+    });
+
+    it('updateMeta accepts null and clears meta', () => {
+        const sm = new ViewerState(State.THINKING);
+        sm.updateMeta({ a: 1 });
+        sm.updateMeta(null);
+        expect(sm.meta).toBe(null);
+    });
 });

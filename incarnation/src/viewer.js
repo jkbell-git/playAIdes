@@ -195,13 +195,7 @@ audioCapture.addEventListener('voicestart', () => {
  */
 function refreshThinkingMeta(text) {
     if (stateMachine.current !== State.THINKING) return;
-    stateMachine.dispatchEvent(new CustomEvent('change', {
-        detail: {
-            prev: State.THINKING, next: State.THINKING,
-            prevMeta: { lastUtterance: '…' },
-            meta: { lastUtterance: text },
-        },
-    }));
+    stateMachine.updateMeta({ lastUtterance: text });
 }
 
 audioCapture.addEventListener('voiceend', async (e) => {
