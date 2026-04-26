@@ -126,6 +126,79 @@ def test_dismiss_persona_clears_binding(server):
         assert msg["payload"] == {"x": 1}
 
 
+def test_set_active_persona_routes_all_messages_via_persona_binding(persona_file, fake_tts, tmp_personas_dir):
+    """Multi-TV regression: when set_active_persona swaps to a new persona,
+    EVERY persona-scoped message (persona_changed, unload_model, load_model,
+    set_background, history_loaded) must route via broadcast_to_persona to
+    the requested id — never via broadcast_to_all. Spec §3 multi-TV memory.
+
+    Uses MagicMock to verify the routing intent (which method was called
+    with which persona_id) rather than driving the full multi-WS plumbing.
+    """
+    from playAIdes import PlayAIdes, PlayAIdesArgs
+    from model_interfaces import MockLLM
+    from unittest.mock import MagicMock
+
+    # Seed a Rin persona on disk so set_persona("rin") succeeds.
+    rin_dir = tmp_personas_dir / "rin"
+    rin_dir.mkdir(exist_ok=True)
+    (rin_dir / "persona.json").write_text(json.dumps({
+        "name": "Rin",
+        "back_ground": "bg",
+        "psyche": {"traits": []},
+        "gender": "Female",
+        "language": "English",
+        "avatar": {
+            "model_url": "rin.vrm",
+            "background_url": "rin_bg.jpg",
+        },
+    }))
+
+    args = PlayAIdesArgs(
+        persona=[str(persona_file)],
+        generate_voice=False, use_voice=False,
+        use_avatar=True, generate_avatar=False,
+        llm=MockLLM(), tts=fake_tts,
+    )
+    play = PlayAIdes(args)
+    spy = MagicMock()
+    spy.broadcast_to_persona = MagicMock()
+    spy.broadcast_to_all = MagicMock()
+    spy.send_command = MagicMock()
+    play.incarnation_server = spy
+
+    play._handle_incarnation_message({
+        "type": "set_active_persona",
+        "payload": {"id": "rin"},
+    })
+
+    # Every persona-scoped message routes via broadcast_to_persona("rin", ...).
+    routed_types = [
+        call.args[1] for call in spy.broadcast_to_persona.call_args_list
+        if call.args[0] == "rin"
+    ]
+    for required in ("persona_changed", "unload_model", "load_model",
+                     "set_background", "history_loaded"):
+        assert required in routed_types, (
+            f"{required} did not route via broadcast_to_persona('rin', ...) — "
+            f"routed types: {routed_types}"
+        )
+
+    # Critical: NONE of the persona-scoped messages should be sent via
+    # broadcast_to_all (which would leak to TVs showing other personas).
+    leaky_types = {call.args[0] for call in spy.broadcast_to_all.call_args_list}
+    leaky_via_send_command = {call.args[0] for call in spy.send_command.call_args_list}
+    forbidden = {"persona_changed", "unload_model", "load_model",
+                 "set_background", "history_loaded", "play_animation"}
+    assert not (leaky_types & forbidden), (
+        f"Persona-scoped messages leaked to broadcast_to_all: {leaky_types & forbidden}"
+    )
+    assert not (leaky_via_send_command & forbidden), (
+        f"Persona-scoped messages leaked to send_command: "
+        f"{leaky_via_send_command & forbidden}"
+    )
+
+
 def test_chat_assistant_message_routes_via_persona_binding(persona_file, fake_tts):
     """chat() should call broadcast_to_persona, not broadcast_to_all,
     so only clients bound to the persona see the reply."""

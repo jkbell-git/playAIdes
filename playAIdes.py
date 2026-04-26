@@ -266,12 +266,18 @@ class PlayAIdes:
 
     def load_default_animations(self):
         # We send set_background when the client connects and sends model_loaded,
-        # ensuring the client is actually ready to receive it.
-        if self.current_persona and self.current_persona.avatar:
+        # ensuring the client is actually ready to receive it. Multi-TV: route
+        # to clients bound to this persona id only.
+        if not self.current_persona:
+            return
+        active_id = self.current_persona.name.strip().lower().replace(" ", "_")
+        if self.current_persona.avatar:
             bg_url = self.current_persona.avatar.background_url
             if bg_url:
                 logger.info(f"Sending set_background for avatar: {bg_url}")
-                self.incarnation_server.send_command("set_background", {"url": bg_url})
+                self.incarnation_server.broadcast_to_persona(
+                    active_id, "set_background", {"url": bg_url},
+                )
 
         if self.current_persona.avatar.model_url.lower().endswith('.vrm'):
             animation_dir = "incarnation/public/vrma/animations"
@@ -283,10 +289,10 @@ class PlayAIdes:
                         anim_name = os.path.splitext(filename)[0].split(".vrma")[0]
                         self.expected_animations.add(anim_name)
                         logger.info(f"Loading animation: {anim_name} from {anim_url}")
-                        self.incarnation_server.send_command("load_vrma_animation", {
-                            "url": anim_url,
-                            "name": anim_name
-                        })
+                        self.incarnation_server.broadcast_to_persona(
+                            active_id, "load_vrma_animation",
+                            {"url": anim_url, "name": anim_name},
+                        )
 
     def _resolve_clip_name(self, preferred: Optional[str]) -> str:
         """Pick an animation name to play, gracefully degrading when the
@@ -424,30 +430,40 @@ class PlayAIdes:
             try:
                 persona = self.set_persona(requested_id)
             except (PersonaLoadError, ValueError) as e:
-                self.incarnation_server.send_command("persona_changed", {
-                    "ok": False,
-                    "error": str(e),
-                })
+                # Error case: the requesting client just bound to requested_id
+                # via the WS endpoint; route the failure back to that client
+                # only. No-op for other TVs.
+                self.incarnation_server.broadcast_to_persona(
+                    requested_id, "persona_changed",
+                    {"ok": False, "error": str(e)},
+                )
                 return
 
-            self.incarnation_server.send_command("persona_changed", {
-                "ok": True,
-                "persona": persona.model_dump(),
-            })
+            # All persona-scoped messages route to clients bound to the new
+            # persona id (the requesting client is now bound to it; other
+            # TVs showing other personas are unaffected). Spec §3 multi-TV.
+            self.incarnation_server.broadcast_to_persona(
+                requested_id, "persona_changed",
+                {"ok": True, "persona": persona.model_dump()},
+            )
 
             # If we actually swapped, tell the browser to unload the old VRM
             # and load the new one. Same persona → skip (model is still loaded).
             if prev_id != requested_id:
-                self.incarnation_server.send_command("unload_model", {})
+                self.incarnation_server.broadcast_to_persona(
+                    requested_id, "unload_model", {},
+                )
                 if persona.avatar and persona.avatar.model_url:
-                    self.incarnation_server.send_command("load_model", {
-                        "url": persona.avatar.model_url,
-                    })
+                    self.incarnation_server.broadcast_to_persona(
+                        requested_id, "load_model",
+                        {"url": persona.avatar.model_url},
+                    )
                 # Background carries on the existing flat-image path until Phase 5.
                 if persona.avatar and persona.avatar.background_url:
-                    self.incarnation_server.send_command("set_background", {
-                        "url": persona.avatar.background_url,
-                    })
+                    self.incarnation_server.broadcast_to_persona(
+                        requested_id, "set_background",
+                        {"url": persona.avatar.background_url},
+                    )
                 # Different persona: post-load animation flow handles intro
                 # replay once load_default_animations finishes (existing
                 # Phase-1 code).
@@ -457,17 +473,21 @@ class PlayAIdes:
                 intro = (persona.avatar.intro_animation
                          if (persona.avatar) else None)
                 if intro:
-                    self.incarnation_server.send_command("play_animation", {
-                        "name": intro,
-                        "loop": False,
-                    })
+                    self.incarnation_server.broadcast_to_persona(
+                        requested_id, "play_animation",
+                        {"name": intro, "loop": False},
+                    )
 
             # History rehydration (deferred chat-panel UI lands in Phase 5;
-            # frame is sent now so phase-4 clients can stash it).
-            self.incarnation_server.send_command("history_loaded", {
-                "persona_id": requested_id,
-                "history": list(self.chat_histories.get(requested_id, [])),
-            })
+            # frame is sent now so phase-4 clients can stash it). Per spec
+            # line 361, sent ONLY to the requesting client.
+            self.incarnation_server.broadcast_to_persona(
+                requested_id, "history_loaded",
+                {
+                    "persona_id": requested_id,
+                    "history": list(self.chat_histories.get(requested_id, [])),
+                },
+            )
             return
 
         if msg_type == "dismiss_persona":
@@ -603,10 +623,11 @@ class PlayAIdes:
                     # intro (intros are one-shot greetings; idles loop).
                     is_intro = bool(intro) and clip_name == intro
                     logger.info(f"All auto-loaded animations finished loading. Playing clip: {clip_name}")
-                    self.incarnation_server.send_command("play_animation", {
-                        "name": clip_name,
-                        "loop": False if is_intro else True,
-                    })
+                    active_id = self.current_persona.name.strip().lower().replace(" ", "_")
+                    self.incarnation_server.broadcast_to_persona(
+                        active_id, "play_animation",
+                        {"name": clip_name, "loop": False if is_intro else True},
+                    )
             if state == "animation_finished":
                 anim_name = payload.get("name")
                 logger.info(f"Animation {anim_name} finished playing.")
@@ -615,21 +636,28 @@ class PlayAIdes:
                                    else None)
                 idle_anim = self._resolve_clip_name(configured_idle)
                 logger.info(f"Switching to idle animation '{idle_anim}' and focusing camera...")
-                self.incarnation_server.send_command("play_animation", {
-                     "name": idle_anim,
-                     "loop": True,
-                     "crossFade": 0.5
-                })
-                self.incarnation_server.send_command("focus_camera")
+                active_id = self.current_persona.name.strip().lower().replace(" ", "_")
+                self.incarnation_server.broadcast_to_persona(
+                    active_id, "play_animation",
+                    {"name": idle_anim, "loop": True, "crossFade": 0.5},
+                )
+                self.incarnation_server.broadcast_to_persona(
+                    active_id, "focus_camera", {},
+                )
             if state == "model_loaded":
-                # Push the active persona's matching config to the browser
-                # so it can dismiss/wake-gate STT transcripts client-side.
+                # Push the active persona's matching config to clients bound
+                # to this persona — TVs showing OTHER personas should keep
+                # their own activePersona state. Spec §3 multi-TV memory.
                 if self.current_persona:
-                    self.incarnation_server.send_command("persona_active", {
-                        "name": self.current_persona.name,
-                        "wake_words": list(self.current_persona.wake_words or []),
-                        "dismiss_words": list(self.current_persona.dismiss_words or []),
-                    })
+                    active_id = self.current_persona.name.strip().lower().replace(" ", "_")
+                    self.incarnation_server.broadcast_to_persona(
+                        active_id, "persona_active",
+                        {
+                            "name": self.current_persona.name,
+                            "wake_words": list(self.current_persona.wake_words or []),
+                            "dismiss_words": list(self.current_persona.dismiss_words or []),
+                        },
+                    )
                 self.load_default_animations()
 
     def chat(self, user_input: str, persona_id: Optional[str] = None) -> str:
@@ -687,7 +715,10 @@ class PlayAIdes:
                     proxy_url += f"&language={urllib.parse.quote(self.current_persona.language)}"
 
                 logger.info(f"Sending start_lip_sync: {proxy_url}")
-                self.incarnation_server.send_command("start_lip_sync", {"url": proxy_url})
+                # Route to the same persona's bound clients only — spec §3.
+                self.incarnation_server.broadcast_to_persona(
+                    target_id, "start_lip_sync", {"url": proxy_url},
+                )
                 # Audio playback and lip sync are handled by the browser.
                 # Lip sync auto-stops when the audio stream ends.
             else:
