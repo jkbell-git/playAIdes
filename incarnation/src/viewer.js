@@ -17,6 +17,7 @@ import { loadConfig } from './viewerConfig.js';
 import { AudioCapture } from './audioCapture.js';
 import { SttClient } from './sttClient.js';
 import { matchPhrase } from './transcriptMatcher.js';
+import { PersonasRegistry } from './personasRegistry.js';
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
@@ -36,6 +37,8 @@ let lastUserUtterance = '';
 // Active persona's matching config — populated by the server-pushed
 // `persona_active` WS message after the avatar finishes loading.
 let activePersona = { name: '', wake_words: [], dismiss_words: [] };
+
+const personasRegistry = new PersonasRegistry();
 
 // Pending text from the most recent assistant_message event — attached
 // to the next SPEAKING transition so the subtitle band can render.
@@ -166,6 +169,17 @@ connection.addEventListener('persona_active', (e) => {
     console.log('[viewer] persona_active:', activePersona);
 });
 
+// On WS connect, request the personas list so the registry can drive
+// cross-persona wake matching.
+connection.addEventListener('connected', () => {
+    connection.send('get_personas', {});
+});
+
+connection.addEventListener('personas_list', (e) => {
+    personasRegistry.replaceAll(e.detail?.personas || []);
+    console.log('[viewer] personas_list:', personasRegistry.all().map((p) => p.id));
+});
+
 // LipSyncManager fires this when the audio element ends or pauses.
 incarnation.lipSyncManager.onAudioEnd(() => {
     if (stateMachine.current === State.SPEAKING) {
@@ -255,16 +269,42 @@ audioCapture.addEventListener('voiceend', async (e) => {
         const needsWake = config.activation === 'wake' || inEmpty;
 
         if (needsWake) {
-            const wake = matchPhrase(transcript, activePersona.wake_words);
-            if (!wake.matched) {
+            // Cross-persona wake: match against ALL known personas, not just
+            // the active one. A hit on a different persona triggers a swap.
+            const activeId = personasRegistry.all()
+                .find((p) => p.name === activePersona.name)?.id || null;
+            const hit = personasRegistry.findByWakeWord(transcript, activeId);
+            if (!hit) {
                 console.log('[viewer] wake-mode drop, no wake-word in:', transcript);
                 if (wasListening || stateMachine.current === State.THINKING) {
                     safeTransition(State.AMBIENT);
                 }
                 return;
             }
-            userInput = wake.residual;
-            console.log('[viewer] wake matched:', wake.phrase, '→ residual:', userInput || '(empty)');
+            userInput = hit.residual;
+            console.log(
+                '[viewer] wake matched:', hit.phrase,
+                '→ persona:', hit.persona.id,
+                '→ residual:', userInput || '(empty)',
+            );
+
+            // If the matched persona is NOT the currently-active one, fire a
+            // server-side swap. The server's persona_changed handler kicks
+            // off unload→load via the existing handlers (Task 10).
+            const matchedId = hit.persona.id;
+            if (matchedId !== activeId) {
+                connection.send('set_active_persona', { id: matchedId });
+                // The user_input below will route to the new persona; tag it
+                // explicitly with the matched id so the server doesn't
+                // accidentally route it to the previous active.
+                if (userInput) {
+                    connection.send('user_input', {
+                        text: userInput, persona_id: matchedId,
+                    });
+                }
+                lastUserUtterance = userInput;
+                return;   // server handles the rest
+            }
         }
 
         // 3. Re-summon from EMPTY: state-only transition; intro-anim replay
