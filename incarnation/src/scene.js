@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 
 /**
  * Scene — sets up the Three.js renderer, camera, lights, and controls.
@@ -96,6 +98,28 @@ function setBackground(url) {
     });
 }
 
+/**
+ * Load an HDRI panorama (.hdr or .exr) and assign it as both the scene
+ * background AND the environment map (image-based lighting). Spec §4b.
+ */
+function loadHDRIBackground(url) {
+    const isExr = url.toLowerCase().split('?')[0].endsWith('.exr');
+    const Loader = isExr ? EXRLoader : RGBELoader;
+    const loader = new Loader();
+    loader.load(url, (hdrTexture) => {
+        const pmrem = new THREE.PMREMGenerator(renderer);
+        pmrem.compileEquirectangularShader();
+        const envMap = pmrem.fromEquirectangular(hdrTexture).texture;
+        scene.background = envMap;
+        scene.environment = envMap;
+        hdrTexture.dispose();
+        pmrem.dispose();
+    }, undefined, (err) => {
+        console.error('[scene] HDRI load failed:', err);
+        scene.background = new THREE.Color(0x1a1a2e);
+    });
+}
+
 function focusOnHead(model) {
     if (!model) return;
     console.log("[scene] Focusing on head");
@@ -141,4 +165,4 @@ function focusOnHead(model) {
     animateFocus();
 }
 
-export { scene, camera, renderer, controls, clock, setBackground, focusOnHead };
+export { scene, camera, renderer, controls, clock, setBackground, loadHDRIBackground, focusOnHead };
