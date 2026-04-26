@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { detectBackgroundType } from './sceneBackgrounds.js';
 
 /**
  * Scene — sets up the Three.js renderer, camera, lights, and controls.
@@ -85,18 +86,39 @@ const clock = new THREE.Clock();
 // ── Background & Camera APIs ────────────────────────────────────────────────
 function setBackground(url) {
     if (!url) {
-        console.log("[scene] No background URL provided");
+        console.log('[scene] No background URL provided');
         scene.background = new THREE.Color(0x1a1a2e);
+        scene.environment = null;
+        if (_bg3DScene) { scene.remove(_bg3DScene); _bg3DScene = null; }
         return;
-
     }
-    const loader = new THREE.TextureLoader();
-    loader.load(url, (texture) => {
-        texture.colorSpace = THREE.SRGBColorSpace;
-        scene.background = texture;
-    }, undefined, (err) => {
-        console.error('[scene] Failed to load background:', err);
-    });
+
+    // Dispatch by extension. Spec §4b "auto-detected by file extension."
+    const kind = detectBackgroundType(url);
+    // Always tear down any previous 3D background; HDRI's environment map
+    // is replaced inline by loadHDRIBackground.
+    if (_bg3DScene) { scene.remove(_bg3DScene); _bg3DScene = null; }
+
+    if (kind === 'flat') {
+        scene.environment = null;   // flat images aren't IBL sources
+        const loader = new THREE.TextureLoader();
+        loader.load(url, (texture) => {
+            texture.colorSpace = THREE.SRGBColorSpace;
+            scene.background = texture;
+        }, undefined, (err) => {
+            console.error('[scene] Failed to load flat background:', err);
+        });
+        return;
+    }
+    if (kind === 'hdri') {
+        loadHDRIBackground(url);
+        return;
+    }
+    if (kind === 'glb') {
+        load3DBackground(url);
+        return;
+    }
+    console.warn('[scene] unknown background extension:', url);
 }
 
 /**
