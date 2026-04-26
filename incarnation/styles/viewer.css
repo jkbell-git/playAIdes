@@ -209,3 +209,30 @@ body[data-viewer-state="EMPTY"] .nameplate {
 .nameplate-conn.connected    { background: var(--ok); }
 .nameplate-conn.disconnected { background: var(--muted); }
 .nameplate-conn.error        { background: var(--red-hi); }
+
+/* ── Persona swap wipe (Phase 4) ──────────────────────────── */
+.wipe-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(135deg,
+        transparent 0%,
+        transparent 35%,
+        var(--red) 50%,
+        transparent 65%,
+        transparent 100%);
+    transform: translateX(-100%);
+}
+
+.wipe-overlay.active {
+    animation: wipeAcross 200ms cubic-bezier(.7, .1, .2, 1) forwards;
+}
+
+@keyframes wipeAcross {
+    0%   { transform: translateX(-100%); opacity: 0; }
+    20%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateX(100%); opacity: 0; }
+}

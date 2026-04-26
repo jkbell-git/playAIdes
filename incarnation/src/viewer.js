@@ -18,6 +18,7 @@ import { AudioCapture } from './audioCapture.js';
 import { SttClient } from './sttClient.js';
 import { matchPhrase } from './transcriptMatcher.js';
 import { PersonasRegistry } from './personasRegistry.js';
+import { WipeOverlay } from './wipeOverlay.js';
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
@@ -39,6 +40,7 @@ let lastUserUtterance = '';
 let activePersona = { name: '', wake_words: [], dismiss_words: [] };
 
 const personasRegistry = new PersonasRegistry();
+const wipeOverlay = new WipeOverlay(document.getElementById('wipe-overlay'));
 
 // Pending text from the most recent assistant_message event — attached
 // to the next SPEAKING transition so the subtitle band can render.
@@ -167,6 +169,34 @@ connection.addEventListener('persona_active', (e) => {
     };
     overlays.setPersonaName(activePersona.name);
     console.log('[viewer] persona_active:', activePersona);
+});
+
+connection.addEventListener('persona_changed', async (e) => {
+    const ok = e.detail?.ok;
+    if (!ok) {
+        console.warn('[viewer] persona_changed error:', e.detail?.error);
+        return;
+    }
+    const persona = e.detail?.persona;
+    if (!persona) return;
+
+    // If the new persona's id matches the currently-bound activePersona,
+    // it's an idempotent swap — no wipe / unload needed.
+    if (persona.name === activePersona.name) {
+        console.log('[viewer] persona_changed (same persona, no wipe)');
+        return;
+    }
+
+    console.log('[viewer] persona_changed → swap:', persona.name);
+    // Visual: kick off the wipe; in parallel the server will emit
+    // unload_model + load_model. The wipe is purely cosmetic — the
+    // unload/load handlers fire whenever they arrive on the WS.
+    wipeOverlay.play();
+});
+
+connection.addEventListener('unload_model', () => {
+    incarnation.handleCommand('unload_model', {});
+    safeTransition(State.EMPTY);
 });
 
 // On WS connect, request the personas list so the registry can drive

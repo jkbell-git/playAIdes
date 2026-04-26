@@ -232,6 +232,29 @@ export class Incarnation {
         };
     }
 
+    /**
+     * Unload the currently-loaded VRM. Used during persona swap so the
+     * scene is clean before the new VRM is loaded.
+     */
+    unloadModel() {
+        if (this.vrm) {
+            if (scene && this.vrm.scene) {
+                scene.remove(this.vrm.scene);
+            }
+            this.vrm = null;
+        }
+        if (this.model) {
+            if (scene && this.model.parent === scene) {
+                scene.remove(this.model);
+            }
+            this.model = null;
+        }
+        if (this.animationManager) {
+            this.animationManager.stop();
+            this.animationManager = null;
+        }
+    }
+
     /** Remove the current model from the scene and reset managers. */
     unload() {
         if (this.model) {
@@ -257,6 +280,10 @@ export class Incarnation {
         switch (type) {
             case 'load_model':
                 return await this.loadPersona({ url: payload.url });
+
+            case 'unload_model':
+                this.unloadModel();
+                return { unloaded: true };
 
             case 'load_animation':
                 return await this.loadAnimation({
