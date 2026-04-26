@@ -126,8 +126,12 @@ export class AudioCapture extends EventTarget {
         };
         this.recorder.onstop = () => {
             const blob = new Blob(this._chunks, { type: this.recorder.mimeType });
+            const peakEnergy = this._lastPeakEnergy || 0;
+            this._lastPeakEnergy = 0;
             this._chunks = [];
-            this.dispatchEvent(new CustomEvent('voiceend', { detail: { blob } }));
+            this.dispatchEvent(new CustomEvent('voiceend', {
+                detail: { blob, peakEnergy },
+            }));
         };
 
         const buf = new Float32Array(this.analyser.fftSize);
@@ -137,6 +141,11 @@ export class AudioCapture extends EventTarget {
     _tick(buf) {
         this.analyser.getFloatTimeDomainData(buf);
         const energy = rms(buf);
+        // Track peak energy across the current voice run so users running
+        // with `?debug=1` can sanity-check the silenceThreshold against the
+        // actual mic levels they're producing.
+        if (energy > (this._peakEnergy || 0)) this._peakEnergy = energy;
+
         const next = detectVoiceState({
             energy,
             silenceThreshold: this.config.silenceThreshold,
@@ -155,10 +164,19 @@ export class AudioCapture extends EventTarget {
 
         if (next.event === 'voicestart') {
             this._chunks = [];
+            this._peakEnergy = energy;
             this.recorder.start();
             this.dispatchEvent(new CustomEvent('voicestart'));
         } else if (next.event === 'voiceend') {
+            // Surface the peak energy alongside the recorder.stop so callers
+            // can correlate "Whisper heard nothing" with "the mic level
+            // never crossed the threshold meaningfully."
+            const peak = this._peakEnergy || 0;
+            this._peakEnergy = 0;
             this.recorder.stop();   // triggers onstop → emits voiceend with blob
+            // Stash the peak on the recorder so onstop's blob event can
+            // include it in the detail payload.
+            this._lastPeakEnergy = peak;
         }
     }
 

@@ -180,23 +180,68 @@ audioCapture.addEventListener('voicestart', () => {
     // design); the audio is still being recorded and will be sent to STT
     // on voiceend. The voiceend handler then checks for the wake word
     // before re-summoning the persona.
+    console.log('[viewer] voicestart in state:', stateMachine.current);
     if (stateMachine.current === State.AMBIENT) {
         safeTransition(State.LISTENING);
     }
 });
 
+/**
+ * Refresh the THINKING-state subtitle text without changing state.
+ * The state machine forbids same-state transitions by design, so we
+ * fan out a synthetic `change` event that the overlay layer renders.
+ * This is what lets the user SEE what Whisper heard before any
+ * dismiss/wake routing decision drops the utterance.
+ */
+function refreshThinkingMeta(text) {
+    if (stateMachine.current !== State.THINKING) return;
+    stateMachine.dispatchEvent(new CustomEvent('change', {
+        detail: {
+            prev: State.THINKING, next: State.THINKING,
+            prevMeta: { lastUtterance: '…' },
+            meta: { lastUtterance: text },
+        },
+    }));
+}
+
 audioCapture.addEventListener('voiceend', async (e) => {
     const wasListening = stateMachine.current === State.LISTENING;
+    const blob = e.detail?.blob;
+    const peakEnergy = e.detail?.peakEnergy ?? 0;
+    console.log(
+        '[viewer] voiceend: blob',
+        blob ? `${blob.size} bytes (${blob.type})` : 'MISSING',
+        '| peak energy:', peakEnergy.toFixed(3),
+        '| state:', stateMachine.current,
+    );
     if (wasListening) {
         safeTransition(State.THINKING, { lastUtterance: '…' });
     }
     try {
-        const { text } = await stt.transcribe(e.detail.blob);
-        const transcript = (text || '').trim();
+        const sttStart = performance.now();
+        const stt_response = await stt.transcribe(blob);
+        const sttElapsed = Math.round(performance.now() - sttStart);
+        const transcript = (stt_response.text || '').trim();
+        // Show every STT result regardless of whether it'll match a wake/dismiss
+        // word — diagnoses both "Whisper heard nothing" and "Whisper heard it
+        // but my wake_words don't match" cases.
+        console.log(
+            '[viewer] STT (%dms): language=%s text=%o',
+            sttElapsed,
+            stt_response.language || '?',
+            transcript || '(empty)',
+        );
+
         if (!transcript) {
             if (wasListening) safeTransition(State.AMBIENT);
             return;
         }
+
+        // Render the heard transcript in the subtitle band immediately, BEFORE
+        // any routing decision. Dropped utterances will fade out a few seconds
+        // later via the AMBIENT-state fade timer; matched utterances will get
+        // their meta refreshed again with the residual just before send.
+        refreshThinkingMeta(transcript);
 
         // 1. Dismiss check — always runs, regardless of activation mode.
         if (activePersona.dismiss_words.length) {
@@ -225,7 +270,7 @@ audioCapture.addEventListener('voiceend', async (e) => {
                 return;
             }
             userInput = wake.residual;
-            console.log('[viewer] wake matched:', wake.phrase, '→ residual:', userInput);
+            console.log('[viewer] wake matched:', wake.phrase, '→ residual:', userInput || '(empty)');
         }
 
         // 3. Re-summon from EMPTY: state-only transition; intro-anim replay
@@ -240,18 +285,12 @@ audioCapture.addEventListener('voiceend', async (e) => {
             return;
         }
 
-        // 5. Update THINKING meta with the actual user message and forward.
-        if (stateMachine.current === State.THINKING) {
-            stateMachine.dispatchEvent(new CustomEvent('change', {
-                detail: {
-                    prev: State.THINKING, next: State.THINKING,
-                    prevMeta: { lastUtterance: '…' },
-                    meta: { lastUtterance: userInput },
-                },
-            }));
-        }
+        // 5. Refresh THINKING meta with the residual (now that the wake word
+        // has been stripped) and forward to the LLM.
+        refreshThinkingMeta(userInput);
         lastUserUtterance = userInput;
         connection.send('user_input', { text: userInput });
+        console.log('[viewer] user_input sent:', userInput);
     } catch (err) {
         console.error('[viewer] STT failed:', err);
         if (stateMachine.current === State.LISTENING || stateMachine.current === State.THINKING) {
