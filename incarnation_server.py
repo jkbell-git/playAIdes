@@ -36,10 +36,12 @@ WHISPER_BASE = os.environ.get("WHISPER_URL") or "http://localhost:9000"
 
 
 class IncarnationServer:
-    def __init__(self, host="0.0.0.0", port=8765, on_message_callback=None):
+    def __init__(self, host="0.0.0.0", port=8765, on_message_callback=None,
+                 state_provider=None):
         self.host = host
         self.port = port
         self.on_message_callback = on_message_callback
+        self.state_provider = state_provider
         # Multi-client support (Phase 4): every connected WebSocket lives in
         # `_clients`; bindings map each socket to the persona id it's
         # currently displaying so we can route assistant_message broadcasts.
@@ -128,6 +130,19 @@ class IncarnationServer:
             self.broadcast_to_all("unload_model", {})
             logger.info("HA-driven dismiss: cleared bindings, broadcast unload_model")
             return {"ok": True}
+
+        @self.app.get("/api/state")
+        async def get_state():
+            active = None
+            if self.state_provider:
+                try:
+                    active = self.state_provider().get("active_persona_id")
+                except Exception as e:
+                    logger.warning("state_provider failed: %s", e)
+            return {
+                "active_persona_id": active,
+                "bound_client_count": len(self._bindings),
+            }
 
         # ── Health ───────────────────────────────────────────────────────────
         @self.app.get("/health")

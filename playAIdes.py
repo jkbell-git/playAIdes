@@ -95,7 +95,15 @@ class PlayAIdes:
     def __init__(self, args: PlayAIdesArgs):
         self.llm: Optional[LLMInterface] = args.llm if args.llm else OllamaLLM() # Default to Ollama
         self.tts: Optional[PersonaTTS] = args.tts if args.tts else Qwen3TTS_local() #Default to Qwen3TTS_local
-        self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(on_message_callback=self._handle_incarnation_message) if args.use_avatar else None
+        self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(
+            on_message_callback=self._handle_incarnation_message,
+            state_provider=lambda: {
+                "active_persona_id": (
+                    self.current_persona.name.strip().lower().replace(" ", "_")
+                    if self.current_persona else None
+                ),
+            },
+        ) if args.use_avatar else None
         self.current_persona: Optional[Persona] = None
         # chat_histories: persona_id → list of message dicts. Loaded lazily
         # per persona from personas/<id>/chat_history.json on first access.

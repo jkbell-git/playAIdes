@@ -76,3 +76,32 @@ class TestDismissEndpoint:
         assert r.json() == {"ok": True}
         assert server_with_callback._bindings == {}
         assert broadcasts == [("unload_model", {})]
+
+
+class TestStateEndpoint:
+    def test_state_does_not_require_auth(self, server_with_callback, monkeypatch):
+        """GET /api/state is unauthenticated by design (read-only, no PII)."""
+        monkeypatch.setenv("PLAYAIDES_API_KEY", "anything")
+        client = TestClient(server_with_callback.app)
+        r = client.get("/api/state")
+        assert r.status_code == 200
+
+    def test_state_returns_active_persona_and_client_count(self, server_with_callback):
+        # Seed two bound clients and a state-provider that reports "silver".
+        server_with_callback._bindings = {object(): "silver", object(): "silver"}
+        server_with_callback.state_provider = lambda: {"active_persona_id": "silver"}
+
+        client = TestClient(server_with_callback.app)
+        r = client.get("/api/state")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["active_persona_id"] == "silver"
+        assert body["bound_client_count"] == 2
+
+    def test_state_handles_missing_state_provider(self, server_with_callback):
+        """If no state_provider is set, active_persona_id is None."""
+        server_with_callback.state_provider = None
+        client = TestClient(server_with_callback.app)
+        r = client.get("/api/state")
+        assert r.status_code == 200
+        assert r.json()["active_persona_id"] is None
