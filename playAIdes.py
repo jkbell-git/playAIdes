@@ -81,6 +81,7 @@ class PlayAIdesArgs(BaseModel):
     generate_avatar: bool
     llm: LLMInterface = None
     tts: Optional[PersonaTTS] = None
+    api_key: Optional[str] = None
     @field_validator("tts")
     @classmethod
     def validate_tts(cls, v):

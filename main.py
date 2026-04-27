@@ -81,10 +81,15 @@ if __name__ == "__main__":
     parser.add_argument("--use_voice", default=False, action="store_true", help="Use voice for persona")
     parser.add_argument("--use_avatar", default=False, action="store_true", help="Use avatar for persona")
     parser.add_argument("--generate_avatar", default=False, action="store_true", help="Generate avatar for persona")
+    parser.add_argument("--api-key", type=str, default=None,
+                        help="Bearer token for HA→playAIdes endpoints. "
+                             "Falls back to PLAYAIDES_API_KEY env. "
+                             "Unset = dev mode (no auth).")
     args = parser.parse_args()
     casted_args = PlayAIdesArgs(persona=[args.persona],
     generate_voice=args.generate_voice,
     use_voice=args.use_voice,
     use_avatar=args.use_avatar,
-    generate_avatar=args.generate_avatar)
+    generate_avatar=args.generate_avatar,
+    api_key=args.api_key or os.environ.get("PLAYAIDES_API_KEY"))
     main(casted_args)
