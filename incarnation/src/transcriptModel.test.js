@@ -84,4 +84,12 @@ describe('TranscriptModel', () => {
         // Internal list is unchanged; getter returned a copy.
         expect(t.messages).toEqual([{ role: 'user', content: 'a' }]);
     });
+
+    it('clear resets the user-scrolled-up flag (no content to be past)', () => {
+        const t = new TranscriptModel();
+        t.append({ role: 'user', content: 'a' });
+        t.setUserScrolledUp(true);
+        t.clear();
+        expect(t.shouldAutoScrollToBottom()).toBe(true);
+    });
 });

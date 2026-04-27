@@ -44,6 +44,8 @@ export class TranscriptModel extends EventTarget {
     /** Empty the list (e.g. on persona dismiss). Emits `change`. */
     clear() {
         this._messages = [];
+        // No content to be "scrolled past" — fresh start at bottom.
+        this._userScrolledUp = false;
         this.dispatchEvent(new CustomEvent('change', {
             detail: { kind: 'clear' },
         }));
