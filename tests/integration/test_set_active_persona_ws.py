@@ -155,6 +155,37 @@ class TestSetActivePersonaWS:
         rin_hist = play.chat_histories["rin"]
         assert any(m.get("content") == "hi rin" for m in rin_hist)
 
+    def test_chat_with_no_voice_config_does_not_crash(self, tmp_personas_dir, fake_tts, no_incarnation):
+        """A persona without persona_voice should not crash chat() when
+        use_voice=True; the lip-sync emit is gracefully skipped."""
+        # Seed a persona with no persona_voice block.
+        pdir = tmp_personas_dir / "voiceless"
+        pdir.mkdir(exist_ok=True)
+        (pdir / "persona.json").write_text(json.dumps({
+            "name": "Voiceless",
+            "back_ground": "bg",
+            "psyche": {"traits": []},
+            "gender": "Female",
+            "language": "English",
+            "avatar": {"model_url": "x.vrm"},
+            # NB: no persona_voice key
+        }))
+        args = PlayAIdesArgs(
+            persona=[str(pdir / "persona.json")],
+            generate_voice=False,
+            use_voice=True,            # voice path enabled
+            use_avatar=True,
+            generate_avatar=False,
+            llm=MockLLM(), tts=fake_tts,
+        )
+        play = PlayAIdes(args)
+        # Must not raise.
+        play.chat("hi")
+        cmds = play.incarnation_server.commands
+        # assistant_message still flows; start_lip_sync is gracefully skipped.
+        assert any(c == "assistant_message" for c, _ in cmds)
+        assert not any(c == "start_lip_sync" for c, _ in cmds)
+
     def test_replays_intro_on_same_persona_resummon(self, play, tmp_personas_dir):
         """Same-persona set_active_persona should fire play_animation for
         the intro_animation so re-summon plays the greeting."""

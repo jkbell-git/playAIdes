@@ -721,7 +721,13 @@ class PlayAIdes:
             )
 
         if self.args.use_voice:
-            if self.args.use_avatar and self.incarnation_server:
+            if not (self.current_persona.persona_voice
+                    and self.current_persona.persona_voice.speaker_uuid):
+                logger.warning(
+                    "Persona %s has no voice config; skipping lip_sync",
+                    self.current_persona.name,
+                )
+            elif self.args.use_avatar and self.incarnation_server:
                 import urllib.parse
                 safe_text = urllib.parse.quote(response)
                 # Use the proxy endpoint — the browser will play audio and do lip sync
