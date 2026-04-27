@@ -54,3 +54,25 @@ class TestActivateEndpointAuth:
         client = TestClient(server_with_callback.app)
         r = client.post("/api/personas/silver/activate")
         assert r.status_code == 200
+
+
+class TestDismissEndpoint:
+    def test_dismiss_requires_auth(self, server_with_callback, with_api_key):
+        client = TestClient(server_with_callback.app)
+        r = client.post("/api/dismiss")
+        assert r.status_code == 401
+
+    def test_dismiss_clears_bindings_and_broadcasts_unload(self, server_with_callback, with_api_key):
+        # Seed bindings to verify they get cleared.
+        server_with_callback._bindings = {object(): "silver", object(): "rin"}
+        # Stub broadcast_to_all so we can observe the emit.
+        broadcasts: list[tuple[str, dict]] = []
+        server_with_callback.broadcast_to_all = lambda c, p=None: broadcasts.append((c, p or {}))
+
+        client = TestClient(server_with_callback.app)
+        r = client.post("/api/dismiss",
+                        headers={"Authorization": f"Bearer {with_api_key}"})
+        assert r.status_code == 200
+        assert r.json() == {"ok": True}
+        assert server_with_callback._bindings == {}
+        assert broadcasts == [("unload_model", {})]

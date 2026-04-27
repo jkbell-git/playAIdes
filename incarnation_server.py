@@ -122,6 +122,13 @@ class IncarnationServer:
                 })
             return {"ok": True, "active_persona_id": persona_id}
 
+        @self.app.post("/api/dismiss")
+        async def dismiss(_auth=Depends(require_api_key)):
+            self._bindings.clear()
+            self.broadcast_to_all("unload_model", {})
+            logger.info("HA-driven dismiss: cleared bindings, broadcast unload_model")
+            return {"ok": True}
+
         # ── Health ───────────────────────────────────────────────────────────
         @self.app.get("/health")
         async def health():
