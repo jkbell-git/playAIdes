@@ -182,3 +182,45 @@ def with_api_key(monkeypatch):
     token = "test-api-key-secret-1234"
     monkeypatch.setenv("PLAYAIDES_API_KEY", token)
     return token
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# HA client stub
+# ──────────────────────────────────────────────────────────────────────────────
+
+class _MockHAClient:
+    """Test stub that returns scripted ConversationResponses.
+    Use .script(speech_text=..., success=True, error_code=None) to enqueue
+    one response per converse() call.
+    """
+    def __init__(self):
+        self._queue: list = []
+        self.calls: list[dict] = []
+
+    def script(self, speech_text="OK", success=True,
+               conversation_id=None, error_code=None):
+        from ha_client import ConversationResponse
+        self._queue.append(ConversationResponse(
+            success=success, speech_text=speech_text,
+            conversation_id=conversation_id, error_code=error_code,
+        ))
+
+    def converse(self, text, agent_id=None, conversation_id=None):
+        self.calls.append({
+            "text": text, "agent_id": agent_id,
+            "conversation_id": conversation_id,
+        })
+        from ha_client import ConversationResponse
+        if not self._queue:
+            return ConversationResponse(
+                True, "OK", None, None,
+            )
+        return self._queue.pop(0)
+
+    def health_check(self):
+        return True
+
+
+@pytest.fixture
+def mock_ha_client():
+    return _MockHAClient()

@@ -438,6 +438,10 @@ class PlayAIdes:
         if not os.path.exists(path):
             raise PersonaLoadError(f"Persona not found: {persona_id}")
 
+        # Reset HA conversation context on every persona change so the next
+        # session starts a fresh HA context.
+        self._ha_conversation_ids.pop(persona_id, None)
+
         # Re-use the existing loader (raises PersonaLoadError on bad input).
         self._load_persona_from_file(path)
         self._load_history(persona_id)
@@ -742,7 +746,25 @@ class PlayAIdes:
 
         history.append({"role": "user", "content": user_input})
 
-        response = self.llm.chat(history, system_prompt=system_prompt)
+        # ─ HA delegation via house_words ────────────────────────────────
+        from match_keywords import match_keyword_prefix
+        house_words = self.current_persona.house_words or []
+        matched, residual = match_keyword_prefix(user_input, house_words)
+        if matched and self.ha_client:
+            agent_id = (
+                self.current_persona.ha_agent_id
+                or self.args.ha_default_agent_id
+            )
+            conv_id = self._ha_conversation_ids.get(target_id)
+            ha_resp = self.ha_client.converse(
+                residual, agent_id=agent_id, conversation_id=conv_id,
+            )
+            if ha_resp.conversation_id:
+                self._ha_conversation_ids[target_id] = ha_resp.conversation_id
+            response = ha_resp.speech_text
+        else:
+            # ─ Existing persona-LLM path (unchanged) ────────────────────
+            response = self.llm.chat(history, system_prompt=system_prompt)
 
         # Broadcast the reply text to any connected viewer so its subtitle
         # band can render before TTS audio arrives. No-op if the
