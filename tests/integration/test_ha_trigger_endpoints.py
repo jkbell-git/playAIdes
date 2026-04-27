@@ -13,13 +13,18 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def server_with_callback():
-    """Boot an IncarnationServer with a recording callback (no PlayAIdes needed)."""
+    """Boot an IncarnationServer with a recording callback (no PlayAIdes needed).
+
+    Bound to 127.0.0.1 (not a fake hostname) so the daemon uvicorn thread
+    binds immediately instead of spinning in DNS resolution forever. That
+    spin was causing one zombie container leak per `make test` invocation.
+    """
     received: list[dict] = []
 
     def cb(msg):
         received.append(msg)
 
-    srv = IncarnationServer(host="testhost", port=0, on_message_callback=cb)
+    srv = IncarnationServer(host="127.0.0.1", port=0, on_message_callback=cb)
     srv.received = received  # for test access
     return srv
 
