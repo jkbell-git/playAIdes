@@ -82,6 +82,36 @@ class TestSetActivePersonaWS:
         load = [(c, p) for c, p in cmds if c == "load_model"][0][1]
         assert load["url"] == "rin.vrm"
 
+    def test_load_model_payload_carries_spawn_and_camera(self, play, tmp_personas_dir):
+        """load_model payload includes the persona's spawn_point and
+        camera_target so the frontend can position the VRM + camera."""
+        # Seed Rin with explicit spawn + camera_target.
+        rin_dir = tmp_personas_dir / "rin"
+        rin_dir.mkdir(exist_ok=True)
+        (rin_dir / "persona.json").write_text(json.dumps({
+            "name": "Rin",
+            "back_ground": "bg",
+            "psyche": {"traits": []},
+            "gender": "Female",
+            "language": "English",
+            "avatar": {
+                "model_url": "rin.vrm",
+                "spawn_point": [1.0, 0.0, -2.0],
+                "camera_target": [1.0, 1.1, -2.0],
+            },
+        }))
+        play._handle_incarnation_message({
+            "type": "set_active_persona",
+            "payload": {"id": "rin"},
+        })
+        cmds = play.incarnation_server.commands
+        load = [(c, p) for c, p in cmds if c == "load_model"]
+        assert len(load) == 1
+        _, payload = load[0]
+        assert payload["url"] == "rin.vrm"
+        assert payload["spawn_point"] == [1.0, 0.0, -2.0]
+        assert payload["camera_target"] == [1.0, 1.1, -2.0]
+
     def test_no_unload_when_same_persona(self, play):
         play._handle_incarnation_message({
             "type": "set_active_persona",
