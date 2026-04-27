@@ -118,3 +118,56 @@ class TestRephrase:
         # confirms the persona LLM was not called.
         assert "Mock Response" not in result
         assert result == "OK."
+
+
+class TestEdgeCases:
+    def test_empty_residual_speaks_default_phrase_no_ha_call(
+        self, play_with_ha, tmp_personas_dir, mock_ha_client,
+    ):
+        _seed_persona_with_house_words(
+            tmp_personas_dir, "silver", house_words=["house"],
+        )
+        play_with_ha.set_persona("silver")
+        result = play_with_ha.chat("house")
+        assert mock_ha_client.calls == []
+        assert result == "What about the house?"
+
+    def test_ha_failure_speaks_fallback_no_rephrase(
+        self, play_with_ha, tmp_personas_dir, mock_ha_client,
+    ):
+        _seed_persona_with_house_words(
+            tmp_personas_dir, "silver",
+            house_words=["house"], rephrase=True,  # rephrase ON but should be skipped
+        )
+        play_with_ha.set_persona("silver")
+        mock_ha_client.script(
+            speech_text="I can't reach the house right now.",
+            success=False, error_code="ha_unreachable",
+        )
+        result = play_with_ha.chat("house turn off lights")
+        assert result == "I can't reach the house right now."
+        # MockLLM was never called for rephrase (no Mock Response prefix).
+        assert "Mock Response" not in result
+
+    def test_rephrase_llm_failure_falls_back_to_verbatim(
+        self, play_with_ha, tmp_personas_dir, mock_ha_client,
+    ):
+        _seed_persona_with_house_words(
+            tmp_personas_dir, "silver",
+            house_words=["house"], rephrase=True,
+        )
+        play_with_ha.set_persona("silver")
+        mock_ha_client.script(speech_text="Lights are off.")
+
+        # Make the LLM raise on this call.
+        from model_interfaces import LLMError
+        original_chat = play_with_ha.llm.chat
+        def failing_chat(*a, **kw):
+            raise LLMError("simulated")
+        play_with_ha.llm.chat = failing_chat
+        try:
+            result = play_with_ha.chat("house turn off lights")
+        finally:
+            play_with_ha.llm.chat = original_chat
+
+        assert result == "Lights are off."

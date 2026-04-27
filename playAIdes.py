@@ -751,38 +751,41 @@ class PlayAIdes:
         house_words = self.current_persona.house_words or []
         matched, residual = match_keyword_prefix(user_input, house_words)
         if matched and self.ha_client:
-            agent_id = (
-                self.current_persona.ha_agent_id
-                or self.args.ha_default_agent_id
-            )
-            conv_id = self._ha_conversation_ids.get(target_id)
-            ha_resp = self.ha_client.converse(
-                residual, agent_id=agent_id, conversation_id=conv_id,
-            )
-            if ha_resp.conversation_id:
-                self._ha_conversation_ids[target_id] = ha_resp.conversation_id
-            response = ha_resp.speech_text
-            if (
-                ha_resp.success
-                and self.current_persona.rephrase_ha_response
-            ):
-                rephrase_prompt = (
-                    f"You are {self.current_persona.name}. "
-                    f"Rephrase this in your voice, keeping the meaning "
-                    f"intact: {ha_resp.speech_text}"
+            if not residual:
+                # House word with no follow-up — short-circuit, no HA call.
+                response = "What about the house?"
+            else:
+                agent_id = (
+                    self.current_persona.ha_agent_id
+                    or self.args.ha_default_agent_id
                 )
-                try:
-                    response = self.llm.chat(
-                        [{"role": "user", "content": rephrase_prompt}],
-                        system_prompt=None,
+                conv_id = self._ha_conversation_ids.get(target_id)
+                ha_resp = self.ha_client.converse(
+                    residual, agent_id=agent_id, conversation_id=conv_id,
+                )
+                if ha_resp.conversation_id:
+                    self._ha_conversation_ids[target_id] = ha_resp.conversation_id
+                response = ha_resp.speech_text
+                if (
+                    ha_resp.success
+                    and self.current_persona.rephrase_ha_response
+                ):
+                    rephrase_prompt = (
+                        f"You are {self.current_persona.name}. "
+                        f"Rephrase this in your voice, keeping the meaning "
+                        f"intact: {ha_resp.speech_text}"
                     )
-                except Exception as e:
-                    logger.warning(
-                        "Rephrase LLM call failed, falling back to verbatim: %s", e,
-                    )
-                    response = ha_resp.speech_text
+                    try:
+                        response = self.llm.chat(
+                            [{"role": "user", "content": rephrase_prompt}],
+                            system_prompt=None,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Rephrase LLM call failed, falling back to verbatim: %s", e,
+                        )
+                        response = ha_resp.speech_text
         else:
-            # ─ Existing persona-LLM path (unchanged) ────────────────────
             response = self.llm.chat(history, system_prompt=system_prompt)
 
         # Broadcast the reply text to any connected viewer so its subtitle
