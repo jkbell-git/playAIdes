@@ -85,11 +85,23 @@ if __name__ == "__main__":
                         help="Bearer token for HA→playAIdes endpoints. "
                              "Falls back to PLAYAIDES_API_KEY env. "
                              "Unset = dev mode (no auth).")
+    parser.add_argument("--ha-url", type=str, default=None,
+                        help="Home Assistant base URL (HA_URL env fallback). "
+                             "Required for any HA feature.")
+    parser.add_argument("--ha-token", type=str, default=None,
+                        help="HA long-lived access token (HA_TOKEN env fallback).")
+    parser.add_argument("--ha-default-agent-id", type=str, default=None,
+                        help="HA conversation agent_id (HA_DEFAULT_AGENT_ID env "
+                             "fallback). Used when a persona has no ha_agent_id.")
     args = parser.parse_args()
     casted_args = PlayAIdesArgs(persona=[args.persona],
     generate_voice=args.generate_voice,
     use_voice=args.use_voice,
     use_avatar=args.use_avatar,
     generate_avatar=args.generate_avatar,
-    api_key=args.api_key or os.environ.get("PLAYAIDES_API_KEY"))
+    api_key=args.api_key or os.environ.get("PLAYAIDES_API_KEY"),
+    ha_url=args.ha_url or os.environ.get("HA_URL"),
+    ha_token=args.ha_token or os.environ.get("HA_TOKEN"),
+    ha_default_agent_id=args.ha_default_agent_id
+                        or os.environ.get("HA_DEFAULT_AGENT_ID"))
     main(casted_args)

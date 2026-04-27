@@ -82,6 +82,9 @@ class PlayAIdesArgs(BaseModel):
     llm: LLMInterface = None
     tts: Optional[PersonaTTS] = None
     api_key: Optional[str] = None
+    ha_url: Optional[str] = None
+    ha_token: Optional[str] = None
+    ha_default_agent_id: Optional[str] = None
     @field_validator("tts")
     @classmethod
     def validate_tts(cls, v):
@@ -120,9 +123,34 @@ class PlayAIdes:
         # degrade to whatever clips are available, instead of sending
         # name=<unknown> and leaving the model T-posed.
         self.loaded_animations: set = set()
+
+        from ha_client import HAClient
+        self.ha_client: Optional[HAClient] = None
+        if args.ha_url and args.ha_token:
+            self.ha_client = HAClient(args.ha_url, args.ha_token)
+            logger.info("HA client configured for %s", args.ha_url)
+        elif args.ha_url or args.ha_token:
+            logger.warning(
+                "HA partially configured (need both ha_url and ha_token); "
+                "HA features disabled."
+            )
+
+        # Per-persona conversation_id cache for HA's multi-turn context.
+        # Cleared on persona swap by Task 9 hook.
+        self._ha_conversation_ids: dict[str, str] = {}
+
         for persona in args.persona:
             self._load_persona_from_file(persona)
             break  # currently only support one persona at a time
+
+        if not self.ha_client:
+            for p in self.list_personas():
+                if p.get("house_words"):
+                    logger.warning(
+                        "Persona %r has house_words but HA is not configured; "
+                        "delegation will be disabled.",
+                        p.get("name", "?"),
+                    )
 
     def _load_persona_from_file(self, filepath: str):
         try:
