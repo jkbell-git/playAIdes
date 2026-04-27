@@ -19,6 +19,8 @@ import { SttClient } from './sttClient.js';
 import { matchPhrase } from './transcriptMatcher.js';
 import { PersonasRegistry } from './personasRegistry.js';
 import { WipeOverlay } from './wipeOverlay.js';
+import { TranscriptModel } from './transcriptModel.js';
+import { ChatPanel } from './chatPanel.js';
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
@@ -41,6 +43,26 @@ let activePersona = { name: '', wake_words: [], dismiss_words: [] };
 
 const personasRegistry = new PersonasRegistry();
 const wipeOverlay = new WipeOverlay(document.getElementById('wipe-overlay'));
+
+const transcriptModel = new TranscriptModel();
+const chatPanel = new ChatPanel(document, transcriptModel, {
+    initialOpen: config.chat === 'open',
+});
+
+// When the panel form is submitted, treat it like a voice transcription:
+// send user_input and append the user line locally so it shows up
+// immediately (assistant_message will append the reply).
+chatPanel.addEventListener('submit', (e) => {
+    const text = e.detail.text;
+    transcriptModel.append({ role: 'user', content: text });
+    // Tag the user_input with the active persona's id so multi-TV routing
+    // delivers the reply to the right clients.
+    const activeId = personasRegistry.all()
+        .find((p) => p.name === activePersona.name)?.id || null;
+    connection.send('user_input', activeId
+        ? { text, persona_id: activeId }
+        : { text });
+});
 
 // Pending text from the most recent assistant_message event — attached
 // to the next SPEAKING transition so the subtitle band can render.
@@ -73,6 +95,15 @@ function safeTransition(next, meta) {
         console.warn('[viewer]', err.message);
     }
 }
+
+stateMachine.addEventListener('change', (e) => {
+    const next = e.detail.next;
+    if (next === State.SPEAKING) {
+        chatPanel.setInputEnabled(false);
+    } else if (next === State.AMBIENT || next === State.EMPTY) {
+        chatPanel.setInputEnabled(true);
+    }
+});
 
 // ── WebSocket-driven transitions ────────────────────────────────────────────
 connection.addEventListener('load_model', async (e) => {
@@ -141,6 +172,25 @@ incarnation.onAnimationFinished = (clipName) => {
 // ── assistant_message + start_lip_sync drive SPEAKING ──────────────────────
 connection.addEventListener('assistant_message', (e) => {
     pendingAssistantText = e.detail?.text || '';
+    if (pendingAssistantText) {
+        transcriptModel.append({
+            role: 'assistant',
+            content: pendingAssistantText,
+            persona_name: activePersona.name,
+        });
+    }
+});
+
+connection.addEventListener('history_loaded', (e) => {
+    const history = Array.isArray(e.detail?.history) ? e.detail.history : [];
+    // Tag assistant items with the persona name for the panel's label;
+    // the on-disk format is { role, content } only.
+    const tagged = history.map((m) => ({
+        ...m,
+        persona_name: activePersona.name,
+    }));
+    transcriptModel.replaceAll(tagged);
+    console.log('[viewer] transcript rehydrated, n=', tagged.length);
 });
 
 connection.addEventListener('start_lip_sync', (e) => {
@@ -168,6 +218,10 @@ connection.addEventListener('persona_active', (e) => {
         dismiss_words: Array.isArray(e.detail?.dismiss_words) ? e.detail.dismiss_words : [],
     };
     overlays.setPersonaName(activePersona.name);
+    chatPanel.setPersona(
+        activePersona.name,
+        (activePersona.wake_words && activePersona.wake_words[0]) || '',
+    );
     console.log('[viewer] persona_active:', activePersona);
 });
 
@@ -188,6 +242,14 @@ connection.addEventListener('persona_changed', async (e) => {
     }
 
     console.log('[viewer] persona_changed → swap:', persona.name);
+    if (persona) {
+        chatPanel.setPersona(
+            persona.name,
+            (Array.isArray(persona.wake_words) && persona.wake_words[0]) || '',
+        );
+        // Persona swap → fresh transcript (history_loaded will rehydrate).
+        transcriptModel.clear();
+    }
     // Visual: kick off the wipe; in parallel the server will emit
     // unload_model + load_model. The wipe is purely cosmetic — the
     // unload/load handlers fire whenever they arrive on the WS.
@@ -339,6 +401,7 @@ audioCapture.addEventListener('voiceend', async (e) => {
                 // explicitly with the matched id so the server doesn't
                 // accidentally route it to the previous active.
                 if (userInput) {
+                    transcriptModel.append({ role: 'user', content: userInput });
                     connection.send('user_input', {
                         text: userInput, persona_id: matchedId,
                     });
@@ -364,6 +427,7 @@ audioCapture.addEventListener('voiceend', async (e) => {
         // has been stripped) and forward to the LLM.
         refreshThinkingMeta(userInput);
         lastUserUtterance = userInput;
+        transcriptModel.append({ role: 'user', content: userInput });
         connection.send('user_input', { text: userInput });
         console.log('[viewer] user_input sent:', userInput);
     } catch (err) {
