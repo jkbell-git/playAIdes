@@ -67,6 +67,21 @@ chatPanel.addEventListener('submit', (e) => {
 // to the next SPEAKING transition so the subtitle band can render.
 let pendingAssistantText = '';
 
+// Holds the most recent history_loaded payload until persona_active has
+// landed and we know the persona's name to tag assistant lines with.
+let pendingHistory = null;
+
+function _flushPendingHistory() {
+    if (!pendingHistory || !activePersona.name) return;
+    const tagged = pendingHistory.map((m) => ({
+        ...m,
+        persona_name: activePersona.name,
+    }));
+    transcriptModel.replaceAll(tagged);
+    console.log('[viewer] transcript rehydrated, n=', tagged.length);
+    pendingHistory = null;
+}
+
 // ── Connection + overlays ───────────────────────────────────────────────────
 connection.addEventListener('connected', () => {
     overlays.setConnectionState('connected');
@@ -190,14 +205,8 @@ connection.addEventListener('assistant_message', (e) => {
 
 connection.addEventListener('history_loaded', (e) => {
     const history = Array.isArray(e.detail?.history) ? e.detail.history : [];
-    // Tag assistant items with the persona name for the panel's label;
-    // the on-disk format is { role, content } only.
-    const tagged = history.map((m) => ({
-        ...m,
-        persona_name: activePersona.name,
-    }));
-    transcriptModel.replaceAll(tagged);
-    console.log('[viewer] transcript rehydrated, n=', tagged.length);
+    pendingHistory = history;
+    _flushPendingHistory();
 });
 
 connection.addEventListener('start_lip_sync', (e) => {
@@ -229,6 +238,7 @@ connection.addEventListener('persona_active', (e) => {
         activePersona.name,
         (activePersona.wake_words && activePersona.wake_words[0]) || '',
     );
+    _flushPendingHistory();
     console.log('[viewer] persona_active:', activePersona);
 });
 
