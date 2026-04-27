@@ -84,10 +84,34 @@ window.addEventListener('resize', onResize);
 const clock = new THREE.Clock();
 
 // ── Background & Camera APIs ────────────────────────────────────────────────
+
+// Track the currently-loaded 3D background so we can remove it on swap.
+let _bg3DScene = null;
+
+// Spec §4b failure-fallback color for missing/failed backgrounds. Mid-grey
+// reads as "scene unavailable" without competing with the persona's chrome
+// (the gold/red P5 strip is always present).
+const FALLBACK_GREY = 0x808080;
+
+/**
+ * Dispose any currently-assigned background or environment texture so we
+ * don't leak GPU memory across swaps. (three.js Texture objects live in
+ * VRAM until explicitly disposed.)
+ */
+function _disposeCurrentBackground() {
+    if (scene.background && scene.background.isTexture) {
+        scene.background.dispose();
+    }
+    if (scene.environment && scene.environment.isTexture) {
+        scene.environment.dispose();
+    }
+}
+
 function setBackground(url) {
     if (!url) {
         console.log('[scene] No background URL provided');
-        scene.background = new THREE.Color(0x1a1a2e);
+        _disposeCurrentBackground();
+        scene.background = new THREE.Color(FALLBACK_GREY);
         scene.environment = null;
         if (_bg3DScene) { scene.remove(_bg3DScene); _bg3DScene = null; }
         return;
@@ -95,16 +119,17 @@ function setBackground(url) {
 
     // Dispatch by extension. Spec §4b "auto-detected by file extension."
     const kind = detectBackgroundType(url);
-    // Always tear down any previous 3D background; HDRI's environment map
-    // is replaced inline by loadHDRIBackground.
+    // Always tear down any previous 3D background; texture/envMap disposal
+    // happens inside the per-tier loaders right before reassignment.
     if (_bg3DScene) { scene.remove(_bg3DScene); _bg3DScene = null; }
 
     if (kind === 'flat') {
-        scene.environment = null;   // flat images aren't IBL sources
         const loader = new THREE.TextureLoader();
         loader.load(url, (texture) => {
             texture.colorSpace = THREE.SRGBColorSpace;
+            _disposeCurrentBackground();
             scene.background = texture;
+            scene.environment = null;   // flat images aren't IBL sources
         }, undefined, (err) => {
             console.error('[scene] Failed to load flat background:', err);
         });
@@ -133,23 +158,27 @@ function loadHDRIBackground(url) {
         const pmrem = new THREE.PMREMGenerator(renderer);
         pmrem.compileEquirectangularShader();
         const envMap = pmrem.fromEquirectangular(hdrTexture).texture;
+        _disposeCurrentBackground();
         scene.background = envMap;
         scene.environment = envMap;
         hdrTexture.dispose();
         pmrem.dispose();
     }, undefined, (err) => {
-        console.error('[scene] HDRI load failed:', err);
-        scene.background = new THREE.Color(0x1a1a2e);
+        console.error('[scene] HDRI load failed; falling back to grey:', err);
+        _disposeCurrentBackground();
+        scene.background = new THREE.Color(FALLBACK_GREY);
+        scene.environment = null;
     });
 }
-
-// Track the currently-loaded 3D background so we can remove it on swap.
-let _bg3DScene = null;
 
 /**
  * Load a 3D background scene (.glb / .gltf). The loaded scene is added
  * to the main THREE.Scene next to the VRM. Existing rim/key lights still
  * apply; any lights packed into the .glb are added on top. Spec §4b.
+ *
+ * On success: leaves a solid black behind the 3D scene so geometry without
+ * its own skybox doesn't render against a transparent canvas. The .glb
+ * itself is responsible for any skybox / dome it wants visible.
  *
  * On failure: falls back to a flat grey color and warns.
  */
@@ -163,10 +192,17 @@ function load3DBackground(url) {
         _bg3DScene = gltf.scene;
         scene.add(_bg3DScene);
         // Clear any HDRI env map / texture left over from a prior swap.
-        scene.background = null;
+        // 3D scenes can still benefit from a non-null environment if the
+        // scene wants IBL, but that's the .glb's responsibility — we
+        // start it clean.
+        _disposeCurrentBackground();
+        scene.background = new THREE.Color(0x000000);
+        scene.environment = null;
     }, undefined, (err) => {
         console.warn('[scene] 3D background load failed; falling back to grey:', err);
-        scene.background = new THREE.Color(0x1a1a2e);
+        _disposeCurrentBackground();
+        scene.background = new THREE.Color(FALLBACK_GREY);
+        scene.environment = null;
     });
 }
 
