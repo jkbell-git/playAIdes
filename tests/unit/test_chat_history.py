@@ -97,6 +97,11 @@ class TestChatHistoryPersistence:
         on_disk = json.loads(history_file.read_text())
         assert on_disk == [{"role": "user", "content": "before"}]
 
+        # Tempfile cleanup: no orphan .chat_history.*.json.tmp left behind
+        # in the persona dir after the failed write.
+        leftovers = list((tmp_personas_dir / pid).glob(".chat_history.*.json.tmp"))
+        assert leftovers == [], f"orphan tempfile(s): {leftovers}"
+
     def test_delete_history_clears_memory_and_disk(self, play, tmp_personas_dir):
         pid = "testbot"
         play.chat_histories[pid] = [{"role": "user", "content": "x"}]

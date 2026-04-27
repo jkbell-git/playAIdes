@@ -358,7 +358,14 @@ class PlayAIdes:
         ) as tf:
             json.dump(history, tf, ensure_ascii=False, indent=2)
             tmp_path = tf.name
-        os.replace(tmp_path, str(path))
+        try:
+            os.replace(tmp_path, str(path))
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
 
     def delete_history(self, persona_id: str):
         """Clear a persona's history both in memory and on disk.
