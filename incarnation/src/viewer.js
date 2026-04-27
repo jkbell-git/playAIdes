@@ -57,8 +57,7 @@ chatPanel.addEventListener('submit', (e) => {
     transcriptModel.append({ role: 'user', content: text });
     // Tag the user_input with the active persona's id so multi-TV routing
     // delivers the reply to the right clients.
-    const activeId = personasRegistry.all()
-        .find((p) => p.name === activePersona.name)?.id || null;
+    const activeId = getActivePersonaId();
     connection.send('user_input', activeId
         ? { text, persona_id: activeId }
         : { text });
@@ -94,6 +93,14 @@ function safeTransition(next, meta) {
         // user sends two messages back-to-back).
         console.warn('[viewer]', err.message);
     }
+}
+
+/** Resolve the active persona's id from the registry by name match.
+ *  Returns null if the registry isn't populated yet or the active
+ *  persona's name doesn't match any known id. */
+function getActivePersonaId() {
+    return personasRegistry.all()
+        .find((p) => p.name === activePersona.name)?.id || null;
 }
 
 stateMachine.addEventListener('change', (e) => {
@@ -374,8 +381,7 @@ audioCapture.addEventListener('voiceend', async (e) => {
         if (needsWake) {
             // Cross-persona wake: match against ALL known personas, not just
             // the active one. A hit on a different persona triggers a swap.
-            const activeId = personasRegistry.all()
-                .find((p) => p.name === activePersona.name)?.id || null;
+            const activeId = getActivePersonaId();
             const hit = personasRegistry.findByWakeWord(transcript, activeId);
             if (!hit) {
                 console.log('[viewer] wake-mode drop, no wake-word in:', transcript);
