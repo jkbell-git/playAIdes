@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectBackgroundType } from './sceneBackgrounds.js';
+import { detectBackgroundType, isExrUrl } from './sceneBackgrounds.js';
 
 describe('detectBackgroundType', () => {
     it('returns "flat" for .jpg / .jpeg / .png / .webp', () => {
@@ -29,5 +29,21 @@ describe('detectBackgroundType', () => {
     it('strips query strings and fragments before extension match', () => {
         expect(detectBackgroundType('foo.jpg?v=2')).toBe('flat');
         expect(detectBackgroundType('foo.glb#model')).toBe('glb');
+    });
+});
+
+describe('isExrUrl', () => {
+    it('returns true for .exr (any case) with optional query/fragment', () => {
+        expect(isExrUrl('panorama.exr')).toBe(true);
+        expect(isExrUrl('PANO.EXR')).toBe(true);
+        expect(isExrUrl('foo.exr?v=2')).toBe(true);
+        expect(isExrUrl('foo.exr#bar')).toBe(true);
+    });
+
+    it('returns false for .hdr and other extensions', () => {
+        expect(isExrUrl('panorama.hdr')).toBe(false);
+        expect(isExrUrl('foo.jpg')).toBe(false);
+        expect(isExrUrl('')).toBe(false);
+        expect(isExrUrl(null)).toBe(false);
     });
 });

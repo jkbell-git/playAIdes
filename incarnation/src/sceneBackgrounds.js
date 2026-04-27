@@ -26,3 +26,12 @@ export function detectBackgroundType(url) {
     if (GLB_EXTS.some((e) => stripped.endsWith(e))) return 'glb';
     return 'unknown';
 }
+
+/**
+ * True iff the URL points to an OpenEXR file. Used by loadHDRIBackground
+ * to pick between RGBELoader and EXRLoader.
+ */
+export function isExrUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    return url.split('?')[0].split('#')[0].toLowerCase().endsWith('.exr');
+}

@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { detectBackgroundType } from './sceneBackgrounds.js';
+import { detectBackgroundType, isExrUrl } from './sceneBackgrounds.js';
 
 /**
  * Scene — sets up the Three.js renderer, camera, lights, and controls.
@@ -151,7 +151,7 @@ function setBackground(url) {
  * background AND the environment map (image-based lighting). Spec §4b.
  */
 function loadHDRIBackground(url) {
-    const isExr = url.toLowerCase().split('?')[0].endsWith('.exr');
+    const isExr = isExrUrl(url);
     const Loader = isExr ? EXRLoader : RGBELoader;
     const loader = new Loader();
     loader.load(url, (hdrTexture) => {
