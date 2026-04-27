@@ -49,4 +49,7 @@ class Persona(BaseModel):
     wake_words: Optional[List[str]] = None
     dismiss_words: Optional[List[str]] = None
     is_default: bool = False
+    house_words: List[str] = []
+    rephrase_ha_response: bool = False
+    ha_agent_id: Optional[str] = None
     

@@ -179,6 +179,34 @@ class TestPersonaWakeAndDismiss:
                 is_default=None,
             )
 
+    def test_ha_fields_default_to_disabled(self):
+        """house_words/rephrase_ha_response/ha_agent_id all default to HA-disabled."""
+        p = Persona(
+            name="Test", back_ground="bg",
+            psyche=Psyche(traits=[]),
+            gender="Female", language="English",
+        )
+        assert p.house_words == []
+        assert p.rephrase_ha_response is False
+        assert p.ha_agent_id is None
+
+    def test_ha_fields_load_from_persona_json(self, tmp_path):
+        """A persona.json with HA fields loads into the model correctly."""
+        import json
+        path = tmp_path / "persona.json"
+        path.write_text(json.dumps({
+            "name": "Silver", "back_ground": "bg",
+            "psyche": {"traits": []},
+            "gender": "Female", "language": "English",
+            "house_words": ["house"],
+            "rephrase_ha_response": True,
+            "ha_agent_id": "conversation.openai_assist",
+        }))
+        p = Persona(**json.loads(path.read_text()))
+        assert p.house_words == ["house"]
+        assert p.rephrase_ha_response is True
+        assert p.ha_agent_id == "conversation.openai_assist"
+
 
 class TestAvatarSpawnAndCamera:
     def test_spawn_point_optional(self):
