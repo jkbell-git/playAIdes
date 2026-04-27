@@ -83,3 +83,38 @@ class TestHouseWordRouting:
         play_with_ha.set_persona("silver")
         play_with_ha.chat("house turn off the lights")
         assert mock_ha_client.calls == []
+
+
+class TestRephrase:
+    def test_rephrase_enabled_calls_persona_llm_with_ha_response(
+        self, play_with_ha, tmp_personas_dir, mock_ha_client,
+    ):
+        _seed_persona_with_house_words(
+            tmp_personas_dir, "silver",
+            house_words=["house"], rephrase=True,
+        )
+        play_with_ha.set_persona("silver")
+        mock_ha_client.script(speech_text="Lights are off.")
+
+        result = play_with_ha.chat("house turn off the lights")
+
+        # HA was called once.
+        assert len(mock_ha_client.calls) == 1
+        # MockLLM echoes its last input — so the result should contain the
+        # raw HA speech_text wrapped in the rephrase prompt.
+        assert "Lights are off." in result
+
+    def test_rephrase_disabled_skips_persona_llm(
+        self, play_with_ha, tmp_personas_dir, mock_ha_client,
+    ):
+        _seed_persona_with_house_words(
+            tmp_personas_dir, "silver",
+            house_words=["house"], rephrase=False,
+        )
+        play_with_ha.set_persona("silver")
+        mock_ha_client.script(speech_text="OK.")
+        result = play_with_ha.chat("house turn off lights")
+        # MockLLM echo would prefix with 'Mock Response:' — so absence
+        # confirms the persona LLM was not called.
+        assert "Mock Response" not in result
+        assert result == "OK."
