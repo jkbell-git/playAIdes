@@ -4,11 +4,12 @@ import logging
 import threading
 import os
 import shutil
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 try:
-    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
+    from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import StreamingResponse
     import uvicorn
@@ -86,12 +87,40 @@ class IncarnationServer:
         else:
             logger.warning("incarnation/dist not found. Production build will not be served.")
 
+        if not os.environ.get("PLAYAIDES_API_KEY"):
+            logger.warning(
+                "PLAYAIDES_API_KEY not set — HA trigger endpoints accept "
+                "any request (dev mode). Set the env var in any non-local "
+                "deployment."
+            )
+
         self._setup_routes()
 
         self.thread = threading.Thread(target=self._run_server, daemon=True)
         self.thread.start()
 
     def _setup_routes(self):
+
+        # ── Auth dependency ───────────────────────────────────────────────────
+        def require_api_key(authorization: Optional[str] = Header(default=None)):
+            expected = os.environ.get("PLAYAIDES_API_KEY")
+            if not expected:
+                # Dev mode: no auth configured. Logged once at startup elsewhere.
+                return
+            if not authorization or not authorization.startswith("Bearer "):
+                raise HTTPException(status_code=401, detail="missing bearer token")
+            if authorization.removeprefix("Bearer ") != expected:
+                raise HTTPException(status_code=401, detail="invalid bearer token")
+
+        # ── HA trigger endpoints ──────────────────────────────────────────────
+        @self.app.post("/api/personas/{persona_id}/activate")
+        async def activate_persona(persona_id: str, _auth=Depends(require_api_key)):
+            if self.on_message_callback:
+                self.on_message_callback({
+                    "type": "set_active_persona",
+                    "payload": {"id": persona_id},
+                })
+            return {"ok": True, "active_persona_id": persona_id}
 
         # ── Health ───────────────────────────────────────────────────────────
         @self.app.get("/health")

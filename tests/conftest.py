@@ -173,3 +173,12 @@ def tts_url() -> str:
     if not _endpoint_reachable(url):
         pytest.skip(f"TTS_URL not reachable (got {url!r}); skipping live test")
     return url  # type: ignore[return-value]
+
+
+@pytest.fixture
+def with_api_key(monkeypatch):
+    """Set PLAYAIDES_API_KEY for endpoints that require auth.
+    Returns the token value so tests can assemble Authorization headers."""
+    token = "test-api-key-secret-1234"
+    monkeypatch.setenv("PLAYAIDES_API_KEY", token)
+    return token
