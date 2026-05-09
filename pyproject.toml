@@ -28,6 +28,7 @@ dev = [
     "pytest-cov>=5.0",
     "responses>=0.25",        # requests mocking
     "respx>=0.21",            # httpx mocking
+    "watchfiles>=0.21",       # backend hot-reload in docker compose
 ]
 
 [tool.setuptools]
