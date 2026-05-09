@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Run tests and copy coverage.xml to the repo root.
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+"$DIR/test"
+if [[ -f .test-output/coverage.xml ]]; then
+  cp .test-output/coverage.xml ./coverage.xml
+  echo "Coverage XML: ./coverage.xml"
+else
+  echo "no coverage.xml produced" >&2
+  exit 1
+fi

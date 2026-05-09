@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Run the frontend Vitest suite inside a Docker container.
+set -euo pipefail
+docker compose -f docker-compose.test.yml run --rm js-tests

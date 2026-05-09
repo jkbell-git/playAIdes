@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Drop into bash inside the test image — useful for interactive `pytest`.
+set -euo pipefail
+docker compose -f docker-compose.test.yml run --rm --entrypoint /bin/bash tests

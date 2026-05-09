@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Tear down all docker compose stacks + remove caches.
+set -euo pipefail
+docker compose                                                       down -v --remove-orphans 2>/dev/null || true
+docker compose -f docker-compose.test.yml                            down -v --remove-orphans 2>/dev/null || true
+docker compose -f docker-compose.test.yml -f docker-compose.live.yml down -v --remove-orphans 2>/dev/null || true
+rm -rf .test-output coverage.xml .pytest_cache .coverage
+echo "clean: done"

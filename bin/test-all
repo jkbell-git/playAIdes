@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Run Python tests then frontend tests sequentially.
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+"$DIR/test"
+"$DIR/test-js"

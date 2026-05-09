@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# End-to-end tests against real Ollama + TTS + Whisper containers.
+# Needs an NVIDIA GPU for the TTS service.
+set -euo pipefail
+mkdir -p .test-output
+COMPOSE="docker compose -f docker-compose.test.yml -f docker-compose.live.yml"
+$COMPOSE up -d ollama tts whisper
+$COMPOSE run --rm ollama-model-pull || true
+$COMPOSE run --rm tests pytest -m live
+$COMPOSE down
