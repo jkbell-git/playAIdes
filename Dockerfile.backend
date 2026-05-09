@@ -1,0 +1,35 @@
+# Backend runtime image — playAIdes + incarnation_server.
+#
+# Source is bind-mounted from the host at runtime (see docker-compose.yml),
+# so this image only carries Python + deps. `watchfiles` wraps the entrypoint
+# so any *.py change in /app triggers a whole-process restart (uvicorn's own
+# --reload doesn't work because IncarnationServer launches uvicorn in a
+# daemon thread — see spec § 4.2).
+FROM python:3.12-slim
+
+# Install minimal build deps. portaudio is intentionally absent — the backend
+# container doesn't do live speaker playback (TTS proxies stream audio to the
+# browser instead).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      build-essential \
+      curl \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy project metadata only, install deps. Source is bind-mounted at runtime
+# so we don't COPY the rest of the repo into the image.
+COPY pyproject.toml /app/pyproject.toml
+
+# Editable install picks up the bind-mounted source. `[dev]` brings in
+# watchfiles + pytest (pytest is unused at runtime but harmless and keeps
+# the dependency set predictable).
+RUN pip install --no-cache-dir -e ".[dev]"
+
+EXPOSE 8765
+
+# `watchfiles --filter python` watches only *.py files in /app. The command
+# string `python main.py --use_avatar` is a single argv arg (watchfiles
+# parses it as a shell command).
+CMD ["watchfiles", "--filter", "python", "python main.py --use_avatar", "/app"]
