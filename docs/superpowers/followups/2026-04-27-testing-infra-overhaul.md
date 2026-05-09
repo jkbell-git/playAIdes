@@ -1,8 +1,14 @@
 # Followup: Testing Infrastructure Overhaul
 
 **Created:** 2026-04-27
-**Status:** Deferred — to be brainstormed in a future session
+**Status:** Partially resolved — see status update below
 **Triggered by:** HA integration session (2026-04-26 → 04-27) — leaked test containers caused a workstation crash, exposing fragility in the test setup
+
+> **Status update (2026-04-27):** The "Make abstraction" sub-project below was
+> resolved by `docs/superpowers/specs/2026-04-27-docker-compose-consolidation-design.md`.
+> Make is gone; `bin/` shell scripts replaced it. The other two sub-projects
+> (fixture consolidation, Docker-or-not architectural question) remain
+> deferred — see the "Suggested entry point" section at the bottom.
 
 ## Why this exists
 
@@ -46,7 +52,7 @@ Start with: `/superpowers:brainstorm overhaul the testing infrastructure — see
 
 Likely sub-projects this could decompose into (worth flagging up front so the brainstorm doesn't try to swallow everything at once):
 
-1. **Fast-iteration ergonomics** — document `make shell`, add `test-watch`, possibly drop Make for `just`/scripts.
+1. ~~**Fast-iteration ergonomics** — document `make shell`, add `test-watch`, possibly drop Make for `just`/scripts.~~ **RESOLVED 2026-04-27** by the docker-compose consolidation spec; Make removed, `bin/` scripts replace it. `bin/shell` is the documented fast-iteration path.
 2. **Fixture consolidation** — promote `_NoopThread` pattern to top-level conftest, prevent regression.
 3. **Docker-or-not architectural question** — the bigger one; punts on whether the whole Docker-wrapped layer should stay.
 
