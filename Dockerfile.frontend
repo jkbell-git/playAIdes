@@ -1,0 +1,19 @@
+# Frontend dev image — Vite dev server for incarnation/.
+#
+# Source is bind-mounted from the host at runtime; node_modules lives in a
+# named volume (see docker-compose.yml) so the baked install isn't shadowed
+# by the bind-mount. Vite's HMR pushes patches to the open browser tab.
+FROM node:22-slim
+
+WORKDIR /app/incarnation
+
+# Copy lockfiles only, install deps. Source is bind-mounted at runtime.
+COPY incarnation/package.json incarnation/package-lock.json* /app/incarnation/
+
+RUN npm ci
+
+EXPOSE 5173
+
+# `--host 0.0.0.0` is critical so the container's Vite dev server is
+# reachable from the host browser, not just from inside the container.
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
