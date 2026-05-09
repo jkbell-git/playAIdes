@@ -132,19 +132,50 @@ rest_command:
 - **HA → persona event triggers** ("door opened → say welcome home"). State-machine integration is the open design question. Spec § 7.1.
 - **HACS `homeassistant-playaides` custom_component** so HA voice satellites can use a persona as their conversation agent. Different codebase entirely (Python in HA's runtime, HACS distribution). Spec § 7.2.
 
-## Running the test suite
+## Running
 
-Everything runs in Docker — **no Python or dependencies need to be installed on the host**. Only requirements are `docker` + `docker compose` + `make`.
+### Runtime stack
+
+Ollama runs externally (on the host or another machine). Everything else lives in `docker-compose.yml` at the repo root.
 
 ```bash
-make test           # Unit + integration tests (fast, offline)
-make test-unit      # Unit tests only
-make test-integration  # FastAPI TestClient integration tests only
-make test-live      # End-to-end against real Ollama + TTS containers (needs NVIDIA GPU for TTS)
-make coverage       # Run tests and export coverage.xml to the repo root
-make shell          # Drop into a shell in the test image for poking around
-make clean          # Tear down containers, volumes, and .test-output/
+ollama serve                   # if not already running on the host
+cp .env.example .env           # first time only; edit with your HA_TOKEN etc.
+docker compose up -d           # backend + frontend + tts + whisper
+docker compose logs -f         # tail all logs
+docker compose down            # stop everything
 ```
+
+Browser at `http://localhost:5173/`. Backend HTTP/WS at `http://localhost:8765/`.
+
+To restart a single service: `docker compose restart backend`.
+
+To bring up only some services: `docker compose up -d backend frontend whisper` (skips TTS — useful when your GPU is busy with other workloads).
+
+Hot-reload works for both languages:
+- Save a `*.py` file → `watchfiles` restarts the backend container in <2s
+- Save a frontend file → Vite HMR pushes the patch to the open browser tab
+
+### Tests
+
+```bash
+bin/test                       # Python unit + integration (~25s wall, 1.8s pytest)
+bin/test-js                    # Frontend Vitest
+bin/test-all                   # both, sequentially
+bin/test-live                  # full E2E with real Ollama + TTS containers (GPU needed)
+bin/coverage                   # run tests + copy coverage.xml to repo root
+bin/shell                      # interactive bash in the test image (run pytest natively for sub-second feedback)
+bin/js-shell                   # interactive bash in the js-tests image
+bin/clean                      # tear all stacks down + remove caches
+```
+
+`bin/test` passes extra args through to pytest:
+
+```bash
+bin/test pytest tests/unit -k ha_client -v
+```
+
+Each `bin/` script is a few lines of bash — `cat bin/test` shows exactly what it runs.
 
 Test layout:
 
@@ -156,7 +187,7 @@ tests/
 └── live/              # Real Ollama + TTS — marked `live`, auto-skipped when URLs unset
 ```
 
-Live tests auto-skip when `OLLAMA_URL` / `TTS_URL` aren't set or unreachable, so `make test` is always green regardless of which backend services are running.
+Live tests auto-skip when `OLLAMA_URL` / `TTS_URL` aren't set or unreachable, so `bin/test` is always green regardless of which backend services are running.
 
 ## Notes
 Can't push model and persona files to GitHub because of licensing/size.
