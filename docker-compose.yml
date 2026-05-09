@@ -1,0 +1,88 @@
+# Runtime stack for playAIdes — single source of truth for `docker compose up`.
+#
+# Brings up backend (Python + incarnation_server), frontend (Vite dev),
+# tts (Qwen3 streaming TTS, GPU required), and whisper (STT). Ollama is
+# intentionally NOT in this file — it stays external on the host so a
+# future llama.cpp swap doesn't touch the docker stack.
+#
+# See spec: docs/superpowers/specs/2026-04-27-docker-compose-consolidation-design.md
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: playaides-backend:latest
+    container_name: playaides-backend
+    ports:
+      - "8765:8765"
+    volumes:
+      - .:/app:rw                 # bind-mount whole repo for hot-reload
+    environment:
+      # External Ollama on the host. extra_hosts below makes
+      # host.docker.internal resolve to the host gateway on Linux.
+      - OLLAMA_URL=http://host.docker.internal:11434
+      # Internal services reachable by docker-network DNS (service name).
+      - TTS_URL=http://tts:8009
+      - WHISPER_URL=http://whisper:9000
+      # Pass-through from host shell / .env file. Empty = disabled (with
+      # a startup log warning per the HA-integration spec).
+      - PLAYAIDES_API_KEY
+      - HA_URL
+      - HA_TOKEN
+      - HA_DEFAULT_AGENT_ID
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      tts:
+        condition: service_started
+      whisper:
+        condition: service_healthy
+    # CMD is set in Dockerfile.backend; uncomment to override for one-off runs:
+    # command: ["python", "main.py", "--use_avatar"]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: playaides-frontend:latest
+    container_name: playaides-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./incarnation:/app/incarnation:rw
+      - frontend_node_modules:/app/incarnation/node_modules
+    # CMD is set in Dockerfile.frontend.
+
+  tts:
+    build:
+      context: ./voice_generation/voice_server
+      dockerfile: Dockerfile_streaming_tts
+    image: playaides-tts:latest
+    container_name: playaides-tts
+    volumes:
+      - ./voice_generation/voice_server/hf_models:/root/.cache/huggingface
+      - ./voice_generation/voice_server/service:/app/Qwen3-TTS-streaming/service
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    # No host port — only reachable from `backend` over the docker network.
+
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: playaides-whisper
+    environment:
+      - ASR_MODEL=base
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/"]
+      interval: 10s
+      retries: 5
+      start_period: 60s
+    # No host port — only reachable from `backend` over the docker network.
+
+volumes:
+  frontend_node_modules:
