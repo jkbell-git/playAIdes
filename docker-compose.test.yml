@@ -21,7 +21,7 @@ services:
     environment:
       - PYTHONPATH=/app
       # Live backends intentionally unset here — live tests will skip.
-      - OLLAMA_URL=
+      - LLM_URL=
       - TTS_URL=
       - WHISPER_URL=
     # Default invocation: skip live tests.

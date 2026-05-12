@@ -40,7 +40,7 @@ services:
       - |
         set -e
         export OLLAMA_HOST=http://ollama:11434
-        ollama pull "${OLLAMA_MODEL:-gemma3:4b}"
+        ollama pull "${LLM_MODEL:-gemma3:4b}"
     restart: "no"
 
   tts:
@@ -99,10 +99,11 @@ services:
         condition: service_healthy
     environment:
       - PYTHONPATH=/app
-      - OLLAMA_URL=http://ollama:11434
+      # OpenAI-compat /v1 endpoint on the in-network ollama service.
+      - LLM_URL=http://ollama:11434/v1
+      - LLM_MODEL=${LLM_MODEL:-gemma3:4b}
       - TTS_URL=http://tts:8009
       - WHISPER_URL=http://whisper:9000
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
     command: ["pytest", "-m", "live"]
 
 volumes:

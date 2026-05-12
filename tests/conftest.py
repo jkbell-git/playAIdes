@@ -4,7 +4,7 @@ Design goals:
 - Tests never hit the real network unless explicitly marked ``live``.
 - Tests never touch the user's ``personas/`` dir on disk; persona ops run
   against a per-test tmp directory.
-- ``live`` tests auto-skip when OLLAMA_URL / TTS_URL are absent or the
+- ``live`` tests auto-skip when LLM_URL / TTS_URL are absent or the
   endpoints aren't reachable, so the suite is the same whether or not the
   live compose stack is up.
 """

@@ -19,9 +19,12 @@ services:
     volumes:
       - .:/app:rw                 # bind-mount whole repo for hot-reload
     environment:
-      # External Ollama on the host. extra_hosts below makes
-      # host.docker.internal resolve to the host gateway on Linux.
-      - OLLAMA_URL=http://host.docker.internal:11434
+      # External LLM on the host (Ollama by default; any /v1 endpoint works).
+      # extra_hosts below makes host.docker.internal resolve to the host
+      # gateway on Linux. Override LLM_URL via .env to point at e.g.
+      # llamacpp-wrapper at host.docker.internal:8081/v1.
+      - LLM_URL=${LLM_URL:-http://host.docker.internal:11434/v1}
+      - LLM_MODEL=${LLM_MODEL:-gemma3:4b}
       # Internal services reachable by docker-network DNS (service name).
       - TTS_URL=http://tts:8009
       - WHISPER_URL=http://whisper:9000
@@ -31,7 +34,6 @@ services:
       - HA_URL
       - HA_TOKEN
       - HA_DEFAULT_AGENT_ID
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
