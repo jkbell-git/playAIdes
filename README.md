@@ -156,6 +156,27 @@ Hot-reload works for both languages:
 - Save a `*.py` file → `watchfiles` restarts the backend container in <2s
 - Save a frontend file → Vite HMR pushes the patch to the open browser tab
 
+### Switching LLM backends
+
+The backend is just a `.env` change. The project doesn't know or care
+which OpenAI-compatible API serves it.
+
+```bash
+# host Ollama (default)
+LLM_URL=http://host.docker.internal:11434/v1
+LLM_MODEL=gemma3:4b
+
+# llamacpp-wrapper (better MoE control, faster on supported models)
+LLM_URL=http://host.docker.internal:8081/v1
+LLM_MODEL=gemma4-26b-q4
+```
+
+Then `docker compose down && docker compose up -d` to pick up the change.
+
+See `.env.example` for more options. The backend default timeout is
+120s to cover llamacpp-wrapper cold-start (~25-30s on Q4 first hit
+while llama-swap spawns the llama-server child).
+
 ### Tests
 
 ```bash
@@ -187,7 +208,7 @@ tests/
 └── live/              # Real Ollama + TTS — marked `live`, auto-skipped when URLs unset
 ```
 
-Live tests auto-skip when `OLLAMA_URL` / `TTS_URL` aren't set or unreachable, so `bin/test` is always green regardless of which backend services are running.
+Live tests auto-skip when `LLM_URL` / `TTS_URL` aren't set or unreachable, so `bin/test` is always green regardless of which backend services are running.
 
 ## Notes
 Can't push model and persona files to GitHub because of licensing/size.
