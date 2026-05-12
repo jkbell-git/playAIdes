@@ -160,10 +160,10 @@ def _endpoint_reachable(url: Optional[str], timeout: float = 2.0) -> bool:
 
 
 @pytest.fixture(scope="session")
-def ollama_url() -> str:
-    url = os.environ.get("OLLAMA_URL")
+def llm_url() -> str:
+    url = os.environ.get("LLM_URL")
     if not _endpoint_reachable(url):
-        pytest.skip(f"OLLAMA_URL not reachable (got {url!r}); skipping live test")
+        pytest.skip(f"LLM_URL not reachable (got {url!r}); skipping live test")
     return url  # type: ignore[return-value]
 
 

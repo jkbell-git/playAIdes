@@ -1,6 +1,6 @@
 from persona import Persona
 from pydantic import BaseModel,ConfigDict, field_validator
-from model_interfaces import LLMInterface, OllamaLLM
+from model_interfaces import LLMInterface, OpenAICompatLLM
 from typing import Optional, List, Dict
 from voice_generation.voice_api import PersonaTTS, Qwen3TTS_local, VoiceDesignRequest, SpeechGenerationRequest
 import json
@@ -96,7 +96,7 @@ class PlayAIdesArgs(BaseModel):
 
 class PlayAIdes:
     def __init__(self, args: PlayAIdesArgs):
-        self.llm: Optional[LLMInterface] = args.llm if args.llm else OllamaLLM() # Default to Ollama
+        self.llm: Optional[LLMInterface] = args.llm if args.llm else OpenAICompatLLM() # Default to LLM_URL (Ollama by default)
         self.tts: Optional[PersonaTTS] = args.tts if args.tts else Qwen3TTS_local() #Default to Qwen3TTS_local
         self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(
             on_message_callback=self._handle_incarnation_message,

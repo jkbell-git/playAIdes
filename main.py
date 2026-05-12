@@ -2,7 +2,6 @@
 import sys
 import os
 from playAIdes import PlayAIdes,PlayAIdesArgs
-from model_interfaces import OllamaLLM
 import pydantic
 import logging
 logging.basicConfig(level=logging.INFO)

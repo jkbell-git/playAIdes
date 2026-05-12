@@ -116,12 +116,8 @@ def test_chat_raises_llmerror_on_http_500():
 
 @responses.activate
 def test_chat_raises_llmerror_on_connection_error():
-    responses.add(
-        responses.POST,
-        f"{BASE_URL}/chat/completions",
-        body=ConnectionError("simulated"),
-    )
-    llm = OpenAICompatLLM(base_url=BASE_URL, model="m", timeout=1.0)
+    # No registered endpoint → requests.ConnectionError → LLMError.
+    llm = OpenAICompatLLM(base_url="http://nope-nope-nope:1/v1", model="m", timeout=1.0)
     with pytest.raises(LLMError):
         llm.chat([{"role": "user", "content": "hi"}])
 
@@ -157,3 +153,11 @@ def test_constructor_uses_defaults_when_no_args_no_env(monkeypatch):
     llm = OpenAICompatLLM()
     assert llm.base_url == "http://localhost:11434/v1"
     assert llm.model == "gemma3:4b"
+
+
+def test_explicit_args_win_over_env(monkeypatch):
+    monkeypatch.setenv("LLM_URL", "http://from-env:99/v1")
+    monkeypatch.setenv("LLM_MODEL", "env-model")
+    llm = OpenAICompatLLM(base_url="http://explicit:1/v1", model="explicit-model")
+    assert llm.base_url == "http://explicit:1/v1"
+    assert llm.model == "explicit-model"
