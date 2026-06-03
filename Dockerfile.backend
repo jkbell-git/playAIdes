@@ -14,6 +14,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       build-essential \
       curl \
+      git \
+      openssh-client \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -23,9 +25,16 @@ WORKDIR /app
 COPY pyproject.toml /app/pyproject.toml
 
 # Editable install picks up the bind-mounted source. `[dev]` brings in
-# watchfiles + pytest (pytest is unused at runtime but harmless and keeps
-# the dependency set predictable).
-RUN pip install --no-cache-dir -e ".[dev]"
+# watchfiles + pytest. One dependency — `voicebox` (the shared TTS client) — is a
+# PRIVATE git repo installed over ssh, so this RUN forwards your ssh agent via
+# buildkit. Build it with:
+#     ssh-add ~/.ssh/<key>            # once, so the agent has your GitHub key
+#     docker compose build backend    # compose passes `ssh: [default]`
+# (or: DOCKER_BUILDKIT=1 docker build --ssh default -f Dockerfile.backend .)
+RUN --mount=type=ssh \
+    mkdir -p -m 0700 /root/.ssh \
+ && ssh-keyscan -t rsa,ed25519 github.com >> /root/.ssh/known_hosts 2>/dev/null \
+ && pip install --no-cache-dir -e ".[dev]"
 
 EXPOSE 8765
 

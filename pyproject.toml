@@ -16,6 +16,11 @@ dependencies = [
     "uvicorn>=0.27",
     "httpx>=0.27",
     "websockets>=12",
+    "python-multipart>=0.0.9",   # required by FastAPI file-upload routes (persona model/animation upload)
+    # Shared TTS client + wire models — the unified voicebox service (replaces the
+    # embedded voice_generation/ copy). Private repo: the backend image installs it
+    # via buildkit ssh (see Dockerfile.backend + the `ssh:` build option in compose).
+    "voicebox @ git+ssh://git@github.com/jkbell-git/voicebox.git@main",
     # Audio deps (sounddevice, numpy, playsound3) are intentionally NOT listed here —
     # they require native portaudio/ALSA and are only needed for live speaker playback.
     # Install them in the app container if you want streaming TTS playback.

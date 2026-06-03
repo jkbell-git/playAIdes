@@ -1,9 +1,10 @@
 # Runtime stack for playAIdes — single source of truth for `docker compose up`.
 #
-# Brings up backend (Python + incarnation_server), frontend (Vite dev),
-# tts (Qwen3 streaming TTS, GPU required), and whisper (STT). Ollama is
-# intentionally NOT in this file — it stays external on the host so a
-# future llama.cpp swap doesn't touch the docker stack.
+# Brings up backend (Python + incarnation_server), frontend (Vite dev), and
+# whisper (STT). TTS now lives in the standalone `voicebox` service (../../voicebox,
+# shared with anime_video_gen) — start it separately. Ollama is intentionally NOT
+# in this file — it stays external on the host so a future llama.cpp swap doesn't
+# touch the docker stack.
 #
 # See spec: docs/superpowers/specs/2026-04-27-docker-compose-consolidation-design.md
 
@@ -12,6 +13,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
+      ssh:
+        - default     # forwards your ssh agent so pip can install the private `voicebox` git dep
     image: playaides-backend:latest
     container_name: playaides-backend
     ports:
@@ -25,8 +28,11 @@ services:
       # llamacpp-wrapper at host.docker.internal:8081/v1.
       - LLM_URL=${LLM_URL:-http://host.docker.internal:11434/v1}
       - LLM_MODEL=${LLM_MODEL:-gemma3:4b}
-      # Internal services reachable by docker-network DNS (service name).
-      - TTS_URL=http://tts:8009
+      # voicebox (the unified Qwen3-TTS service) runs as its OWN compose project on
+      # the host; reach it via host.docker.internal (extra_hosts below). Start it:
+      #   docker compose -f ../../voicebox/docker-compose.yml --profile serve up -d voicebox
+      - TTS_URL=${TTS_URL:-http://host.docker.internal:8008}
+      # whisper (STT) is still a sibling service on the docker network.
       - WHISPER_URL=http://whisper:9000
       # Pass-through from host shell / .env file. Empty = disabled (with
       # a startup log warning per the HA-integration spec).
@@ -37,8 +43,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      tts:
-        condition: service_started
       whisper:
         condition: service_healthy
     # CMD is set in Dockerfile.backend; uncomment to override for one-off runs:
@@ -57,22 +61,11 @@ services:
       - frontend_node_modules:/app/incarnation/node_modules
     # CMD is set in Dockerfile.frontend.
 
-  tts:
-    build:
-      context: ./voice_generation/voice_server
-      dockerfile: Dockerfile_streaming_tts
-    image: playaides-tts:latest
-    container_name: playaides-tts
-    volumes:
-      - ./voice_generation/voice_server/hf_models:/root/.cache/huggingface
-      - ./voice_generation/voice_server/service:/app/Qwen3-TTS-streaming/service
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
-    # No host port — only reachable from `backend` over the docker network.
+  # The embedded `tts` service (Qwen3 streaming TTS) was REMOVED — superseded by the
+  # standalone `voicebox` service (../../voicebox), now shared with anime_video_gen.
+  # Start voicebox separately (it owns the GPU + model weights):
+  #   docker compose -f ../../voicebox/docker-compose.yml --profile serve up -d voicebox
+  # The backend reaches it at host.docker.internal:8008 (TTS_URL above).
 
   whisper:
     image: onerahmet/openai-whisper-asr-webservice:latest
