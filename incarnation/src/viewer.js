@@ -22,6 +22,7 @@ import { PersonasRegistry } from './personasRegistry.js';
 import { WipeOverlay } from './wipeOverlay.js';
 import { TranscriptModel } from './transcriptModel.js';
 import { ChatPanel } from './chatPanel.js';
+import { PipOverlay, pipViewFromMessage } from './pipOverlay.js';
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
@@ -44,6 +45,7 @@ const withResolvedUrl = (payload) =>
 
 const stateMachine = new ViewerState(State.EMPTY);
 const overlays = new ViewerOverlays(document, config, stateMachine);
+const pip = new PipOverlay(document);
 const incarnation = new Incarnation();
 const connection = new ConnectionManager();
 const audioCapture = new AudioCapture();
@@ -241,6 +243,13 @@ connection.addEventListener('start_lip_sync', (e) => {
 connection.addEventListener('stop_lip_sync', () => {
     incarnation.handleCommand('stop_lip_sync', {});
     safeTransition(State.AMBIENT);
+});
+
+connection.addEventListener('show_pip', (e) => {
+    pip.apply(pipViewFromMessage('show_pip', e.detail || {}));
+});
+connection.addEventListener('dismiss_pip', () => {
+    pip.apply(pipViewFromMessage('dismiss_pip', {}));
 });
 
 connection.addEventListener('persona_active', (e) => {
@@ -479,7 +488,9 @@ connection.addEventListener('message', (e) => {
         && msg.type !== 'play_animation'
         && msg.type !== 'start_lip_sync'
         && msg.type !== 'stop_lip_sync'
-        && msg.type !== 'assistant_message') {
+        && msg.type !== 'assistant_message'
+        && msg.type !== 'show_pip'
+        && msg.type !== 'dismiss_pip') {
         incarnation.handleCommand(msg.type, withResolvedUrl(msg.payload || {}));
     }
 });
