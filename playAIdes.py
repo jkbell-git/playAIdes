@@ -125,6 +125,12 @@ class PlayAIdes:
         # name=<unknown> and leaving the model T-posed.
         self.loaded_animations: set = set()
 
+        from skills.registry import SkillRegistry
+        from skills.pip import ShowPipSkill, DismissPipSkill
+        self.skill_registry = SkillRegistry()
+        self.skill_registry.register(ShowPipSkill())
+        self.skill_registry.register(DismissPipSkill())
+
         from ha_client import HAClient
         self.ha_client: Optional[HAClient] = None
         if args.ha_url and args.ha_token:
@@ -754,6 +760,34 @@ class PlayAIdes:
                 speaker_id=voice.speaker_uuid,
                 language=self.current_persona.language or "English",
             ))
+
+    def _skill_send(self, persona_id: str, cmd_type: str, payload: dict) -> None:
+        """SkillContext.send backing — push a WS frame to the persona's displays."""
+        if self.incarnation_server is not None:
+            self.incarnation_server.broadcast_to_persona(persona_id, cmd_type, payload)
+
+    def _dispatch_skill(self, target_id: str, skill_name: str, raw_params: dict) -> None:
+        """Validate params and run a skill. Never raises into the caller."""
+        from skills.base import SkillContext
+        skill = self.skill_registry.get(skill_name)
+        if skill is None:
+            logger.warning("Skill %r not registered; ignoring.", skill_name)
+            return
+        try:
+            params = skill.Params(**(raw_params or {}))
+        except Exception as e:
+            logger.warning("Skill %r param validation failed: %s", skill_name, e)
+            return
+        ctx = SkillContext(
+            persona=self.current_persona,
+            target_id=target_id,
+            send=self._skill_send,
+            speak_fn=self.speak_as_persona,
+        )
+        try:
+            skill.execute(params, ctx)
+        except Exception as e:
+            logger.exception("Skill %r execute failed: %s", skill_name, e)
 
     def chat(self, user_input: str, persona_id: Optional[str] = None) -> str:
         if not self.current_persona:
