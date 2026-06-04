@@ -483,6 +483,9 @@ audioCapture.addEventListener('voiceend', async (e) => {
 // set_background, etc.) — preserve existing behavior.
 connection.addEventListener('message', (e) => {
     const msg = e.detail;
+    // Types with dedicated listeners above are excluded here so they aren't
+    // double-dispatched into incarnation.handleCommand. Don't add a type here
+    // without a corresponding dedicated listener.
     if (msg.type
         && !msg.type.startsWith('load_')
         && msg.type !== 'play_animation'

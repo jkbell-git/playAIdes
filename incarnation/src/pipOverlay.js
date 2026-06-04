@@ -24,18 +24,23 @@ export class PipOverlay {
     constructor(root) {
         this.el = root.querySelector('#pip-overlay');
         this.img = root.querySelector('#pip-image');
+        if (!this.el || !this.img) {
+            console.warn('[PipOverlay] #pip-overlay / #pip-image not found — PiP disabled');
+            this.el = null;
+            this.img = null;
+        }
     }
 
     /** @param {{visible:boolean,url:string,kind:string|null}} view */
     apply(view) {
         if (!this.el) return;
         if (view.visible && view.url) {
-            if (this.img) this.img.src = view.url;
+            this.img.src = view.url;
             this.el.classList.add('visible');
         } else {
             this.el.classList.remove('visible');
             // Drop the src so an MJPEG stream stops fetching when hidden.
-            if (this.img) this.img.removeAttribute('src');
+            this.img.removeAttribute('src');
         }
     }
 }

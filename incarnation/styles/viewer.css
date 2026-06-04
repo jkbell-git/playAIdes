@@ -419,7 +419,7 @@ body.kiosk { cursor: none; }
 body.kiosk .viewer-strip,
 body.kiosk .chat-panel { display: none; }
 
-/* ── Picture-in-picture panel (?show_pip) ──────────────────────
+/* ── Picture-in-picture panel (show_pip WS message) ───────────────────────
    Top-right, inside the TV title-safe area. Sits above mic/subtitle
    (z 70/80) and below the chat panel (z 90) and wipe (z 200). It is
    command-driven (only visible while a show_pip is active), so unlike
