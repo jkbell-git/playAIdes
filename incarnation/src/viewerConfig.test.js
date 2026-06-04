@@ -12,6 +12,8 @@ describe('loadConfig — defaults', () => {
             subtitles: true,
             nameplate: false,
             chat: 'closed',
+            quality: 'high',
+            pixelRatio: null,
             wsUrl: 'ws://localhost:8765/ws',
             apiBase: 'http://localhost:8765',
         });

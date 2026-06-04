@@ -4,21 +4,35 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { detectBackgroundType, isExrUrl } from './sceneBackgrounds.js';
+import { loadConfig } from './viewerConfig.js';
 
 /**
  * Scene — sets up the Three.js renderer, camera, lights, and controls.
  * Exports singleton references so other modules can add objects to the scene.
  */
 
+// Low-quality mode (?quality=low) for weak GPUs (e.g. a Fire TV stick): caps the
+// device pixel ratio and drops shadows — the heaviest fill-rate costs. MSAA is
+// kept on (cheap on the tile-based GPUs these devices use, and it prevents the
+// jagged model edges you'd otherwise get). Capable devices (?quality=high) also
+// render shadows and allow a higher pixel ratio.
+const cfg = loadConfig();
+const lowQuality = cfg.quality === 'low';
+
 // ── Renderer ────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('viewer');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-renderer.setPixelRatio(window.devicePixelRatio);
+// Resolution dial: ?dpr=<n> overrides the cap (clamped 0.5–3) so sharpness vs.
+// smoothness can be tuned per device; otherwise auto-cap (low: 1, high: up to 2).
+const renderScale = cfg.pixelRatio != null
+    ? Math.max(0.5, Math.min(3, cfg.pixelRatio))
+    : Math.min(window.devicePixelRatio, lowQuality ? 1 : 2);
+renderer.setPixelRatio(renderScale);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = !lowQuality;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // ── Scene ───────────────────────────────────────────────────────────────────
@@ -53,7 +67,7 @@ scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xfff0dd, 1.2);
 directionalLight.position.set(3, 5, 4);
-directionalLight.castShadow = true;
+directionalLight.castShadow = !lowQuality;
 directionalLight.shadow.mapSize.width = 1024;
 directionalLight.shadow.mapSize.height = 1024;
 scene.add(directionalLight);

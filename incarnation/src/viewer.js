@@ -13,7 +13,7 @@ import { Incarnation } from './incarnation.js';
 import { ConnectionManager } from './connectionManager.js';
 import { ViewerState, State } from './viewerState.js';
 import { ViewerOverlays } from './viewerOverlays.js';
-import { loadConfig } from './viewerConfig.js';
+import { loadConfig, resolveAssetUrl } from './viewerConfig.js';
 import { AudioCapture } from './audioCapture.js';
 import { SttClient } from './sttClient.js';
 import { matchPhrase } from './transcriptMatcher.js';
@@ -25,6 +25,12 @@ import { ChatPanel } from './chatPanel.js';
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
 console.log('[viewer] config:', config);
+
+// Backend command payloads may carry a hardcoded http://localhost:8765 asset URL
+// (uploaded personas); rewrite it to the host that served this page so models /
+// animations / backgrounds load on remote devices (TVs). Relative URLs pass through.
+const withResolvedUrl = (payload) =>
+    (payload && payload.url) ? { ...payload, url: resolveAssetUrl(payload.url, config.apiBase) } : payload;
 
 const stateMachine = new ViewerState(State.EMPTY);
 const overlays = new ViewerOverlays(document, config, stateMachine);
@@ -130,7 +136,7 @@ stateMachine.addEventListener('change', (e) => {
 // ── WebSocket-driven transitions ────────────────────────────────────────────
 connection.addEventListener('load_model', async (e) => {
     try {
-        const info = await incarnation.handleCommand('load_model', e.detail);
+        const info = await incarnation.handleCommand('load_model', withResolvedUrl(e.detail));
         connection.send('status', { state: 'model_loaded', ...info });
         // We stay in EMPTY here — INTRO begins when the intro animation
         // actually starts playing (via play_animation below).
@@ -147,15 +153,15 @@ connection.addEventListener('load_model', async (e) => {
 });
 
 connection.addEventListener('load_animation', async (e) => {
-    const info = await incarnation.handleCommand('load_animation', e.detail);
+    const info = await incarnation.handleCommand('load_animation', withResolvedUrl(e.detail));
     connection.send('status', { state: 'animation_loaded', ...info });
 });
 connection.addEventListener('load_mixamo_animation', async (e) => {
-    const info = await incarnation.handleCommand('load_mixamo_animation', e.detail);
+    const info = await incarnation.handleCommand('load_mixamo_animation', withResolvedUrl(e.detail));
     connection.send('status', { state: 'animation_loaded', ...info });
 });
 connection.addEventListener('load_vrma_animation', async (e) => {
-    const info = await incarnation.handleCommand('load_vrma_animation', e.detail);
+    const info = await incarnation.handleCommand('load_vrma_animation', withResolvedUrl(e.detail));
     connection.send('status', { state: 'animation_loaded', ...info });
 });
 
@@ -464,7 +470,7 @@ connection.addEventListener('message', (e) => {
         && msg.type !== 'start_lip_sync'
         && msg.type !== 'stop_lip_sync'
         && msg.type !== 'assistant_message') {
-        incarnation.handleCommand(msg.type, msg.payload || {});
+        incarnation.handleCommand(msg.type, withResolvedUrl(msg.payload || {}));
     }
 });
 

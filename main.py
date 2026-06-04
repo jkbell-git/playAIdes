@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
+import time
 from playAIdes import PlayAIdes,PlayAIdesArgs
 import pydantic
 import logging
@@ -64,6 +65,17 @@ def main(services_args:PlayAIdesArgs):
                 response = ai.chat(user_input)
                 print(f"{ai.current_persona.name}: {response}")
             
+        except EOFError:
+            # No interactive stdin (e.g. `docker compose up -d` with no TTY).
+            # The incarnation server runs in a daemon thread, so stop polling
+            # stdin and keep the process alive instead of tight-looping on EOF.
+            logger.info("No interactive stdin — running in avatar-server mode. Ctrl+C to stop.")
+            try:
+                while True:
+                    time.sleep(3600)
+            except KeyboardInterrupt:
+                print("\nGoodbye!")
+            break
         except KeyboardInterrupt:
             print("\nGoodbye!")
             break
@@ -75,7 +87,7 @@ def main(services_args:PlayAIdesArgs):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="PlayAIdes")
-    parser.add_argument("--persona", type=str, default="personas/Rin/tsundere.json", help="Path to persona file")
+    parser.add_argument("--persona", type=str, default="personas/silver/persona.json", help="Path to persona file")
     parser.add_argument("--generate_voice",default=False, action="store_true", help="Generate voice for persona")
     parser.add_argument("--use_voice", default=False, action="store_true", help="Use voice for persona")
     parser.add_argument("--use_avatar", default=False, action="store_true", help="Use avatar for persona")
