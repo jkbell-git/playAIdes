@@ -796,6 +796,17 @@ class PlayAIdes:
         # Resolve the persona to route this turn against. Defaults to active.
         target_id = persona_id or self.current_persona.name.strip().lower().replace(" ", "_")
 
+        # ─ Deterministic skill triggers (phrase path) ──────────────────
+        # Precedence: phrase-trigger → house_words → conversation (spec §3.5).
+        from skills.router import match_phrase_trigger
+        matched = match_phrase_trigger(
+            user_input, self.current_persona.triggers, self.current_persona.skills,
+        )
+        if matched is not None:
+            skill_name, params = matched
+            self._dispatch_skill(target_id, skill_name, params)
+            return ""   # silent unless the skill spoke an announce (spec Q2)
+
         # Ensure that persona's history is loaded (lazy from disk).
         history = self._load_history(target_id)
 
