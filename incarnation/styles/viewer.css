@@ -418,3 +418,33 @@ body[data-chat-open="true"] .subtitle-band {
 body.kiosk { cursor: none; }
 body.kiosk .viewer-strip,
 body.kiosk .chat-panel { display: none; }
+
+/* ── Picture-in-picture panel (?show_pip) ──────────────────────
+   Top-right, inside the TV title-safe area. Sits above mic/subtitle
+   (z 70/80) and below the chat panel (z 90) and wipe (z 200). It is
+   command-driven (only visible while a show_pip is active), so unlike
+   the mic/subtitle/nameplate overlays it has no config-flag gate. */
+.pip-overlay {
+    position: fixed;
+    top: 6%;
+    right: 5%;
+    width: min(28vw, 380px);
+    aspect-ratio: 16 / 9;
+    border: var(--hair) solid var(--gold);
+    background: rgba(10, 8, 18, .9);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .5);
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity .35s var(--ease-snap);
+    z-index: 85;
+    pointer-events: none;
+}
+
+.pip-overlay.visible { opacity: 1; }
+
+.pip-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}

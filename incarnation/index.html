@@ -29,6 +29,12 @@
       <span id="nameplate-name" class="nameplate-name">—</span>
     </div>
 
+    <!-- Picture-in-picture panel (spec §3.10). Hidden until a show_pip WS
+         message; command-driven, so no config-flag gate. -->
+    <div id="pip-overlay" class="pip-overlay">
+      <img id="pip-image" class="pip-image" alt="" />
+    </div>
+
     <!-- Phase 5: collapsible chat panel — right-edge handle + 440px slide-in -->
     <div id="chat-panel" class="chat-panel" aria-hidden="true">
       <button id="chat-panel-handle" class="chat-panel-handle"
