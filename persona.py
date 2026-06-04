@@ -36,6 +36,19 @@ class Memories(BaseModel):
     # need to add a method for compaction
     # need a method for adding memories
 
+class TriggerOn(BaseModel):
+    phrase: Optional[str] = None          # deterministic voice-phrase match
+    event: Optional[str] = None           # inbound event name (Plan 2)
+    match: Optional[dict] = None          # shallow payload conditions (Plan 2)
+
+class TriggerDo(BaseModel):
+    skill: str
+    params: dict = {}
+
+class Trigger(BaseModel):
+    on: TriggerOn
+    do: TriggerDo
+
 #we are going to want to load this frrom a json file to start
 class Persona(BaseModel):
     name: str
@@ -50,6 +63,8 @@ class Persona(BaseModel):
     dismiss_words: Optional[List[str]] = None
     is_default: bool = False
     house_words: List[str] = []
+    skills: List[str] = []                # enabled skill names (the flat skill-tree)
+    triggers: List[Trigger] = []
     rephrase_ha_response: bool = False
     ha_agent_id: Optional[str] = None
     
