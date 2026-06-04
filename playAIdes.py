@@ -717,6 +717,44 @@ class PlayAIdes:
                     )
                 self.load_default_animations()
 
+    def speak_as_persona(self, target_id: str, text: str) -> None:
+        """Broadcast `text` as the persona's reply (subtitle) and trigger TTS
+        lip-sync on the persona's bound displays. Extracted from chat() so
+        skills can reuse it via SkillContext.speak. No-op pieces degrade
+        gracefully in CLI-only mode."""
+        if self.incarnation_server is not None:
+            self.incarnation_server.broadcast_to_persona(
+                target_id, "assistant_message", {"text": text, "persona_id": target_id},
+            )
+        if not self.args.use_voice:
+            return
+        voice = getattr(self.current_persona, "persona_voice", None)
+        if not (voice and voice.speaker_uuid):
+            logger.warning(
+                "Persona %s has no voice config; skipping lip_sync",
+                self.current_persona.name,
+            )
+            return
+        if self.args.use_avatar and self.incarnation_server:
+            import urllib.parse
+            safe_text = urllib.parse.quote(text)
+            proxy_url = (
+                f"http://localhost:8765/api/tts/proxy?text={safe_text}"
+                f"&speaker_id={voice.speaker_uuid}"
+            )
+            if self.current_persona.language:
+                proxy_url += f"&language={urllib.parse.quote(self.current_persona.language)}"
+            logger.info(f"Sending start_lip_sync: {proxy_url}")
+            self.incarnation_server.broadcast_to_persona(
+                target_id, "start_lip_sync", {"url": proxy_url},
+            )
+        else:
+            self.tts.generate_speech_stream(SpeechGenerationRequest(
+                text=text,
+                speaker_id=voice.speaker_uuid,
+                language=self.current_persona.language or "English",
+            ))
+
     def chat(self, user_input: str, persona_id: Optional[str] = None) -> str:
         if not self.current_persona:
             return "No persona loaded."
@@ -789,48 +827,8 @@ class PlayAIdes:
         else:
             response = self.llm.chat(history, system_prompt=system_prompt)
 
-        # Broadcast the reply text to any connected viewer so its subtitle
-        # band can render before TTS audio arrives. No-op if the
-        # incarnation server isn't running (CLI-only mode).
-        if self.incarnation_server is not None:
-            # Broadcast only to clients bound to this persona — every TV
-            # showing Silver sees Silver's reply; TVs showing other personas
-            # are unaffected. (Falls back gracefully when no clients are bound.)
-            self.incarnation_server.broadcast_to_persona(
-                target_id,
-                "assistant_message",
-                {"text": response, "persona_id": target_id},
-            )
-
-        if self.args.use_voice:
-            if not (self.current_persona.persona_voice
-                    and self.current_persona.persona_voice.speaker_uuid):
-                logger.warning(
-                    "Persona %s has no voice config; skipping lip_sync",
-                    self.current_persona.name,
-                )
-            elif self.args.use_avatar and self.incarnation_server:
-                import urllib.parse
-                safe_text = urllib.parse.quote(response)
-                # Use the proxy endpoint — the browser will play audio and do lip sync
-                proxy_url = f"http://localhost:8765/api/tts/proxy?text={safe_text}&speaker_id={self.current_persona.persona_voice.speaker_uuid}"
-                if self.current_persona.language:
-                    proxy_url += f"&language={urllib.parse.quote(self.current_persona.language)}"
-
-                logger.info(f"Sending start_lip_sync: {proxy_url}")
-                # Route to the same persona's bound clients only — spec §3.
-                self.incarnation_server.broadcast_to_persona(
-                    target_id, "start_lip_sync", {"url": proxy_url},
-                )
-                # Audio playback and lip sync are handled by the browser.
-                # Lip sync auto-stops when the audio stream ends.
-            else:
-                # No avatar — play audio on the server side
-                self.tts.generate_speech_stream(SpeechGenerationRequest(
-                    text=response,
-                    speaker_id=self.current_persona.persona_voice.speaker_uuid,
-                    language=self.current_persona.language or "English")
-                )
+        # Broadcast the reply to the persona's displays + TTS lip-sync.
+        self.speak_as_persona(target_id, response)
 
         history.append({"role": "assistant", "content": response})
 
