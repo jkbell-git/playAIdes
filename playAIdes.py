@@ -738,7 +738,7 @@ class PlayAIdes:
         if not (voice and voice.speaker_uuid):
             logger.warning(
                 "Persona %s has no voice config; skipping lip_sync",
-                self.current_persona.name,
+                getattr(self.current_persona, "name", "<unknown>"),
             )
             return
         if self.args.use_avatar and self.incarnation_server:
@@ -787,7 +787,7 @@ class PlayAIdes:
         try:
             skill.execute(params, ctx)
         except Exception as e:
-            logger.exception("Skill %r execute failed: %s", skill_name, e)
+            logger.exception("Skill %r execute failed", skill_name)
 
     def chat(self, user_input: str, persona_id: Optional[str] = None) -> str:
         if not self.current_persona:

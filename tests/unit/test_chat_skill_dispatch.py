@@ -8,6 +8,7 @@ for _mod in ("voicebox_client", "voicebox", "voicebox.api_models", "incarnation_
     if _mod not in sys.modules:
         sys.modules[_mod] = MagicMock()
 
+from persona import Trigger
 from skills.registry import SkillRegistry
 from skills.pip import ShowPipSkill
 
@@ -43,9 +44,6 @@ def test_dispatch_bad_params_is_noop():
     ai = _make_ai()
     ai._dispatch_skill("silver", "show_pip", {})    # missing required `url`; must not raise
     ai.incarnation_server.broadcast_to_persona.assert_not_called()
-
-
-from persona import Trigger
 
 
 def _make_chat_ai():

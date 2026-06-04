@@ -39,3 +39,11 @@ def test_speak_sends_lip_sync_when_voice_and_avatar_on():
     ai.speak_as_persona("silver", "hi")
     calls = [c.args[1] for c in ai.incarnation_server.broadcast_to_persona.call_args_list]
     assert "start_lip_sync" in calls
+
+
+def test_speak_calls_tts_when_no_avatar():
+    ai = _make_ai()
+    ai.args.use_voice = True
+    ai.args.use_avatar = False   # server-side TTS path
+    ai.speak_as_persona("silver", "hi")
+    ai.tts.generate_speech_stream.assert_called_once()
