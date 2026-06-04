@@ -1,3 +1,4 @@
+import pytest
 from pydantic import BaseModel
 from skills.base import Skill, SkillContext, SkillResult
 
@@ -37,8 +38,5 @@ def test_skill_base_requires_execute():
             pass
     s = Noop()
     assert s.name == "noop" and s.kind == "internal"
-    try:
+    with pytest.raises(NotImplementedError):
         s.execute(Noop.Params(), None)
-        assert False, "expected NotImplementedError"
-    except NotImplementedError:
-        pass

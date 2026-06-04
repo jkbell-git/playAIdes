@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 #from  voice_generation.voice_api
 #the Following classes are used to define the persona
 # Most likely the will be to be based to the acting LLM/ AI model
@@ -41,6 +41,12 @@ class TriggerOn(BaseModel):
     event: Optional[str] = None           # inbound event name (Plan 2)
     match: Optional[dict] = None          # shallow payload conditions (Plan 2)
 
+    @model_validator(mode="after")
+    def require_phrase_or_event(self) -> "TriggerOn":
+        if self.phrase is None and self.event is None:
+            raise ValueError("TriggerOn must set at least one of 'phrase' or 'event'")
+        return self
+
 class TriggerDo(BaseModel):
     skill: str
     params: dict = {}
@@ -67,4 +73,3 @@ class Persona(BaseModel):
     triggers: List[Trigger] = []
     rephrase_ha_response: bool = False
     ha_agent_id: Optional[str] = None
-    

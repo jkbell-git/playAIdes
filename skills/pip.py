@@ -27,7 +27,7 @@ class ShowPipSkill(Skill):
         })
         if params.announce:
             ctx.speak(params.announce)
-        return SkillResult(ok=True)
+        return SkillResult()
 
 
 class DismissPipSkill(Skill):
@@ -39,4 +39,4 @@ class DismissPipSkill(Skill):
 
     def execute(self, params: "DismissPipSkill.Params", ctx: SkillContext) -> SkillResult:
         ctx.send_display("dismiss_pip", {})
-        return SkillResult(ok=True)
+        return SkillResult()

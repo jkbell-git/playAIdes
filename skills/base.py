@@ -40,5 +40,12 @@ class Skill:
     Params: type[BaseModel]
     kind: str = "internal"
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if not hasattr(cls, "name") or not isinstance(getattr(cls, "name", None), str):
+            raise TypeError(f"{cls.__name__} must define a string class attribute 'name'")
+        if not hasattr(cls, "Params"):
+            raise TypeError(f"{cls.__name__} must define a 'Params' inner class")
+
     def execute(self, params: BaseModel, ctx: SkillContext) -> SkillResult:
         raise NotImplementedError

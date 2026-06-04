@@ -1,3 +1,4 @@
+import pytest
 from pydantic import BaseModel
 from skills.base import Skill, SkillResult
 from skills.registry import SkillRegistry
@@ -21,11 +22,8 @@ def test_register_and_get():
 def test_duplicate_name_raises():
     reg = SkillRegistry()
     reg.register(_Fake())
-    try:
+    with pytest.raises(ValueError):
         reg.register(_Fake())
-        assert False, "expected ValueError on duplicate"
-    except ValueError:
-        pass
 
 
 def test_is_enabled_checks_persona_list():

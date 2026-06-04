@@ -2,12 +2,17 @@
 v1: the voice (phrase) path. The event path lands in Plan 2."""
 from __future__ import annotations
 
-from typing import Optional
+from typing import Iterable, Optional
 
+from persona import Trigger
 from match_keywords import match_keyword_prefix
 
 
-def match_phrase_trigger(text, triggers, enabled_skills) -> Optional[tuple[str, dict]]:
+def match_phrase_trigger(
+    text: str,
+    triggers: Iterable[Trigger],
+    enabled_skills: list[str],
+) -> Optional[tuple[str, dict]]:
     """First enabled phrase-trigger whose phrase prefixes `text` wins.
 
     Returns (skill_name, params) or None. Reuses match_keyword_prefix's

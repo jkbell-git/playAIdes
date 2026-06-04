@@ -40,3 +40,7 @@ def test_word_boundary_no_partial_match():
 def test_event_triggers_are_ignored_by_phrase_router():
     triggers = [Trigger(on={"event": "motion"}, do={"skill": "show_pip"})]
     assert match_phrase_trigger("motion", triggers, ["show_pip"]) is None
+
+
+def test_empty_triggers_returns_none():
+    assert match_phrase_trigger("anything", [], ["show_pip"]) is None
