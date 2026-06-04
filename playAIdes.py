@@ -767,7 +767,15 @@ class PlayAIdes:
             self.incarnation_server.broadcast_to_persona(persona_id, cmd_type, payload)
 
     def _dispatch_skill(self, target_id: str, skill_name: str, raw_params: dict) -> None:
-        """Validate params and run a skill. Never raises into the caller."""
+        """Validate params and run a skill. Never raises into the caller.
+
+        Gating contract: the CALLER must enforce the persona enable-list before
+        dispatching. The phrase router does this (match_phrase_trigger checks
+        ``skill in persona.skills``); this primitive only checks *registration*.
+        The Plan 2 event path (POST /api/event) MUST gate too — e.g. via
+        ``SkillRegistry.is_enabled`` — so a registered-but-not-enabled skill
+        cannot fire from an inbound event.
+        """
         from skills.base import SkillContext
         skill = self.skill_registry.get(skill_name)
         if skill is None:
@@ -786,7 +794,7 @@ class PlayAIdes:
         )
         try:
             skill.execute(params, ctx)
-        except Exception as e:
+        except Exception:
             logger.exception("Skill %r execute failed", skill_name)
 
     def chat(self, user_input: str, persona_id: Optional[str] = None) -> str:
