@@ -8,7 +8,8 @@
  *
  *   ?persona=<id>                 // boot persona
  *   ?activation=wake|continuous   // voice activation mode (phase 2+)
- *   ?cinematic=0|1                // master overlay kill-switch
+ *   ?cinematic=0|1                // master overlay kill-switch (hard: forces all off)
+ *   ?kiosk=0|1                    // unattended TV mode: overlays default off (soft, re-enableable), cursor hidden, auto camera, keep-awake/fullscreen
  *   ?mic=0|1                      // show mic indicator
  *   ?subtitles=0|1                // show subtitle band
  *   ?nameplate=0|1                // show persona nameplate
@@ -23,6 +24,7 @@ const DEFAULTS = Object.freeze({
     persona: null,
     activation: 'wake',
     cinematic: false,
+    kiosk: false,
     mic: true,
     subtitles: true,
     nameplate: false,
@@ -63,13 +65,21 @@ export function loadConfig(search = window.location.search) {
     const backend = backendDefaults();
     const dpr = parseFloat(p.get('dpr'));
 
+    // ?kiosk=1 — unattended TV mode. Overlays default OFF for a clean display
+    // but stay individually re-enableable (e.g. ?kiosk=1&subtitles=1). This is
+    // a softer default-flip than ?cinematic=1, which HARD-forces overlays off
+    // below regardless of their flags.
+    const kiosk = parseBool(p.get('kiosk'), DEFAULTS.kiosk);
+    const overlayDefault = (key) => (kiosk ? false : DEFAULTS[key]);
+
     const config = {
         persona:     p.get('persona') || DEFAULTS.persona,
         activation:  (p.get('activation') === 'continuous') ? 'continuous' : 'wake',
         cinematic:   parseBool(p.get('cinematic'), DEFAULTS.cinematic),
-        mic:         parseBool(p.get('mic'),       DEFAULTS.mic),
-        subtitles:   parseBool(p.get('subtitles'), DEFAULTS.subtitles),
-        nameplate:   parseBool(p.get('nameplate'), DEFAULTS.nameplate),
+        kiosk,
+        mic:         parseBool(p.get('mic'),       overlayDefault('mic')),
+        subtitles:   parseBool(p.get('subtitles'), overlayDefault('subtitles')),
+        nameplate:   parseBool(p.get('nameplate'), overlayDefault('nameplate')),
         chat:        (p.get('chat') === 'open') ? 'open' : 'closed',
         quality:     (p.get('quality') === 'low') ? 'low' : DEFAULTS.quality,
         pixelRatio:  Number.isFinite(dpr) ? dpr : DEFAULTS.pixelRatio,

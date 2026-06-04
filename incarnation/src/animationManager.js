@@ -89,6 +89,16 @@ export class AnimationManager {
         if (this.currentAction) this.currentAction.paused = false;
     }
 
+    /**
+     * @returns {boolean} true while a one-shot (non-looping) clip is actively
+     * playing — i.e. an intro / gesture rather than the idle loop. The camera
+     * director uses this to pull back to a full-body shot during animations.
+     */
+    get isPlayingOneShot() {
+        const a = this.currentAction;
+        return !!(a && a.isRunning() && a.loop === THREE.LoopOnce);
+    }
+
     // ── Per-frame update ────────────────────────────────────────────────────
     /** @param {number} delta  Seconds since last frame. */
     update(delta) {

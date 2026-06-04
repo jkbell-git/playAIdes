@@ -56,6 +56,11 @@ export class Incarnation {
         return this.vrm !== null;
     }
 
+    /** Whether a one-shot (non-idle) animation is currently playing. */
+    get isPlayingOneShot() {
+        return this.animationManager?.isPlayingOneShot ?? false;
+    }
+
     // ── Model lifecycle ─────────────────────────────────────────────────────
 
     /**

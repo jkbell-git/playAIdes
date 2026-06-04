@@ -8,6 +8,7 @@ describe('loadConfig — defaults', () => {
             persona: null,
             activation: 'wake',
             cinematic: false,
+            kiosk: false,
             mic: true,
             subtitles: true,
             nameplate: false,
@@ -35,6 +36,35 @@ describe('loadConfig — cinematic master kill-switch', () => {
         expect(cfg.mic).toBe(true);
         expect(cfg.subtitles).toBe(false);
         expect(cfg.nameplate).toBe(true);
+    });
+});
+
+describe('loadConfig — kiosk mode', () => {
+    it('?kiosk=1 enables kiosk and defaults overlays off', () => {
+        const cfg = loadConfig('?kiosk=1');
+        expect(cfg.kiosk).toBe(true);
+        expect(cfg.mic).toBe(false);
+        expect(cfg.subtitles).toBe(false);
+        expect(cfg.nameplate).toBe(false);
+    });
+
+    it('kiosk overlay defaults stay individually re-enableable (soft, not forced)', () => {
+        const cfg = loadConfig('?kiosk=1&subtitles=1');
+        expect(cfg.kiosk).toBe(true);
+        expect(cfg.subtitles).toBe(true);   // explicit override wins
+        expect(cfg.mic).toBe(false);        // others still default off
+    });
+
+    it('no kiosk leaves overlay defaults at their normal values', () => {
+        const cfg = loadConfig('');
+        expect(cfg.kiosk).toBe(false);
+        expect(cfg.mic).toBe(true);
+        expect(cfg.subtitles).toBe(true);
+        expect(cfg.nameplate).toBe(false);
+    });
+
+    it('kiosk does not touch the cinematic flag', () => {
+        expect(loadConfig('?kiosk=1').cinematic).toBe(false);
     });
 });
 

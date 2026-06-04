@@ -409,3 +409,12 @@ body[data-viewer-state="EMPTY"] .nameplate {
 body[data-chat-open="true"] .subtitle-band {
     display: none;
 }
+
+/* ── Kiosk mode (?kiosk=1) — unattended TV display ──────────────
+   Hide the cursor and the non-essential chrome (decorative strip +
+   chat handle). The config-flag overlays (mic / subtitle / nameplate)
+   are handled separately via their flags, so ?kiosk=1&subtitles=1
+   still shows subtitles. */
+body.kiosk { cursor: none; }
+body.kiosk .viewer-strip,
+body.kiosk .chat-panel { display: none; }

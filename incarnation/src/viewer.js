@@ -14,6 +14,7 @@ import { ConnectionManager } from './connectionManager.js';
 import { ViewerState, State } from './viewerState.js';
 import { ViewerOverlays } from './viewerOverlays.js';
 import { loadConfig, resolveAssetUrl } from './viewerConfig.js';
+import { CameraDirector } from './cameraDirector.js';
 import { AudioCapture } from './audioCapture.js';
 import { SttClient } from './sttClient.js';
 import { matchPhrase } from './transcriptMatcher.js';
@@ -25,6 +26,15 @@ import { ChatPanel } from './chatPanel.js';
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
 console.log('[viewer] config:', config);
+
+// Kiosk / unattended TV mode (?kiosk=1): hide chrome via the body.kiosk CSS
+// class and let the camera director own the camera (no user controls). The
+// best-effort keep-awake + fullscreen ride on the first-gesture handler below.
+const cameraDirector = new CameraDirector(camera, controls);
+if (config.kiosk) {
+    document.body.classList.add('kiosk');
+    cameraDirector.enable();
+}
 
 // Backend command payloads may carry a hardcoded http://localhost:8765 asset URL
 // (uploaded personas); rewrite it to the host that served this page so models /
@@ -474,6 +484,39 @@ connection.addEventListener('message', (e) => {
     }
 });
 
+// ── Kiosk display: best-effort keep-awake + fullscreen ───────────────────────
+// Both need a user gesture, so they ride on the first-gesture unlockAudio()
+// below. A kiosk-browser app (e.g. Fully Kiosk) is the robust path for an
+// always-on TV; this is the no-extra-software fallback and degrades silently
+// where the APIs are missing (Fire TV Silk may not implement them).
+let _wakeLock = null;
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            _wakeLock = await navigator.wakeLock.request('screen');
+            _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+        }
+    } catch (err) {
+        console.warn('[viewer] screen wake lock unavailable:', err?.message || err);
+    }
+}
+function enterFullscreen() {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req) return;
+    try {
+        const p = req.call(el);
+        if (p && typeof p.catch === 'function') p.catch(() => { /* agent declined */ });
+    } catch (_) { /* agent declined */ }
+}
+if (config.kiosk) {
+    // The OS drops a screen wake lock when the tab is hidden; re-acquire it
+    // when the page becomes visible again.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') requestWakeLock();
+    });
+}
+
 // ── Audio Unlock ────────────────────────────────────────────────────────────
 // First user gesture resumes AudioContext — same pattern as the previous
 // main.js. Phase 2 will replace the listener-list with a richer mic flow.
@@ -482,6 +525,11 @@ async function unlockAudio() {
     GESTURES.forEach((t) => window.removeEventListener(t, unlockAudio, true));
     if (incarnation.lipSyncManager) {
         await incarnation.lipSyncManager.resume();
+    }
+    if (config.kiosk) {
+        // The first gesture is our only chance to claim these (browser policy).
+        enterFullscreen();
+        requestWakeLock();
     }
     try {
         await audioCapture.start();
@@ -497,7 +545,18 @@ GESTURES.forEach((t) => window.addEventListener(t, unlockAudio, true));
 function tick() {
     requestAnimationFrame(tick);
     const dt = clock.getDelta();
-    controls.update();
+    if (cameraDirector.active) {
+        // Director owns the camera in kiosk mode: pick a shot from scene state
+        // (idle → bust, one-shot animation → full body) and ease toward it.
+        cameraDirector.setSceneState({
+            model: incarnation.model,
+            animating: incarnation.isPlayingOneShot,
+            characterCount: incarnation.isLoaded ? 1 : 0,
+        });
+        cameraDirector.update();
+    } else {
+        controls.update();
+    }
     incarnation.update(dt);
     renderer.render(scene, camera);
 }
