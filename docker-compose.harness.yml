@@ -1,0 +1,139 @@
+# Dedicated, self-contained TEST HARNESS for playAIdes — full pipeline (LLM +
+# chat + TTS), all in-network, isolated from the dev stack and from the other
+# GPU/TTS session. Everything here is "ours alone": a distinct compose project
+# name + container names, small models on purpose.
+#
+#   # build the small TTS image once (Kokoro weights bake in):
+#   docker compose -f docker-compose.harness.yml build voicebox
+#   # bring the whole harness up:
+#   docker compose -f docker-compose.harness.yml up -d
+#   # then open on the Firestick OR a LAN browser:
+#   http://192.168.0.7:5173/?persona=silver&kiosk=1
+#
+# Small by design so it coexists with your other session:
+#   LLM = qwen3:0.6b (Ollama, CPU)   TTS = Kokoro-82M (voicebox, GPU, ~tens of MB VRAM)
+#
+# NOTE: binds host ports 8765/5173 — stop the dev stack (docker-compose.yml) first.
+# Reuses the prebuilt playaides-backend / playaides-frontend images (build them
+# once via docker-compose.yml if missing).
+name: playaides-harness
+
+services:
+  # ── LLM: a dedicated tiny Ollama, ours alone (CPU; GPU optional below) ───────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: playaides-harness-ollama
+    volumes:
+      - harness-ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    # The LLM is tiny — uncomment to put it on the GPU too:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{driver: nvidia, count: all, capabilities: [gpu]}]
+    restart: unless-stopped
+
+  # Pull the small model once, then exit 0 (no-op if already cached).
+  ollama-model-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        export OLLAMA_HOST=http://ollama:11434
+        ollama pull "${LLM_MODEL:-qwen3:0.6b}"
+    restart: "no"
+
+  # ── TTS: voicebox running the small Kokoro backend on the GPU ────────────────
+  voicebox:
+    build:
+      context: ../../voicebox
+      dockerfile: docker/Dockerfile
+      target: kokoro          # bakes Kokoro-82M weights + voices into the image
+    image: voicebox:kokoro
+    container_name: playaides-harness-voicebox
+    environment:
+      - VOICEBOX_PORT=8008
+      - VOICEBOX_BACKEND=kokoro
+      - VOICEBOX_DEVICE=${VOICEBOX_DEVICE:-cuda}   # cuda | cpu | auto
+      - VOICEBOX_DB_PATH=/data/speakers.db
+      - VOICEBOX_OUTPUT_DIR=/data/outputs/tts
+    volumes:
+      - ../../voicebox/data:/data    # shares the speaker DB (reuse/mint speakers)
+    gpus: all                        # matches voicebox's verified GPU syntax (runc)
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8008/health',timeout=2).status==200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 40s
+    restart: unless-stopped
+
+  # ── STT ──────────────────────────────────────────────────────────────────────
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: playaides-harness-whisper
+    environment:
+      - ASR_MODEL=base            # multilingual (keep — *.en drops Japanese)
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/docs', timeout=2)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 60s
+    restart: unless-stopped
+
+  # ── playAIdes backend — VOICE ON, pointed at the in-network LLM + TTS ─────────
+  backend:
+    image: playaides-backend:latest
+    container_name: playaides-harness-backend
+    # --use_voice: the dev image runs --use_avatar only → TTS would be a no-op.
+    # --generate_voice: auto-mint a voice via voicebox /design for any persona
+    #   whose speaker_uuid is null/invalid (Silver), then persist the new id.
+    command: ["watchfiles", "--filter", "python", "python main.py --use_avatar --use_voice --generate_voice", "/app"]
+    ports:
+      - "8765:8765"
+    volumes:
+      - .:/app:rw
+    environment:
+      - LLM_URL=http://ollama:11434/v1
+      - LLM_MODEL=${LLM_MODEL:-qwen3:0.6b}
+      - TTS_URL=http://voicebox:8008
+      - VOICEBOX_URL=http://voicebox:8008
+      - WHISPER_URL=http://whisper:9000
+      - PLAYAIDES_API_KEY
+      - HA_URL
+      - HA_TOKEN
+      - HA_DEFAULT_AGENT_ID
+    depends_on:
+      ollama:
+        condition: service_healthy
+      ollama-model-pull:
+        condition: service_completed_successfully
+      voicebox:
+        condition: service_healthy
+      whisper:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── frontend (Vite dev) ───────────────────────────────────────────────────────
+  frontend:
+    image: playaides-frontend:latest
+    container_name: playaides-harness-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./incarnation:/app/incarnation:rw
+      - harness-frontend-node_modules:/app/incarnation/node_modules
+
+volumes:
+  harness-ollama:
+  harness-frontend-node_modules:
