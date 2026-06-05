@@ -64,6 +64,7 @@ services:
       - VOICEBOX_PORT=8008
       - VOICEBOX_BACKEND=kokoro
       - VOICEBOX_DEVICE=${VOICEBOX_DEVICE:-cuda}   # cuda | cpu | auto
+      - VOICEBOX_KOKORO_DEFAULT_ACCENT=b           # bias preset voices British (Silver)
       - VOICEBOX_DB_PATH=/data/speakers.db
       - VOICEBOX_OUTPUT_DIR=/data/outputs/tts
     volumes:
