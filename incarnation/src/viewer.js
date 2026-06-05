@@ -237,7 +237,11 @@ connection.addEventListener('start_lip_sync', (e) => {
         try { safeTransition(State.AMBIENT); } catch (_) { /* fine */ }
     }
     safeTransition(State.SPEAKING, { text: pendingAssistantText });
-    incarnation.handleCommand('start_lip_sync', e.detail);
+    // The backend builds this audio URL with a hardcoded localhost:8765 origin
+    // (playAIdes.speak_as_persona); rewrite localhost → apiBase so it resolves to
+    // the serving host from a remote display (e.g. the Firestick), the same way
+    // load_model/animation asset URLs are normalized above.
+    incarnation.handleCommand('start_lip_sync', withResolvedUrl(e.detail));
 });
 
 connection.addEventListener('stop_lip_sync', () => {
