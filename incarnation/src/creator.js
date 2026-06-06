@@ -16,6 +16,14 @@ const params = new URLSearchParams(window.location.search);
 const WS_URL = params.get('ws') || 'ws://localhost:8765/ws';
 const API_BASE = params.get('api') || 'http://localhost:8765';
 
+// Backend-built asset URLs (default animations, etc.) carry a hardcoded
+// http://localhost:8765 origin; rewrite localhost/127.0.0.1 → API_BASE so the
+// creator works from a remote LAN device, not only the backend host.
+const resolveUrl = (url) =>
+    typeof url === 'string'
+        ? url.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i, API_BASE.replace(/\/+$/, ''))
+        : url;
+
 // ── Scene setup ───────────────────────────────────────────────────────────
 const viewerCanvas = document.getElementById('viewer');
 const stage = createCreatorScene(viewerCanvas);
@@ -427,7 +435,7 @@ async function loadDefaults() {
             const li = document.createElement('li');
             li.textContent = anim.name;
             li.dataset.name = anim.name;
-            li.dataset.url = anim.url;
+            li.dataset.url = resolveUrl(anim.url);
             li.addEventListener('click', () => triggerAnim(li));
             defaultAnims.appendChild(li);
         }
