@@ -84,7 +84,18 @@ class IncarnationServer:
         if os.path.exists("incarnation/dist"):
             logger.info("Serving incarnation/dist production build")
             self.app.mount("/assets", StaticFiles(directory="incarnation/dist/assets"), name="assets")
-            
+            # Bundled VRM models/animations referenced by load_model: the viewer
+            # requests them at /models/<id>/<file>.vrm. Without this mount the
+            # production build 404s every model (dev/Vite serves public/ at root).
+            if os.path.exists("incarnation/dist/models"):
+                self.app.mount("/models", StaticFiles(directory="incarnation/dist/models"), name="models")
+            # Same root-relative-asset gap for VRMA animations (/vrma/animations/
+            # *.vrma — the intro/idle clips) and the scene background (/scene/*).
+            if os.path.exists("incarnation/dist/vrma"):
+                self.app.mount("/vrma", StaticFiles(directory="incarnation/dist/vrma"), name="vrma")
+            if os.path.exists("incarnation/dist/scene"):
+                self.app.mount("/scene", StaticFiles(directory="incarnation/dist/scene"), name="scene")
+
             @self.app.get("/")
             async def serve_index():
                 from fastapi.responses import FileResponse
