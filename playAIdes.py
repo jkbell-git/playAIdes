@@ -818,6 +818,36 @@ class PlayAIdes:
         except Exception:
             logger.exception("Skill %r execute failed", skill_name)
 
+    def handle_event(self, name: str, payload: dict) -> dict:
+        """Inbound-event intake (spec §3.6). Resolve the active persona, match its
+        event triggers, GATE via SkillRegistry.is_enabled, then dispatch. Returns
+        {"matched": bool, "skill"?: str}. Never raises into the caller (the HTTP
+        endpoint awaits this off the event loop)."""
+        try:
+            if not getattr(self, "current_persona", None):
+                return {"matched": False}
+            target_id = self.current_persona.name.strip().lower().replace(" ", "_")
+            from skills.router import match_event_trigger
+            matched = match_event_trigger(name, payload or {}, self.current_persona.triggers)
+            if matched is None:
+                return {"matched": False}
+            skill_name, params = matched
+            # ⚠️ Event-path enable-gate. The matcher does NOT check the enable-list and
+            # _dispatch_skill checks only *registration*, so without this a registered-
+            # but-not-enabled skill could fire from an inbound event (the carried-
+            # forward contract: the event path must gate via SkillRegistry.is_enabled).
+            if not self.skill_registry.is_enabled(skill_name, self.current_persona.skills):
+                logger.info(
+                    "Event %r matched skill %r but it is not enabled for %s; ignoring.",
+                    name, skill_name, target_id,
+                )
+                return {"matched": False}
+            self._dispatch_skill(target_id, skill_name, params)
+            return {"matched": True, "skill": skill_name}
+        except Exception:
+            logger.exception("handle_event raised unexpectedly for event %r", name)
+            return {"matched": False}
+
     def chat(self, user_input: str, persona_id: Optional[str] = None) -> str:
         if not self.current_persona:
             return "No persona loaded."
