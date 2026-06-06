@@ -114,6 +114,44 @@ class HAClient:
             error_code=None,
         )
 
+    def camera_url(self, entity_id: str, stream: bool = False) -> Optional[str]:
+        """Resolve an HA camera entity to a browser-loadable proxy URL.
+
+        Reads the entity's rotating ``access_token`` from GET /api/states/<id>
+        and builds {base}/api/camera_proxy[_stream]/<id>?token=<token>. A browser
+        <img> cannot send an Authorization header, so the signed ?token= query
+        param is the only way the frontend can load the feed directly. Resolve
+        FRESH per use — HA rotates the token (notably on restart) and stream
+        tokens expire within minutes; never cache the returned URL. Returns None
+        on any error (unreachable, non-200, no token)."""
+        try:
+            resp = requests.get(
+                f"{self.base_url}/api/states/{entity_id}",
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=self.timeout,
+            )
+        except (requests.ConnectionError, requests.Timeout, ConnectionError) as e:
+            logger.warning("HA states unreachable for %s: %s", entity_id, e)
+            return None
+        if resp.status_code != 200:
+            logger.warning("HA states returned %s for %s", resp.status_code, entity_id)
+            return None
+        try:
+            attrs = (resp.json() or {}).get("attributes", {}) or {}
+        except ValueError:
+            logger.warning("HA states returned non-JSON for %s", entity_id)
+            return None
+        token = attrs.get("access_token")
+        if token:
+            seg = "camera_proxy_stream" if stream else "camera_proxy"
+            return f"{self.base_url}/api/{seg}/{entity_id}?token={token}"
+        # Fallback: entity_picture is the still-image proxy path (no stream form).
+        ep = attrs.get("entity_picture")
+        if ep and not stream:
+            return f"{self.base_url}{ep}"
+        logger.warning("Camera %s exposes no access_token/entity_picture", entity_id)
+        return None
+
     def health_check(self) -> bool:
         try:
             resp = requests.get(
