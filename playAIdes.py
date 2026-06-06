@@ -694,19 +694,27 @@ class PlayAIdes:
             if state == "animation_finished":
                 anim_name = payload.get("name")
                 logger.info(f"Animation {anim_name} finished playing.")
-                configured_idle = (self.current_persona.avatar.idle_animation
-                                   if (self.current_persona and self.current_persona.avatar)
-                                   else None)
-                idle_anim = self._resolve_clip_name(configured_idle)
-                logger.info(f"Switching to idle animation '{idle_anim}' and focusing camera...")
+                avatar = self.current_persona.avatar if self.current_persona else None
+                configured_idle = avatar.idle_animation if avatar else None
+                intro = avatar.intro_animation if avatar else None
                 active_id = self.current_persona.name.strip().lower().replace(" ", "_")
-                self.incarnation_server.broadcast_to_persona(
-                    active_id, "play_animation",
-                    {"name": idle_anim, "loop": True, "crossFade": 0.5},
-                )
-                self.incarnation_server.broadcast_to_persona(
-                    active_id, "focus_camera", {},
-                )
+                # A one-shot intro with no configured idle must NOT re-loop: with
+                # no explicit idle, _resolve_clip_name falls back to the first
+                # loaded clip (often the intro itself), turning a "play once"
+                # greeting into a forever loop. Hold the final pose instead.
+                if anim_name and anim_name == intro and not configured_idle:
+                    logger.info("One-shot intro finished; no idle configured — holding pose.")
+                    self.incarnation_server.broadcast_to_persona(active_id, "focus_camera", {})
+                else:
+                    idle_anim = self._resolve_clip_name(configured_idle)
+                    logger.info(f"Switching to idle animation '{idle_anim}' and focusing camera...")
+                    self.incarnation_server.broadcast_to_persona(
+                        active_id, "play_animation",
+                        {"name": idle_anim, "loop": True, "crossFade": 0.5},
+                    )
+                    self.incarnation_server.broadcast_to_persona(
+                        active_id, "focus_camera", {},
+                    )
             if state == "model_loaded":
                 # Push the active persona's matching config to clients bound
                 # to this persona — TVs showing OTHER personas should keep
