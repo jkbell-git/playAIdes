@@ -16,6 +16,15 @@ class SkillRegistry:
             raise ValueError(f"duplicate skill name: {skill.name!r}")
         self._skills[skill.name] = skill
 
+    def register_all(self, skills) -> None:
+        """Register every skill in an iterable (fail-fast on duplicates)."""
+        for skill in skills:
+            self.register(skill)
+
+    def register_provider(self, provider) -> None:
+        """Register every skill a SkillProvider supplies (spec §3.3 step 3)."""
+        self.register_all(provider.skills())
+
     def get(self, name: str) -> Optional[Skill]:
         return self._skills.get(name)
 
