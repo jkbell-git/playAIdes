@@ -52,6 +52,8 @@ class BashSkill(Skill):
         self.command: list[str] = list(spec["command"])
         if not self.command:
             raise ValueError(f"bash skill {self.name!r}: 'command' must be a non-empty argv list")
+        if not all(isinstance(p, str) for p in self.command):
+            raise ValueError(f"bash skill {self.name!r}: 'command' elements must all be strings")
         self.timeout_s: float = float(spec.get("timeout_s", 10))
         self.announce_output: bool = bool(spec.get("announce_output", False))
         self.Params = build_params_model(self.name, spec.get("params", {}))
@@ -82,5 +84,5 @@ class BashSkill(Skill):
         return SkillResult(
             ok=(proc.returncode == 0),
             output=out or None,
-            error=((proc.stderr or "").strip() or None) if proc.returncode else None,
+            error=((proc.stderr or "").strip() or None) if proc.returncode != 0 else None,
         )

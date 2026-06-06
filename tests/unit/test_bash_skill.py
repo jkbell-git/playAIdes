@@ -43,7 +43,8 @@ def test_bash_skill_announces_output_when_configured():
     spec = {"name": "say", "kind": "bash", "command": ["echo", "done"],
             "params": {}, "announce_output": True}
     ctx, spoken = _ctx()
-    BashSkill(spec).execute(BashSkill(spec).Params(), ctx)
+    skill = BashSkill(spec)
+    skill.execute(skill.Params(), ctx)
     assert spoken == [("silver", "done")]
 
 
@@ -63,3 +64,29 @@ def test_bash_skill_nonzero_exit_marks_failure():
     ctx, _ = _ctx()
     res = BashSkill(spec).execute(BashSkill(spec).Params(), ctx)
     assert res.ok is False
+
+
+def test_bash_skill_empty_command_rejected():
+    try:
+        BashSkill({"name": "empty", "kind": "bash", "command": [], "params": {}})
+        assert False, "expected ValueError on empty command"
+    except ValueError:
+        pass
+
+
+def test_bash_skill_non_string_command_rejected():
+    try:
+        BashSkill({"name": "bad", "kind": "bash", "command": ["echo", 5], "params": {}})
+        assert False, "expected ValueError on non-string command element"
+    except ValueError:
+        pass
+
+
+def test_bash_skill_bad_template_returns_failure():
+    # Command template references a param the model doesn't provide → ok=False,
+    # and no exception escapes execute().
+    spec = {"name": "tmpl", "kind": "bash", "command": ["echo", "{missing}"], "params": {}}
+    ctx, _ = _ctx()
+    res = BashSkill(spec).execute(BashSkill(spec).Params(), ctx)
+    assert res.ok is False
+    assert res.error and res.error.startswith("bad template")
