@@ -27,3 +27,39 @@ def match_phrase_trigger(
         if matched and trig.do.skill in enabled_skills:
             return (trig.do.skill, dict(trig.do.params))
     return None
+
+
+def _interpolate_params(params: dict, payload: dict) -> dict:
+    """Replace a param value of the exact form '{payload.<field>}' with the raw
+    (typed) value from the event payload; missing fields resolve to None. Other
+    values pass through unchanged. (Partial/templated interpolation is deferred.)"""
+    out: dict = {}
+    for k, v in (params or {}).items():
+        if isinstance(v, str) and v.startswith("{payload.") and v.endswith("}"):
+            out[k] = (payload or {}).get(v[len("{payload."):-1])
+        else:
+            out[k] = v
+    return out
+
+
+def match_event_trigger(
+    name: str,
+    payload: dict,
+    triggers: Iterable[Trigger],
+) -> Optional[tuple[str, dict]]:
+    """First event-trigger whose `on.event` equals `name` and whose `on.match`
+    (shallow equality vs payload) holds wins. Returns (skill_name, interpolated
+    params) or None.
+
+    Enablement is NOT checked here — by design. The caller MUST gate via
+    SkillRegistry.is_enabled before dispatch (spec §3.5): the phrase matcher
+    gates inline, but _dispatch_skill checks only *registration*, so the event
+    path's enable-gate lives in PlayAIdes.handle_event (Task 8)."""
+    payload = payload or {}
+    for trig in triggers:
+        if not trig.on.event or trig.on.event != name:
+            continue
+        match = trig.on.match or {}
+        if all(payload.get(k) == v for k, v in match.items()):
+            return (trig.do.skill, _interpolate_params(dict(trig.do.params), payload))
+    return None
