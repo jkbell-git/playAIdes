@@ -101,6 +101,7 @@ class PlayAIdes:
         self.tts: Optional[PersonaTTS] = args.tts if args.tts else VoiceboxClient() #Default to voicebox (VOICEBOX_URL / TTS_URL)
         self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(
             on_message_callback=self._handle_incarnation_message,
+            event_handler=self.handle_event,
             state_provider=lambda: {
                 "active_persona_id": (
                     self.current_persona.name.strip().lower().replace(" ", "_")

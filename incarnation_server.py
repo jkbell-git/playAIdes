@@ -37,11 +37,14 @@ WHISPER_BASE = os.environ.get("WHISPER_URL") or "http://localhost:9000"
 
 class IncarnationServer:
     def __init__(self, host="0.0.0.0", port=8765, on_message_callback=None,
-                 state_provider=None):
+                 state_provider=None, event_handler=None):
         self.host = host
         self.port = port
         self.on_message_callback = on_message_callback
         self.state_provider = state_provider
+        # (name, payload) -> {"matched": bool, "skill"?: str}; the orchestrator's
+        # PlayAIdes.handle_event. Called off the event loop (POST /api/event).
+        self.event_handler = event_handler
         # Multi-client support (Phase 4): every connected WebSocket lives in
         # `_clients`; bindings map each socket to the persona id it's
         # currently displaying so we can route assistant_message broadcasts.
@@ -130,6 +133,22 @@ class IncarnationServer:
             self.broadcast_to_all("unload_model", {})
             logger.info("HA-driven dismiss: cleared bindings, broadcast unload_model")
             return {"ok": True}
+
+        class EventBody(BaseModel):
+            name: str
+            payload: dict = {}
+
+        @self.app.post("/api/event")
+        async def post_event(body: EventBody, _auth=Depends(require_api_key)):
+            """Generic inbound-event intake (spec §3.6) — anything that can POST
+            (HA automation, email watcher, n8n, a cron elsewhere) wires a trigger.
+            Routes to the active persona's event triggers via the orchestrator.
+            Run off the event loop (asyncio.to_thread) so a blocking bash/http
+            skill never stalls the WS loop; _dispatch_skill's WS sends are still
+            scheduled threadsafe back onto this loop."""
+            if self.event_handler is None:
+                raise HTTPException(status_code=503, detail="event handling unavailable")
+            return await asyncio.to_thread(self.event_handler, body.name, body.payload)
 
         @self.app.get("/api/state")
         async def get_state():
