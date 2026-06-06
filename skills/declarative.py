@@ -64,7 +64,7 @@ class BashSkill(Skill):
             # Per-element .format on the argv template; values are inserted as
             # whole, discrete argv elements (shell=False below) — no injection.
             argv = [part.format(**values) for part in self.command]
-        except (KeyError, IndexError) as e:
+        except (KeyError, IndexError, ValueError) as e:
             logger.warning("bash skill %r: template references unknown param: %s", self.name, e)
             return SkillResult(ok=False, error=f"bad template: {e}")
         try:
@@ -98,7 +98,7 @@ def _interpolate_body(template: Any, values: dict) -> Any:
             return values[template[1:-1]]
         try:
             return template.format(**values)
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, ValueError):
             return template
     if isinstance(template, dict):
         return {k: _interpolate_body(v, values) for k, v in template.items()}
@@ -130,7 +130,7 @@ class HttpSkill(Skill):
             enc = {k: urllib.parse.quote(str(v), safe="") for k, v in values.items()}
             url = self.url.format(**enc)
             headers = {k: str(v).format(**values) for k, v in self.headers.items()}
-        except (KeyError, IndexError) as e:
+        except (KeyError, IndexError, ValueError) as e:
             logger.warning("http skill %r: template references unknown param: %s", self.name, e)
             return SkillResult(ok=False, error=f"bad template: {e}")
         json_body = _interpolate_body(self.body, values) if self.body is not None else None

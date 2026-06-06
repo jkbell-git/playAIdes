@@ -58,3 +58,13 @@ def test_http_skill_non_2xx_marks_failure(monkeypatch):
     ctx, _ = _ctx()
     res = HttpSkill(spec).execute(HttpSkill(spec).Params(), ctx)
     assert res.ok is False and res.error == "http_500"
+
+
+def test_http_skill_malformed_template_returns_failure():
+    # An unclosed brace in the url template raises ValueError from str.format;
+    # execute() must catch it and return ok=False rather than raising.
+    spec = {"name": "bad", "kind": "http", "url": "https://api.test/q?x={y", "params": {"y": "str"}}
+    ctx, _ = _ctx()
+    res = HttpSkill(spec).execute(HttpSkill(spec).Params(y="z"), ctx)
+    assert res.ok is False
+    assert res.error and res.error.startswith("bad template")
