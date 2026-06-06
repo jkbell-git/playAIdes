@@ -36,11 +36,13 @@ renderer.shadowMap.enabled = !lowQuality;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // ── Scene ───────────────────────────────────────────────────────────────────
+// Kiosk uses a pure-black backdrop (cleaner on a TV); windowed mode keeps navy.
+const bgColor = cfg.kiosk ? 0x000000 : 0x1a1a2e;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e);
+scene.background = new THREE.Color(bgColor);
 
 // Subtle fog for depth
-scene.fog = new THREE.Fog(0x1a1a2e, 8, 20);
+scene.fog = new THREE.Fog(bgColor, 8, 20);
 
 // ── Camera ──────────────────────────────────────────────────────────────────
 const camera = new THREE.PerspectiveCamera(
@@ -49,11 +51,11 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     100
 );
-camera.position.set(0, 1.2, 3);
+camera.position.set(0, 1.23, 0.88);   // matches focusOnHead's locked framing
 
 // ── Controls ────────────────────────────────────────────────────────────────
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1, 0);
+controls.target.set(0, 1.41, -0.73);   // matches focusOnHead's locked framing
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 1;
@@ -226,23 +228,11 @@ function focusOnHead(model) {
     // Use a bounding box to find the rough center/top of the model
     const box = new THREE.Box3().setFromObject(model);
     const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
 
-    // Better approximate head position: typically around 85-90% of total height
-    // We also want to look slightly "down" at the face rather than from below.
-    const headY = box.min.y + (size.y * 0.88);
-
-    // Target the actual face center
-    const targetPos = new THREE.Vector3(center.x, headY, center.z);
-
-    // Place camera right in front of the face
-    // Z offset controls how "close" the camera gets
-    // Y offset controls angle (slightly higher than the focus target)
-    const camTargetPos = new THREE.Vector3(
-        center.x,
-        headY + 0.05,
-        center.z + 0.6
-    );
+    // Hand-framed via the debug-panel camera tuner (?debug=1). X follows the model
+    // centre so an off-centre avatar still frames; Y/Z are the locked-in values.
+    const targetPos = new THREE.Vector3(center.x, 1.41, -0.73);
+    const camTargetPos = new THREE.Vector3(center.x, 1.23, 0.88);
 
     // Naive simple lerp loop via requestAnimationFrame
     let alpha = 0;
@@ -265,4 +255,38 @@ function focusOnHead(model) {
     animateFocus();
 }
 
-export { scene, camera, renderer, controls, clock, setBackground, loadHDRIBackground, load3DBackground, focusOnHead };
+// Frame the whole avatar (full body) — used while a one-shot animation plays so
+// a full-body gesture/intro isn't clipped by the closer "bust" framing. Pure
+// fit-height math against the camera's vertical FOV; eases in like focusOnHead.
+function frameFullBody(model) {
+    if (!model) return;
+    console.log("[scene] Framing full body (animation)");
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    const fitHeight = size.y * 1.15;                       // margin so head/feet aren't clipped
+    const fovRad = camera.fov * Math.PI / 180;
+    const distance = (fitHeight / 2) / Math.tan(fovRad / 2);
+
+    const targetPos = new THREE.Vector3(center.x, center.y, center.z);
+    const camTargetPos = new THREE.Vector3(center.x, center.y, center.z + distance);
+
+    let alpha = 0;
+    function animateFrame() {
+        alpha += 0.02;
+        if (alpha > 1) {
+            controls.target.copy(targetPos);
+            camera.position.copy(camTargetPos);
+            controls.update();
+            return;
+        }
+        controls.target.lerp(targetPos, 0.05);
+        camera.position.lerp(camTargetPos, 0.05);
+        controls.update();
+        requestAnimationFrame(animateFrame);
+    }
+    animateFrame();
+}
+
+export { scene, camera, renderer, controls, clock, setBackground, loadHDRIBackground, load3DBackground, focusOnHead, frameFullBody };

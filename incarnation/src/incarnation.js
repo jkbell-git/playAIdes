@@ -1,4 +1,4 @@
-import { scene, controls, setBackground, focusOnHead } from './scene.js';
+import { scene, controls, setBackground, focusOnHead, frameFullBody } from './scene.js';
 import { loadModel, loadAnimationFile, listMorphTargets } from './modelLoader.js';
 import { loadMixamoAnimation } from './loadMixamoAnimation.js';
 import { loadVRMAAnimation } from './vrmaLoader.js';
@@ -330,6 +330,12 @@ export class Incarnation {
                     loop: payload.loop ?? true,
                     crossFadeDuration: payload.crossFade ?? 0.4,
                 });
+                // One-shot animations (intros/gestures) often use the full body —
+                // zoom out so it isn't clipped. Looping idles keep the bust framing.
+                // In kiosk the camera director owns framing, so this is a no-op there.
+                if (payload.loop === false && this.model) {
+                    frameFullBody(this.model);
+                }
                 break;
 
             case 'stop_animation':

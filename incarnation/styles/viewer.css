@@ -427,7 +427,7 @@ body.kiosk .chat-panel { display: none; }
 .pip-overlay {
     position: fixed;
     top: 6%;
-    right: 5%;
+    left: 5%;
     width: min(28vw, 380px);
     aspect-ratio: 16 / 9;
     border: var(--hair) solid var(--gold);
@@ -448,3 +448,95 @@ body.kiosk .chat-panel { display: none; }
     object-fit: cover;
     display: block;
 }
+
+/* ── Unified bottom console (subtitle + text input) ──────────────────
+   A persistent bottom bar that stays visible in kiosk (the subtitle band
+   z70 and the side chat panel are hidden there), so a remote TV always
+   has a way to READ replies and TYPE. Inside the TV title-safe area. */
+.console-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 5%;
+    transform: translateX(-50%);
+    width: min(86vw, 880px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    z-index: 90;
+    pointer-events: none;          /* reply line ignores clicks; input re-enables */
+}
+
+/* Conversation log — the last few transcript lines; newest (the "subtitle") is
+   brightest & largest at the bottom, older lines dim and clip off the top. */
+.console-log {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 4px;
+    width: 100%;
+    max-height: min(40vh, 360px);
+    overflow: hidden;
+    padding: 14px 24px 10px;
+    background: linear-gradient(180deg, rgba(10, 8, 18, 0), rgba(10, 8, 18, .5) 40%, rgba(10, 8, 18, .8));
+    clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+    pointer-events: none;
+    transition: opacity .6s ease;
+}
+.console-log.faded { opacity: 0; }
+.console-msg {
+    font-family: 'Cinzel', serif;
+    letter-spacing: .03em;
+    line-height: 1.4;
+    text-align: center;
+    color: var(--cream);
+    font-size: 15px;
+    opacity: .5;
+}
+.console-msg.user {
+    color: var(--cream-dim);
+    font-family: 'Chakra Petch', sans-serif;
+    font-style: italic;
+}
+/* Newest line = the subtitle: brightest + larger. Older lines fade upward. */
+.console-msg:nth-last-child(1) { opacity: 1; font-size: clamp(16px, 2vw, 22px); }
+.console-msg:nth-last-child(2) { opacity: .7; }
+.console-msg:nth-last-child(3) { opacity: .45; }
+.console-msg:nth-last-child(4) { opacity: .28; }
+
+/* Text input row — always interactive, always visible. */
+.console-input-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    pointer-events: auto;
+}
+.console-input {
+    flex: 1;
+    padding: 12px 18px;
+    background: rgba(10, 8, 18, .78);
+    border: var(--hair) solid var(--gold-dim);
+    color: var(--cream);
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 17px;
+    letter-spacing: .04em;
+    outline: none;
+    clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+}
+.console-input:focus { border-color: var(--gold); }
+.console-input::placeholder { color: var(--gold-dim); text-transform: lowercase; }
+.console-send {
+    padding: 0 20px;
+    background: var(--gold);
+    border: none;
+    color: rgba(10, 8, 18, 1);
+    font-size: 18px;
+    cursor: pointer;
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+.console-send:hover { background: var(--cream); }
+
+/* The bottom conversation log is now the single chat + subtitle + input
+   surface, so the standalone subtitle band and the side chat panel are retired. */
+.subtitle-band,
+#chat-panel { display: none; }

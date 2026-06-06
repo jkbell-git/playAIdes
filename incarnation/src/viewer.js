@@ -15,6 +15,7 @@ import { ViewerState, State } from './viewerState.js';
 import { ViewerOverlays } from './viewerOverlays.js';
 import { loadConfig, resolveAssetUrl } from './viewerConfig.js';
 import { CameraDirector } from './cameraDirector.js';
+import { createDebugPanel } from './debugPanel.js';
 import { AudioCapture } from './audioCapture.js';
 import { SttClient } from './sttClient.js';
 import { matchPhrase } from './transcriptMatcher.js';
@@ -34,8 +35,17 @@ console.log('[viewer] config:', config);
 const cameraDirector = new CameraDirector(camera, controls);
 if (config.kiosk) {
     document.body.classList.add('kiosk');
-    cameraDirector.enable();
+    // Camera director intentionally NOT enabled — kiosk uses the same camera path
+    // as windowed: focusOnHead (locked face shot) + frameFullBody (animations).
+    // Lock orbit so the TV framing can't drift from a stray remote/CEC input; the
+    // focus/animation shots still position the camera directly (update() ignores
+    // the enabled flag).
+    controls.enabled = false;
 }
+
+// Dev aid: opt-in camera tuner (?debug=1) — sliders for height / target / distance
+// with a live pose readout + copy, so a hand-framed shot can be read off and baked in.
+createDebugPanel(camera, controls);
 
 // Backend command payloads may carry a hardcoded http://localhost:8765 asset URL
 // (uploaded personas); rewrite it to the host that served this page so models /
@@ -70,16 +80,62 @@ const chatPanel = new ChatPanel(document, transcriptModel, {
 // When the panel form is submitted, treat it like a voice transcription:
 // send user_input and append the user line locally so it shows up
 // immediately (assistant_message will append the reply).
-chatPanel.addEventListener('submit', (e) => {
-    const text = e.detail.text;
-    transcriptModel.append({ role: 'user', content: text });
+function submitUserText(text) {
+    const t = (text || '').trim();
+    if (!t) return;
+    transcriptModel.append({ role: 'user', content: t });
     // Tag the user_input with the active persona's id so multi-TV routing
     // delivers the reply to the right clients.
     const activeId = getActivePersonaId();
-    connection.send('user_input', activeId
-        ? { text, persona_id: activeId }
-        : { text });
-});
+    connection.send('user_input', activeId ? { text: t, persona_id: activeId } : { text: t });
+}
+chatPanel.addEventListener('submit', (e) => submitUserText(e.detail.text));
+
+// Unified bottom console (subtitle + text input) — stays visible in kiosk,
+// where the side chat panel and subtitle band are hidden, so a remote TV can
+// always read replies and type. Shares submitUserText + the transcript model.
+const consoleLogEl = document.getElementById('console-log');
+const consoleFormEl = document.getElementById('console-input-row');
+const consoleInputEl = document.getElementById('console-input');
+if (consoleFormEl && consoleInputEl) {
+    consoleFormEl.addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitUserText(consoleInputEl.value);
+        consoleInputEl.value = '';
+    });
+}
+// Render the last few transcript messages as the bottom conversation log; the
+// newest line is emphasized (it serves as the subtitle). Driven by the same
+// TranscriptModel the (now-retired) side panel used, so voice, text, and loaded
+// history all surface here.
+// Auto-fade the log when idle so it doesn't blanket the avatar; a new message,
+// input focus, or pointer/key activity brings it back for a few seconds.
+let _consoleFadeTimer = null;
+function pokeConsole() {
+    if (!consoleLogEl) return;
+    consoleLogEl.classList.remove('faded');
+    clearTimeout(_consoleFadeTimer);
+    _consoleFadeTimer = setTimeout(() => consoleLogEl.classList.add('faded'), 8000);
+}
+
+const CONSOLE_LOG_LINES = 4;
+function renderConsoleLog(e) {
+    if (!consoleLogEl) return;
+    const msgs = transcriptModel.messages.slice(-CONSOLE_LOG_LINES);
+    consoleLogEl.replaceChildren();
+    for (const m of msgs) {
+        const line = document.createElement('div');
+        line.className = 'console-msg ' + (m.role === 'user' ? 'user' : 'assistant');
+        const who = m.role === 'user' ? 'You' : (m.persona_name || activePersona.name || 'Silver');
+        line.textContent = `${who}: ${m.content}`;
+        consoleLogEl.appendChild(line);
+    }
+    // Only reveal on a NEW message. On reload, history fills the log via
+    // replaceAll but stays faded so old subtitles don't pop up on load.
+    if (e && e.detail && e.detail.kind === 'append') pokeConsole();
+}
+transcriptModel.addEventListener('change', renderConsoleLog);
+if (consoleInputEl) consoleInputEl.addEventListener('focus', pokeConsole);
 
 // Pending text from the most recent assistant_message event — attached
 // to the next SPEAKING transition so the subtitle band can render.

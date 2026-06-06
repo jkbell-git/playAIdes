@@ -55,6 +55,18 @@
       </div>
     </div>
 
+    <!-- Unified bottom console: persistent reply (subtitle) + text input,
+         visible even in kiosk (the side chat panel + subtitle band are hidden
+         there). Type to speak; Silver's reply shows in the line above. -->
+    <div id="console-bar" class="console-bar">
+      <div id="console-log" class="console-log faded" aria-live="polite"></div>
+      <form id="console-input-row" class="console-input-row">
+        <input id="console-input" class="console-input" type="text"
+               autocomplete="off" placeholder="type to speak…" />
+        <button id="console-send" class="console-send" type="submit" aria-label="Send">▶</button>
+      </form>
+    </div>
+
     <script type="module" src="/src/viewer.js"></script>
   </body>
 </html>
