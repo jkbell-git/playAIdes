@@ -86,3 +86,65 @@ class BashSkill(Skill):
             output=out or None,
             error=((proc.stderr or "").strip() or None) if proc.returncode != 0 else None,
         )
+
+
+def _interpolate_body(template: Any, values: dict) -> Any:
+    """Deep-substitute into a JSON body template. A string of the exact form
+    '{pname}' becomes the raw (typed) value so ints/bools survive JSON encoding;
+    other strings go through str.format; dicts/lists recurse. httpx JSON-encodes
+    the result, so no manual escaping is needed."""
+    if isinstance(template, str):
+        if template.startswith("{") and template.endswith("}") and template[1:-1] in values:
+            return values[template[1:-1]]
+        try:
+            return template.format(**values)
+        except (KeyError, IndexError):
+            return template
+    if isinstance(template, dict):
+        return {k: _interpolate_body(v, values) for k, v in template.items()}
+    if isinstance(template, list):
+        return [_interpolate_body(v, values) for v in template]
+    return template
+
+
+class HttpSkill(Skill):
+    name = "http"          # class-level placeholder (see BashSkill note)
+    kind = "http"
+    Params = BaseModel
+
+    def __init__(self, spec: dict) -> None:
+        self.name = spec["name"]
+        self.kind = "http"
+        self.method: str = str(spec.get("method", "GET")).upper()
+        self.url: str = spec["url"]
+        self.headers: dict = dict(spec.get("headers", {}) or {})
+        self.body: Any = spec.get("body")          # dict/list template or None
+        self.timeout_s: float = float(spec.get("timeout_s", 10))
+        self.announce_output: bool = bool(spec.get("announce_output", False))
+        self.Params = build_params_model(self.name, spec.get("params", {}))
+
+    def execute(self, params: BaseModel, ctx: SkillContext) -> SkillResult:
+        values = params.model_dump()
+        try:
+            # URL values percent-encoded before interpolation (no raw concat).
+            enc = {k: urllib.parse.quote(str(v), safe="") for k, v in values.items()}
+            url = self.url.format(**enc)
+            headers = {k: str(v).format(**values) for k, v in self.headers.items()}
+        except (KeyError, IndexError) as e:
+            logger.warning("http skill %r: template references unknown param: %s", self.name, e)
+            return SkillResult(ok=False, error=f"bad template: {e}")
+        json_body = _interpolate_body(self.body, values) if self.body is not None else None
+        try:
+            with httpx.Client(timeout=self.timeout_s) as client:
+                resp = client.request(self.method, url, headers=headers, json=json_body)
+        except Exception as e:
+            logger.warning("http skill %r request failed: %s", self.name, e)
+            return SkillResult(ok=False, error=str(e))
+        out = (resp.text or "")[:500] or None
+        if self.announce_output and out:
+            ctx.speak(out)
+        return SkillResult(
+            ok=resp.is_success,
+            output=out,
+            error=None if resp.is_success else f"http_{resp.status_code}",
+        )
