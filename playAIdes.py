@@ -131,6 +131,11 @@ class PlayAIdes:
         self.skill_registry.register(ShowPipSkill())
         self.skill_registry.register(DismissPipSkill())
 
+        from skills.loader import load_skill_packs
+        # Declarative (bash/http) skills from the global pack dir. Fail-fast:
+        # a malformed pack should crash startup with a clear message (spec §6).
+        self.skill_registry.register_all(load_skill_packs("skill_packs"))
+
         from ha_client import HAClient
         self.ha_client: Optional[HAClient] = None
         if args.ha_url and args.ha_token:
