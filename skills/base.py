@@ -26,12 +26,20 @@ class SkillContext:
     target_id: str                                # canonical persona id this turn routes to
     send: Callable[[str, str, dict], None]        # (persona_id, cmd_type, payload) -> WS push
     speak_fn: Callable[[str, str], None]          # (persona_id, text) -> subtitle + TTS
+    resolve_camera: Optional[Callable[[str, bool], Optional[str]]] = None  # (entity_id, live) -> url | None
 
     def send_display(self, cmd_type: str, payload: Optional[dict] = None) -> None:
         self.send(self.target_id, cmd_type, payload or {})
 
     def speak(self, text: str) -> None:
         self.speak_fn(self.target_id, text)
+
+    def resolve_camera_url(self, entity_id: str, live: bool = False) -> Optional[str]:
+        """Resolve an HA camera entity to a proxy URL, or None if HA is not
+        configured / unavailable. The skill's only door to camera resolution."""
+        if self.resolve_camera is None:
+            return None
+        return self.resolve_camera(entity_id, live)
 
 
 class Skill:

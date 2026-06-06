@@ -779,6 +779,13 @@ class PlayAIdes:
         if self.incarnation_server is not None:
             self.incarnation_server.broadcast_to_persona(persona_id, cmd_type, payload)
 
+    def _resolve_camera_url(self, entity_id: str, live: bool = False) -> Optional[str]:
+        """SkillContext.resolve_camera backing — HA camera entity → fresh proxy
+        URL. None when HA isn't configured."""
+        if not self.ha_client:
+            return None
+        return self.ha_client.camera_url(entity_id, stream=live)
+
     def _dispatch_skill(self, target_id: str, skill_name: str, raw_params: dict) -> None:
         """Validate params and run a skill. Never raises into the caller.
 
@@ -804,6 +811,7 @@ class PlayAIdes:
             target_id=target_id,
             send=self._skill_send,
             speak_fn=self.speak_as_persona,
+            resolve_camera=self._resolve_camera_url,
         )
         try:
             skill.execute(params, ctx)

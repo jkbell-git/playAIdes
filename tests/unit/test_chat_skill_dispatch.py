@@ -22,6 +22,7 @@ def _make_ai():
     reg = SkillRegistry()
     reg.register(ShowPipSkill())
     ai.skill_registry = reg
+    ai.ha_client = None   # _dispatch_skill builds a ctx wired to _resolve_camera_url
     return ai
 
 
@@ -42,7 +43,7 @@ def test_dispatch_unknown_skill_is_noop():
 
 def test_dispatch_bad_params_is_noop():
     ai = _make_ai()
-    ai._dispatch_skill("silver", "show_pip", {})    # missing required `url`; must not raise
+    ai._dispatch_skill("silver", "show_pip", {})    # neither url nor source; must not raise
     ai.incarnation_server.broadcast_to_persona.assert_not_called()
 
 
