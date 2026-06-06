@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 # Stub out unavailable native deps so PlayAIdes can be imported without
 # the full Docker environment.
-for _mod in ("voicebox_client", "voicebox", "voicebox.api_models", "incarnation_server", "ha_client"):
+for _mod in ("voicebox_client", "voicebox", "voicebox.api_models"):  # native deps only; incarnation_server/ha_client are real (mocking them in sys.modules leaks into integration tests)
     if _mod not in sys.modules:
         sys.modules[_mod] = MagicMock()
 
