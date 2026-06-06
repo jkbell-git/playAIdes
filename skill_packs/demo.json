@@ -1,0 +1,10 @@
+{
+  "skills": [
+    { "name": "ping_host", "kind": "bash",
+      "command": ["ping", "-c", "1", "{host}"],
+      "params": { "host": "str" }, "timeout_s": 5, "announce_output": false },
+    { "name": "say_weather", "kind": "http", "method": "GET",
+      "url": "https://wttr.in/{city}?format=3",
+      "params": { "city": "str" }, "announce_output": true }
+  ]
+}
