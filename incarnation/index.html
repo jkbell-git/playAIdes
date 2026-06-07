@@ -16,6 +16,20 @@
     <!-- Phase 4: red-diagonal wipe shown during persona swap (200 ms). -->
     <div id="wipe-overlay" class="wipe-overlay"></div>
 
+    <!-- Camera split layout (manga theme): Silver's canvas shrinks to the left,
+         the live feed fills the right, an organic ink divider sits on the seam.
+         Toggled by body[data-layout="split-camera"] (see stageLayout.js). -->
+    <div id="stage-split" class="stage-split" aria-hidden="true">
+      <div id="split-feed" class="split-feed">
+        <img id="split-feed-image" class="split-feed-image" alt="" />
+      </div>
+      <svg id="split-divider" class="split-divider" viewBox="0 0 60 300"
+           preserveAspectRatio="none" aria-hidden="true">
+        <path d="M26,0 C18,38 36,72 24,108 C14,144 32,186 22,224 C16,258 30,286 24,300
+                 L40,300 C46,262 30,222 42,184 C52,146 34,106 44,70 C50,40 34,14 36,0 Z" />
+      </svg>
+    </div>
+
     <!-- Overlays. Each is hidden by viewerOverlays.js when its config flag
          (or the master cinematic flag) is off. -->
     <div id="mic-indicator" class="mic-indicator state-empty"></div>
