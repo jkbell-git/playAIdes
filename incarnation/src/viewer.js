@@ -126,8 +126,11 @@ chatPanel.addEventListener('submit', (e) => submitUserText(e.detail.text));
 // where the side chat panel and subtitle band are hidden, so a remote TV can
 // always read replies and type. Shares submitUserText + the transcript model.
 const consoleLogEl = document.getElementById('console-log');
+const consoleBarEl = document.getElementById('console-bar');
 const consoleFormEl = document.getElementById('console-input-row');
 const consoleInputEl = document.getElementById('console-input');
+// Start idle so the dialogue box + its name tag stay hidden until there's a line to show.
+consoleBarEl?.classList.add('console-idle');
 if (consoleFormEl && consoleInputEl) {
     consoleFormEl.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -145,8 +148,12 @@ let _consoleFadeTimer = null;
 function pokeConsole() {
     if (!consoleLogEl) return;
     consoleLogEl.classList.remove('faded');
+    consoleBarEl?.classList.remove('console-idle');
     clearTimeout(_consoleFadeTimer);
-    _consoleFadeTimer = setTimeout(() => consoleLogEl.classList.add('faded'), 8000);
+    _consoleFadeTimer = setTimeout(() => {
+        consoleLogEl.classList.add('faded');
+        consoleBarEl?.classList.add('console-idle');
+    }, 8000);
 }
 
 const CONSOLE_LOG_LINES = 4;
@@ -167,6 +174,43 @@ function renderConsoleLog(e) {
 }
 transcriptModel.addEventListener('change', renderConsoleLog);
 if (consoleInputEl) consoleInputEl.addEventListener('focus', pokeConsole);
+
+// ── Command / debug log (p5-basic console under the PiP) ─────────────────────
+// Shows the REAL stream of commands the backend drives the viewer with, so you
+// can see what the persona is doing. Sanitized: secret-looking fields are
+// redacted, URLs lose their query string, long values are truncated; noisy
+// per-frame commands (visemes / expressions) are skipped.
+const CMD_LOG_SKIP = new Set(['play_viseme_sequence', 'set_expression', 'clear_expressions', 'status']);
+const CMD_LOG_MAX = 40;
+const _cmdLogEl = document.getElementById('cmd-log');
+function _cmdSanitize(key, val) {
+    if (/token|key|secret|auth|password|cookie|bearer|credential/i.test(key)) return '***';
+    if (typeof val === 'string') {
+        let s = val;
+        if (/^https?:\/\//i.test(s)) { try { const u = new URL(s); s = u.host + u.pathname; } catch (_) { /* leave as-is */ } }
+        return s.length > 60 ? s.slice(0, 57) + '…' : s;
+    }
+    if (Array.isArray(val)) return `[${val.length}]`;
+    if (val && typeof val === 'object') return '{…}';
+    return String(val);
+}
+function _cmdSummary(payload) {
+    if (!payload || typeof payload !== 'object') return '';
+    return Object.entries(payload).slice(0, 4).map(([k, v]) => `${k}=${_cmdSanitize(k, v)}`).join('  ');
+}
+function pushCmdLog(msg) {
+    if (!_cmdLogEl || !msg || !msg.type || CMD_LOG_SKIP.has(msg.type)) return;
+    const line = document.createElement('div');
+    line.className = 'cmd-line';
+    const t = document.createElement('span'); t.className = 'cmd-t'; t.textContent = new Date().toTimeString().slice(0, 8);
+    const ty = document.createElement('span'); ty.className = 'cmd-type'; ty.textContent = msg.type;
+    const sm = document.createElement('span'); sm.className = 'cmd-sum'; sm.textContent = _cmdSummary(msg.payload);
+    line.append(t, ty, sm);
+    _cmdLogEl.appendChild(line);
+    while (_cmdLogEl.children.length > CMD_LOG_MAX) _cmdLogEl.removeChild(_cmdLogEl.firstChild);
+    _cmdLogEl.scrollTop = _cmdLogEl.scrollHeight;
+}
+connection.addEventListener('message', (e) => pushCmdLog(e.detail));
 
 // Pending text from the most recent assistant_message event — attached
 // to the next SPEAKING transition so the subtitle band can render.

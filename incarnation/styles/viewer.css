@@ -868,7 +868,7 @@ body.lowfx .fx-slash {
 [data-theme="p5-basic"] .pip-overlay {
     top: 14%;
     left: 3%;
-    width: 48%;
+    width: 42%;
     border: none;
     background: transparent;
     box-shadow: none;
@@ -899,6 +899,38 @@ body.lowfx .fx-slash {
 /* Hide the manga ink-stroke frame in p5-basic (we use pip-frame-fill instead) */
 [data-theme="p5-basic"] .pip-frame { display: none; }
 
+/* ── Command / debug log (p5-basic: terminal box under the PiP) ───────── */
+.cmd-log { display: none; }
+[data-theme="p5-basic"] .cmd-log {
+    display: block;
+    position: fixed;
+    left: 3%;
+    top: 62%;
+    width: 40%;
+    height: min(16vh, 150px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    z-index: 6;
+    padding: 10px 16px;
+    background: rgba(8, 6, 9, .82);
+    border: 1px solid rgba(255, 255, 255, .18);
+    box-shadow: 5px 6px 0 rgba(0, 0, 0, .6);
+    clip-path: polygon(0 7%, 1.5% 0, 100% 0, 99% 100%, 1% 93%);
+    transform: rotate(-1deg);
+    font-family: 'Oswald', ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    color: #cfd2da;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold-dim) transparent;
+}
+[data-theme="p5-basic"] .cmd-log .cmd-line {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+[data-theme="p5-basic"] .cmd-log .cmd-t    { color: #6b6478; margin-right: 8px; }
+[data-theme="p5-basic"] .cmd-log .cmd-type { color: #ff3a5a; font-weight: 700; margin-right: 8px; text-transform: uppercase; letter-spacing: .04em; }
+[data-theme="p5-basic"] .cmd-log .cmd-sum  { color: #b9b3d0; }
+
 /* ── Console bar / dialogue box (bottom) ─────────────────────── */
 [data-theme="p5-basic"] .console-bar {
     left: 6%;
@@ -920,7 +952,10 @@ body.lowfx .fx-slash {
     margin-left: 26px;
     margin-bottom: 0;
     z-index: 3;
+    transition: opacity .3s var(--ease-snap);
 }
+/* Hide the name tag when the dialogue is idle/hidden (no subtitle showing). */
+[data-theme="p5-basic"] .console-bar.console-idle .console-nametag { opacity: 0; }
 
 [data-theme="p5-basic"] .console-nametag-text {
     display: inline-block;
@@ -1027,7 +1062,8 @@ body.lowfx .fx-slash {
     color: #f4f4f4;
     font-family: 'Oswald', sans-serif;
     font-size: 15px;
-    clip-path: polygon(7% 0,100% 0,93% 100%,0 100%);
+    padding-left: 28px;   /* clear the angled clip so "type to speak…" isn't cut */
+    clip-path: polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%);
 }
 
 [data-theme="p5-basic"] .console-input:focus {
