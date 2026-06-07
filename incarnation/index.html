@@ -47,6 +47,11 @@
          message; command-driven, so no config-flag gate. -->
     <div id="pip-overlay" class="pip-overlay">
       <img id="pip-image" class="pip-image" alt="" />
+      <!-- Inked frame around the PiP (manga theme); hidden in classic via the
+           --pip-frame-display token. -->
+      <svg id="pip-frame" class="pip-frame" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M11,8 C60,4 140,12 189,7 C193,40 190,86 192,112 C150,116 60,108 11,113 C7,82 10,37 8,9 C9,8 10,8 11,8 Z" />
+      </svg>
     </div>
 
     <!-- Phase 5: collapsible chat panel — right-edge handle + 440px slide-in -->

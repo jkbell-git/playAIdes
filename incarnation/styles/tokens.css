@@ -77,10 +77,16 @@
     --font-body:     var(--font-inter);
     --divider-display: block;          /* camera split shows the ink divider */
     --divider-fill:    var(--ink);
+    /* Camera PiP edge — manga: an inked frame, no gold border */
+    --pip-border:        none;
+    --pip-frame-display: block;
+    --pip-frame-stroke:  var(--cream);
 }
 
 [data-theme="classic"] {
-    /* Same palette/fonts as today; differs only in shape: no split divider,
-       so a camera shows as the floating PiP instead. */
+    /* Same palette/fonts as today; differs in shape: no split divider, and the
+       camera PiP keeps today's gold hairline instead of the inked frame. */
     --divider-display: none;
+    --pip-border:        var(--hair) solid var(--gold);
+    --pip-frame-display: none;
 }
