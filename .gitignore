@@ -24,6 +24,7 @@ dist/
 
 # Claude Code scratch
 .claude/
+.superpowers/
 
 # Runtime-generated persona assets (models, tts outputs)
 personas/*/avatar/
