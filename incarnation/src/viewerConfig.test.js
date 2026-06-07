@@ -15,6 +15,8 @@ describe('loadConfig — defaults', () => {
             chat: 'closed',
             quality: 'high',
             pixelRatio: null,
+            theme: 'manga',
+            split: true,
             wsUrl: 'ws://localhost:8765/ws',
             apiBase: 'http://localhost:8765',
         });
@@ -147,6 +149,30 @@ describe('loadConfig — persona', () => {
 
     it('missing persona is null', () => {
         expect(loadConfig('').persona).toBe(null);
+    });
+});
+
+describe('loadConfig — theme', () => {
+    it('defaults to "manga"', () => {
+        expect(loadConfig('').theme).toBe('manga');
+    });
+    it('?theme=classic parses to "classic"', () => {
+        expect(loadConfig('?theme=classic').theme).toBe('classic');
+    });
+    it('?theme=manga parses to "manga"', () => {
+        expect(loadConfig('?theme=manga').theme).toBe('manga');
+    });
+    it('unknown theme falls back to "manga"', () => {
+        expect(loadConfig('?theme=neon').theme).toBe('manga');
+    });
+});
+
+describe('loadConfig — split', () => {
+    it('defaults to true', () => {
+        expect(loadConfig('').split).toBe(true);
+    });
+    it('?split=0 parses to false', () => {
+        expect(loadConfig('?split=0').split).toBe(false);
     });
 });
 

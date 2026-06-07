@@ -31,6 +31,8 @@ const DEFAULTS = Object.freeze({
     chat: 'closed',
     quality: 'high',
     pixelRatio: null,
+    theme: 'manga',
+    split: true,
 });
 
 // The backend (FastAPI WS + REST) listens on a fixed port; its HOST is derived
@@ -83,6 +85,8 @@ export function loadConfig(search = window.location.search) {
         chat:        (p.get('chat') === 'open') ? 'open' : 'closed',
         quality:     (p.get('quality') === 'low') ? 'low' : DEFAULTS.quality,
         pixelRatio:  Number.isFinite(dpr) ? dpr : DEFAULTS.pixelRatio,
+        theme:       (p.get('theme') === 'classic') ? 'classic' : DEFAULTS.theme,
+        split:       parseBool(p.get('split'), DEFAULTS.split),
         wsUrl:       p.get('ws')  || backend.wsUrl,
         apiBase:     p.get('api') || backend.apiBase,
     };
