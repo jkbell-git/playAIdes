@@ -611,3 +611,474 @@ body[data-pip="on"] #viewer { transform: translateX(20%); }
 @media (prefers-reduced-motion: reduce) {
     #viewer { transition: opacity 250ms ease; }
 }
+
+/* =============================================================
+   P5-BASIC THEME — all rules scoped under [data-theme="p5-basic"]
+   Ported from data/_mock_p5.html (approved visual source of truth).
+   ============================================================= */
+
+/* ── Base / body backdrop ────────────────────────────────────── */
+[data-theme="p5-basic"] body {
+    background:
+        radial-gradient(60% 50% at 22% 38%, rgba(225,26,58,.18), transparent 60%),
+        radial-gradient(120% 95% at 72% 28%, #2c0a13 0%, #160709 48%, #070406 100%);
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ── #theme-fx: hidden outside p5-basic ─────────────────────── */
+#theme-fx {
+    display: none;
+}
+[data-theme="p5-basic"] #theme-fx {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Big red diagonal slash across the backdrop — P5 signature */
+[data-theme="p5-basic"] .fx-slash {
+    position: absolute;
+    inset: -20%;
+    z-index: 0;
+    opacity: .9;
+    background: linear-gradient(118deg,
+        transparent 0 47%,
+        #c20016 47% 50.5%,
+        transparent 50.5% 52%,
+        #7a0010 52% 53%,
+        transparent 53%);
+    filter: url(#torn);
+    mix-blend-mode: screen;
+}
+
+/* Faint ritual circle behind Silver */
+[data-theme="p5-basic"] .fx-ring {
+    position: absolute;
+    right: 6%;
+    top: 18%;
+    width: 520px;
+    height: 520px;
+    border-radius: 50%;
+    border: 1px solid rgba(225,26,58,.25);
+    box-shadow: 0 0 0 10px rgba(225,26,58,.04) inset, 0 0 60px rgba(225,26,58,.15);
+    opacity: .7;
+}
+
+/* Vignette */
+[data-theme="p5-basic"] .fx-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 7;
+    background: radial-gradient(120% 120% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%);
+}
+
+/* Film grain overlay */
+[data-theme="p5-basic"] .fx-grain {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    opacity: .10;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* Ink splatter blobs */
+[data-theme="p5-basic"] .fx-splat {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+}
+[data-theme="p5-basic"] .fx-splat path { fill: #0b0b0b; }
+[data-theme="p5-basic"] .fx-splat-red {
+    left: 1%;
+    top: 24%;
+    width: 120px;
+    height: 120px;
+}
+[data-theme="p5-basic"] .fx-splat-red path { fill: #c20016; }
+[data-theme="p5-basic"] .fx-splat-dark {
+    right: 30%;
+    bottom: 10%;
+    width: 90px;
+    height: 90px;
+    opacity: .7;
+}
+
+/* ── lowfx gating: hide heavy effects on Fire TV (?quality=low) ── */
+body.lowfx .fx-grain { display: none; }
+body.lowfx .fx-slash {
+    filter: none;  /* drop the turbulence displacement; keep the plain gradient */
+}
+
+/* ── Date badge (top-left, tilted masthead) ──────────────────── */
+#date-badge { display: none; }
+
+[data-theme="p5-basic"] #date-badge {
+    display: block;
+    position: fixed;
+    top: 20px;
+    left: 24px;
+    z-index: 50;
+    transform: rotate(-3deg);
+    pointer-events: none;
+}
+
+/* Torn white background (decorative, filtered; text is in a separate layer) */
+[data-theme="p5-basic"] .date-bg {
+    position: absolute;
+    inset: -6px -10px;
+    background: #fff;
+    z-index: -1;
+    clip-path: polygon(0 18%,8% 0,100% 6%,97% 100%,4% 96%);
+    filter: url(#torn) drop-shadow(6px 7px 0 rgba(0,0,0,.7));
+}
+
+[data-theme="p5-basic"] .date-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 6px 14px 2px;
+    transform: skewX(-8deg);
+    position: relative;
+}
+
+[data-theme="p5-basic"] .date-m {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: .9rem;
+    color: #0b0b0b;
+    transform: translateY(-8px) skewX(8deg);
+    display: inline-block;
+}
+
+[data-theme="p5-basic"] .date-d {
+    font-family: 'Anton', sans-serif;
+    font-size: 3.4rem;
+    line-height: .8;
+    color: #0b0b0b;
+}
+
+[data-theme="p5-basic"] .date-d span {
+    display: inline-block;
+    transform: skewX(8deg);
+}
+
+[data-theme="p5-basic"] .date-dow {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.8rem;
+    color: #e11a3a;
+    transform: skewX(8deg) translateY(-2px);
+    display: inline-block;
+}
+
+[data-theme="p5-basic"] .date-when {
+    position: absolute;
+    left: 8px;
+    bottom: -20px;
+    background: #0b0b0b;
+    color: #fff;
+    border: 2px solid #fff;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: .7rem;
+    letter-spacing: .2em;
+    padding: 2px 12px;
+    transform: skewX(-8deg);
+    clip-path: polygon(7% 0,100% 0,93% 100%,0 100%);
+}
+
+/* ── Nameplate (top-right for p5-basic, overrides default top-left) ── */
+/* Hide p5-only nameplate parts in other themes */
+.nameplate-emblem,
+.nameplate-sub {
+    display: none;
+}
+
+[data-theme="p5-basic"] .nameplate {
+    top: 22px;
+    left: auto;
+    right: 28px;
+    background: transparent;
+    border: none;
+    backdrop-filter: none;
+    padding: 0;
+    clip-path: none;
+    gap: 12px;
+    align-items: center;
+    transform: rotate(1.5deg);
+    z-index: 50;
+}
+
+[data-theme="p5-basic"] .nameplate-emblem {
+    display: block;
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    filter: drop-shadow(3px 4px 0 rgba(0,0,0,.7));
+}
+
+/* Wrap the name + sub in a column (they're adjacent siblings after the emblem) */
+[data-theme="p5-basic"] .nameplate-conn {
+    display: none;  /* connection dot replaced by emblem in p5-basic */
+}
+
+[data-theme="p5-basic"] .nameplate-name {
+    font-family: 'Anton', sans-serif;
+    font-size: 2.4rem;
+    line-height: .85;
+    color: #fff;
+    text-shadow: 3px 3px 0 #c20016;
+    display: block;
+}
+
+[data-theme="p5-basic"] .nameplate-sub {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: .72rem;
+    letter-spacing: .24em;
+    color: #0b0b0b;
+    background: #fff;
+    padding: 2px 10px;
+    margin-top: 5px;
+    clip-path: polygon(0 0,100% 0,92% 100%,0 100%);
+}
+
+[data-theme="p5-basic"] .nameplate-sub b {
+    color: #e11a3a;
+}
+
+/* Make nameplate a flex-column for name + sub, beside the emblem */
+[data-theme="p5-basic"] #nameplate {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+}
+
+/* The name and sub stack vertically — wrap them implicitly via flex-wrap
+   since they're siblings. Use a pseudo-wrapper trick: text-align right. */
+[data-theme="p5-basic"] .nameplate-name,
+[data-theme="p5-basic"] .nameplate-sub {
+    text-align: right;
+}
+
+/* ── PiP overlay (p5-basic: tilted torn-white frame) ─────────── */
+[data-theme="p5-basic"] .pip-overlay {
+    top: 29%;
+    left: 3%;
+    width: 35%;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    transform: rotate(-3deg);
+    overflow: visible;
+}
+
+/* The torn white frame fill (decorative bg layer behind the image) */
+.pip-frame-fill { display: none; }
+
+[data-theme="p5-basic"] .pip-frame-fill {
+    display: block;
+    position: absolute;
+    inset: -7px;
+    background: #fff;
+    clip-path: polygon(0 9%,5% 0,100% 0,98% 92%,93% 100%,0 100%);
+    filter: url(#torn) drop-shadow(6px 7px 0 rgba(0,0,0,.7));
+    z-index: 0;
+}
+
+[data-theme="p5-basic"] .pip-image {
+    position: relative;
+    z-index: 1;
+    clip-path: polygon(0 9%,5% 0,100% 0,98% 92%,93% 100%,0 100%);
+    background-color: #15171c;
+}
+
+/* Hide the manga ink-stroke frame in p5-basic (we use pip-frame-fill instead) */
+[data-theme="p5-basic"] .pip-frame { display: none; }
+
+/* ── Console bar / dialogue box (bottom) ─────────────────────── */
+[data-theme="p5-basic"] .console-bar {
+    left: 6%;
+    right: 25%;
+    bottom: 6%;
+    width: auto;
+    transform: rotate(-.6deg);
+    align-items: stretch;
+    gap: 0;
+}
+
+/* The "SILVER" name tag above the dialogue box */
+.console-nametag { display: none; }
+
+[data-theme="p5-basic"] .console-nametag {
+    display: block;
+    position: relative;
+    align-self: flex-start;
+    margin-left: 26px;
+    margin-bottom: 0;
+    z-index: 3;
+}
+
+[data-theme="p5-basic"] .console-nametag-text {
+    display: inline-block;
+    background: #fff;
+    color: #0b0b0b;
+    font-family: 'Anton', sans-serif;
+    font-size: 1.2rem;
+    padding: 3px 20px 1px;
+    transform: skewX(-9deg);
+    clip-path: polygon(6% 0,100% 0,94% 100%,0 100%);
+    filter: drop-shadow(3px 4px 0 rgba(0,0,0,.7));
+    position: relative;
+}
+
+/* The dialogue-tail triangle */
+[data-theme="p5-basic"] .console-nametag-text::after {
+    content: '';
+    position: absolute;
+    left: 20px;
+    bottom: -12px;
+    width: 20px;
+    height: 15px;
+    background: #fff;
+    clip-path: polygon(0 0,100% 0,0 100%);
+}
+
+/* Dialogue box — torn black box with white outline */
+[data-theme="p5-basic"] .console-log {
+    position: relative;
+    background: transparent;
+    clip-path: none;
+    padding: 0;
+    max-height: none;
+    overflow: visible;
+}
+
+/* White outline bg layer (torn decorative, behind the black box) */
+[data-theme="p5-basic"] .console-log::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    background: #fff;
+    clip-path: polygon(0 24%,1.5% 0,100% 11%,99% 100%,1% 85%);
+    z-index: 0;
+}
+
+/* Black dialogue box */
+[data-theme="p5-basic"] .console-log::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: #0b0b0b;
+    clip-path: polygon(0 24%,1.5% 0,100% 11%,99% 100%,1% 85%);
+    z-index: 0;
+}
+
+[data-theme="p5-basic"] .console-msg {
+    position: relative;
+    z-index: 1;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 1.06rem;
+    line-height: 1.5;
+    color: #f4f4f4;
+    text-align: left;
+    padding: 0 28px;
+    opacity: 1;
+}
+
+/* Only the last (newest) message is shown prominently in P5 style */
+[data-theme="p5-basic"] .console-log .console-msg { opacity: .3; font-size: .85rem; }
+[data-theme="p5-basic"] .console-log .console-msg:nth-last-child(1) {
+    opacity: 1;
+    font-size: 1.06rem;
+}
+
+/* The scroll-down arrow */
+[data-theme="p5-basic"] .console-log .console-msg:nth-last-child(1)::after {
+    content: '▼';
+    color: #e11a3a;
+    font-size: 1.1rem;
+    margin-left: 8px;
+}
+
+/* Wrap the log in the clip-path padding */
+[data-theme="p5-basic"] .console-log {
+    padding: 24px 0 22px;
+    min-height: 104px;
+}
+
+/* ── Input row (p5-basic) ─────────────────────────────────────── */
+[data-theme="p5-basic"] .console-input-row {
+    margin-top: 8px;
+}
+
+[data-theme="p5-basic"] .console-input {
+    background: rgba(11,11,11,.85);
+    border: 1px solid rgba(255,255,255,.25);
+    color: #f4f4f4;
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    clip-path: polygon(7% 0,100% 0,93% 100%,0 100%);
+}
+
+[data-theme="p5-basic"] .console-input:focus {
+    border-color: #e11a3a;
+}
+
+[data-theme="p5-basic"] .console-input::placeholder {
+    color: rgba(255,255,255,.35);
+    text-transform: lowercase;
+}
+
+[data-theme="p5-basic"] .console-send {
+    background: #c20016;
+    color: #fff;
+    clip-path: polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);
+}
+
+[data-theme="p5-basic"] .console-send:hover { background: #e11a3a; }
+
+/* ── Mic indicator (red diamond) ─────────────────────────────── */
+[data-theme="p5-basic"] .mic-indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 0;
+    background: #e11a3a;
+    box-shadow: 0 0 16px rgba(225,26,58,.95);
+    clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%);
+}
+
+[data-theme="p5-basic"] .mic-indicator.state-empty,
+[data-theme="p5-basic"] .mic-indicator.state-ambient {
+    background: #e11a3a;
+    box-shadow: 0 0 16px rgba(225,26,58,.5);
+    animation: micSlowPulse 3s ease-in-out infinite;
+}
+
+[data-theme="p5-basic"] .mic-indicator.state-listening {
+    background: #ff3a5a;
+    box-shadow: 0 0 20px rgba(255,58,90,1), 0 0 40px rgba(225,26,58,.5);
+}
+
+[data-theme="p5-basic"] .mic-indicator.state-thinking {
+    background: #fff;
+    box-shadow: 0 0 14px rgba(255,255,255,.6);
+}
+
+[data-theme="p5-basic"] .mic-indicator.state-speaking {
+    background: #c20016;
+    box-shadow: 0 0 12px rgba(194,0,22,.7);
+}
+
+/* ── Viewer strip (hidden in p5-basic; slash provides the visual mark) ── */
+[data-theme="p5-basic"] .viewer-strip {
+    display: none;
+}
+
+/* ── z-index overrides so #theme-fx sits behind everything ───── */
+[data-theme="p5-basic"] #theme-fx { z-index: 0; }
+[data-theme="p5-basic"] #viewer   { z-index: 1; }
+

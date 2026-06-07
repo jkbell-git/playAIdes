@@ -46,9 +46,33 @@ if (config.kiosk) {
     controls.enabled = false;
 }
 
-// Theme: drive the CSS [data-theme] layer. Defaults to 'manga'; ?theme=classic
-// switches to today's chrome. (The camera always shows as a floating PiP.)
+// Theme: drive the CSS [data-theme] layer. (The camera always shows as a floating PiP.)
 document.body.dataset.theme = config.theme;
+
+// Quality: low-power mode disables heavy FX (Fire TV ?quality=low).
+if (config.quality === 'low') {
+    document.body.classList.add('lowfx');
+}
+
+// ── Date badge (p5-basic top-left masthead) ──────────────────────────────────
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+function _buildDateBadge() {
+    const el = document.getElementById('date-badge');
+    if (!el) return;
+    const now = new Date();
+    const mo  = MONTHS[now.getMonth()];
+    const day = String(now.getDate()).padStart(2, '0');
+    const dow = DAYS[now.getDay()];
+    const hr  = now.getHours();
+    const when = hr < 12 ? 'MORNING' : hr < 17 ? 'AFTERNOON' : hr < 21 ? 'EVENING' : 'NIGHT';
+    el.innerHTML =
+        `<div class="date-bg"></div>` +
+        `<div class="date-row"><span class="date-m">${mo}</span><span class="date-d"><span>${day}</span></span><span class="date-dow">${dow}</span></div>` +
+        `<div class="date-when">${when}</div>`;
+}
+_buildDateBadge();
+setInterval(_buildDateBadge, 60_000);
 
 // Dev aid: opt-in camera tuner (?debug=1) — sliders for height / target / distance
 // with a live pose readout + copy, so a hand-framed shot can be read off and baked in.
@@ -335,6 +359,9 @@ connection.addEventListener('persona_active', (e) => {
     // extension — absent today, so this is a no-op until wired server-side).
     if (e.detail?.theme) document.body.dataset.theme = e.detail.theme;
     overlays.setPersonaName(activePersona.name);
+    // Update p5-basic dialogue nametag.
+    const nametag = document.querySelector('.console-nametag-text');
+    if (nametag && activePersona.name) nametag.textContent = activePersona.name.toUpperCase();
     chatPanel.setPersona(
         activePersona.name,
         (activePersona.wake_words && activePersona.wake_words[0]) || '',

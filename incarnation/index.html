@@ -7,6 +7,35 @@
     <link rel="stylesheet" href="/styles/viewer.css" />
   </head>
   <body>
+
+    <!-- ── Procedural torn-edge filter (used by p5-basic decorative layers) ── -->
+    <svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+      <defs>
+        <filter id="torn">
+          <feTurbulence type="fractalNoise" baseFrequency="0.018 0.05" numOctaves="2" seed="7" result="n"/>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="11" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+      </defs>
+    </svg>
+
+    <!-- ── Theme FX layers (inert outside [data-theme="p5-basic"]) ──────────── -->
+    <div id="theme-fx" aria-hidden="true">
+      <div class="fx-slash"></div>
+      <div class="fx-ring"></div>
+      <div class="fx-vignette"></div>
+      <div class="fx-grain"></div>
+      <!-- ink splatter blobs -->
+      <svg class="fx-splat fx-splat-red" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M50 8c8 6 4 18 14 20s18-6 20 6-10 14-6 24-2 20-14 16-14 10-24 6-18 2-20-10 6-16-2-24-12-12-6-22 14-4 18-14 14-8 22-2Z"/>
+      </svg>
+      <svg class="fx-splat fx-splat-dark" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M52 12c6 8 16 4 18 14s-8 14-4 22-2 18-12 16-16 8-24 2-16 0-16-12 8-12 4-22-8-16 2-22 12 2 18-6 6-8 14 8Z"/>
+      </svg>
+    </div>
+
+    <!-- Date badge (JS fills; p5-basic shows it slashy top-left) -->
+    <div id="date-badge" class="date-badge" aria-hidden="true"></div>
+
     <!-- Decorative top strip (always visible regardless of cinematic mode) -->
     <div class="viewer-strip"></div>
 
@@ -39,13 +68,22 @@
     </div>
 
     <div id="nameplate" class="nameplate">
+      <!-- p5-basic star emblem (hidden in other themes via CSS) -->
+      <svg class="nameplate-emblem" viewBox="0 0 52 52" aria-hidden="true">
+        <polygon points="26,1 33,19 51,19 37,31 42,51 26,39 10,51 15,31 1,19 19,19" fill="#fff"/>
+        <polygon points="26,12 30,22 40,22 32,29 35,40 26,33 17,40 20,29 12,22 22,22" fill="#c20016"/>
+      </svg>
       <span id="nameplate-conn" class="nameplate-conn"></span>
       <span id="nameplate-name" class="nameplate-name">—</span>
+      <!-- p5-basic sub label (hidden in other themes via CSS) -->
+      <span class="nameplate-sub">AI · <b>PERSONA</b></span>
     </div>
 
     <!-- Picture-in-picture panel (spec §3.10). Hidden until a show_pip WS
          message; command-driven, so no config-flag gate. -->
     <div id="pip-overlay" class="pip-overlay">
+      <!-- p5-basic torn white frame fill layer (decorative bg behind the image) -->
+      <div class="pip-frame-fill"></div>
       <img id="pip-image" class="pip-image" alt="" />
       <!-- Brushed ink edge around the camera (manga theme); hidden in classic
            via the --pip-frame-display token. -->
@@ -78,6 +116,8 @@
          visible even in kiosk (the side chat panel + subtitle band are hidden
          there). Type to speak; Silver's reply shows in the line above. -->
     <div id="console-bar" class="console-bar">
+      <!-- p5-basic: name tag sits above the dialogue box -->
+      <div class="console-nametag" aria-hidden="true"><span class="console-nametag-text">SILVER</span></div>
       <div id="console-log" class="console-log faded" aria-live="polite"></div>
       <form id="console-input-row" class="console-input-row">
         <input id="console-input" class="console-input" type="text"

@@ -4,7 +4,7 @@
    visually in sync.
    ============================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Anton&family=Archivo+Black&family=Oswald:wght@500;700&display=swap');
 
 :root {
     --ink:        #0a0812;
@@ -91,4 +91,26 @@
     --pip-border:        var(--hair) solid var(--gold);
     --pip-frame-display: none;
     --pip-shadow:        0 8px 32px var(--shadow-1);
+}
+
+/* P5-basic maps the P5 palette onto the semantic roles. */
+[data-theme="p5-basic"] {
+    --bg:            #070406;
+    --text:          #f4f4f4;
+    --accent:        #e11a3a;
+    --accent-2:      #fff;
+    --font-display:  'Anton', sans-serif;
+    --font-accent:   'Oswald', sans-serif;
+    --font-body:     'Inter', system-ui, sans-serif;
+    --divider-display: none;
+    --pip-border:        none;
+    --pip-frame-display: none;
+    --pip-shadow:        none;
+    /* P5-specific extras */
+    --p5-red:        #c20016;
+    --p5-red-hi:     #e11a3a;
+    --p5-dark:       #070406;
+    --p5-ink:        #0b0b0b;
+    --p5-white:      #ffffff;
+    --font-p5-title: 'Archivo Black', sans-serif;
 }

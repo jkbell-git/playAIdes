@@ -15,7 +15,7 @@ describe('loadConfig — defaults', () => {
             chat: 'closed',
             quality: 'high',
             pixelRatio: null,
-            theme: 'manga',
+            theme: 'p5-basic',
             split: true,
             wsUrl: 'ws://localhost:8765/ws',
             apiBase: 'http://localhost:8765',
@@ -153,17 +153,17 @@ describe('loadConfig — persona', () => {
 });
 
 describe('loadConfig — theme', () => {
-    it('defaults to "manga"', () => {
-        expect(loadConfig('').theme).toBe('manga');
+    it('defaults to "p5-basic"', () => {
+        expect(loadConfig('').theme).toBe('p5-basic');
+    });
+    it('?theme=fate-basic parses to "fate-basic"', () => {
+        expect(loadConfig('?theme=fate-basic').theme).toBe('fate-basic');
     });
     it('?theme=classic parses to "classic"', () => {
         expect(loadConfig('?theme=classic').theme).toBe('classic');
     });
-    it('?theme=manga parses to "manga"', () => {
-        expect(loadConfig('?theme=manga').theme).toBe('manga');
-    });
-    it('unknown theme falls back to "manga"', () => {
-        expect(loadConfig('?theme=neon').theme).toBe('manga');
+    it('unknown theme falls back to "p5-basic"', () => {
+        expect(loadConfig('?theme=neon').theme).toBe('p5-basic');
     });
 });
 

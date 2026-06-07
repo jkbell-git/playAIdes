@@ -20,6 +20,8 @@
  *   ?api=<url>                    // REST base URL override
  */
 
+const VALID_THEMES = ['p5-basic', 'fate-basic', 'manga-basic', 'classic'];
+
 const DEFAULTS = Object.freeze({
     persona: null,
     activation: 'wake',
@@ -31,7 +33,7 @@ const DEFAULTS = Object.freeze({
     chat: 'closed',
     quality: 'high',
     pixelRatio: null,
-    theme: 'manga',
+    theme: 'p5-basic',
     split: true,
 });
 
@@ -85,7 +87,7 @@ export function loadConfig(search = window.location.search) {
         chat:        (p.get('chat') === 'open') ? 'open' : 'closed',
         quality:     (p.get('quality') === 'low') ? 'low' : DEFAULTS.quality,
         pixelRatio:  Number.isFinite(dpr) ? dpr : DEFAULTS.pixelRatio,
-        theme:       (p.get('theme') === 'classic') ? 'classic' : DEFAULTS.theme,
+        theme:       VALID_THEMES.includes(p.get('theme')) ? p.get('theme') : DEFAULTS.theme,
         split:       parseBool(p.get('split'), DEFAULTS.split),
         wsUrl:       p.get('ws')  || backend.wsUrl,
         apiBase:     p.get('api') || backend.apiBase,
