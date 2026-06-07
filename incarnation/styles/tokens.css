@@ -61,3 +61,26 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+/* =============================================================
+   Theme layers. Components reference the SEMANTIC roles below,
+   never the raw palette. A theme just re-points the roles.
+   Default (no [data-theme]) == manga.
+   ============================================================= */
+:root, [data-theme="manga"] {
+    --bg:            var(--ink);
+    --text:          var(--cream);
+    --accent:        var(--gold);
+    --accent-2:      var(--red);
+    --font-display:  var(--font-cinzel);
+    --font-accent:   var(--font-chakra);
+    --font-body:     var(--font-inter);
+    --divider-display: block;          /* camera split shows the ink divider */
+    --divider-fill:    var(--ink);
+}
+
+[data-theme="classic"] {
+    /* Same palette/fonts as today; differs only in shape: no split divider,
+       so a camera shows as the floating PiP instead. */
+    --divider-display: none;
+}
