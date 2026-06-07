@@ -866,9 +866,9 @@ body.lowfx .fx-slash {
 
 /* ── PiP overlay (p5-basic: tilted torn-white frame) ─────────── */
 [data-theme="p5-basic"] .pip-overlay {
-    top: 29%;
+    top: 14%;
     left: 3%;
-    width: 35%;
+    width: 48%;
     border: none;
     background: transparent;
     box-shadow: none;
@@ -903,7 +903,7 @@ body.lowfx .fx-slash {
 [data-theme="p5-basic"] .console-bar {
     left: 6%;
     right: 25%;
-    bottom: 6%;
+    bottom: 10%;
     width: auto;
     transform: rotate(-.6deg);
     align-items: stretch;
@@ -1002,6 +1002,12 @@ body.lowfx .fx-slash {
     color: #e11a3a;
     font-size: 1.1rem;
     margin-left: 8px;
+}
+
+/* Keep the P5 dialogue box compact — show only the latest two lines so the
+   box + input row never run off the bottom of the screen. */
+[data-theme="p5-basic"] .console-log .console-msg:not(:nth-last-child(-n+2)) {
+    display: none;
 }
 
 /* Wrap the log in the clip-path padding */

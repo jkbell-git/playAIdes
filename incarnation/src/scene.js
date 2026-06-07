@@ -21,7 +21,7 @@ const lowQuality = cfg.quality === 'low';
 
 // ── Renderer ────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('viewer');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 // Resolution dial: ?dpr=<n> overrides the cap (clamped 0.5–3) so sharpness vs.
 // smoothness can be tuned per device; otherwise auto-cap (low: 1, high: up to 2).
 const renderScale = cfg.pixelRatio != null
@@ -36,12 +36,15 @@ renderer.shadowMap.enabled = !lowQuality;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // ── Scene ───────────────────────────────────────────────────────────────────
-// Kiosk uses a pure-black backdrop (cleaner on a TV); windowed mode keeps navy.
-const bgColor = cfg.kiosk ? 0x000000 : 0x1a1a2e;
+// Transparent canvas (renderer alpha:true above) so the themed CSS backdrop
+// (red room / slash / grain, per [data-theme]) shows BEHIND the avatar. A
+// persona that loads its own background still overrides this via setBackground().
+const bgColor = cfg.kiosk ? 0x000000 : 0x1a1a2e;   // still used for fog tint
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(bgColor);
+scene.background = null;
 
-// Subtle fog for depth
+// Subtle fog for depth (starts well beyond the bust framing, so it doesn't
+// tint the avatar against the now-transparent backdrop).
 scene.fog = new THREE.Fog(bgColor, 8, 20);
 
 // ── Camera ──────────────────────────────────────────────────────────────────
