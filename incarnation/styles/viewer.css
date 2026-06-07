@@ -11,7 +11,7 @@
 html, body { height: 100%; }
 
 body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-body);
     background: #000;
     color: var(--cream);
     overflow: hidden;
@@ -126,7 +126,7 @@ body[data-viewer-state="EMPTY"] .nameplate {
     background: linear-gradient(180deg, rgba(10, 8, 18, .82), rgba(10, 8, 18, .95));
     border: var(--hair) solid var(--gold);
     color: var(--cream);
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-display);
     font-size: 18px;
     letter-spacing: .04em;
     text-align: center;
@@ -165,7 +165,7 @@ body[data-viewer-state="EMPTY"] .nameplate {
 /* Placeholder variant (LISTENING with no transcript yet). */
 .subtitle-band.placeholder {
     color: var(--gold-dim);
-    font-family: 'Chakra Petch', sans-serif;
+    font-family: var(--font-accent);
     font-size: 14px;
     letter-spacing: .2em;
     text-transform: lowercase;
@@ -185,7 +185,7 @@ body[data-viewer-state="EMPTY"] .nameplate {
     background: rgba(10, 8, 18, .7);
     border: var(--hair) solid var(--gold);
     backdrop-filter: blur(8px);
-    font-family: 'Chakra Petch', sans-serif;
+    font-family: var(--font-accent);
     font-size: 12px;
     letter-spacing: .2em;
     color: var(--cream);
@@ -267,7 +267,7 @@ body[data-viewer-state="EMPTY"] .nameplate {
     border: var(--hair) solid var(--gold);
     border-right: none;
     color: var(--gold);
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-display);
     font-size: 22px;
     cursor: pointer;
     pointer-events: auto;
@@ -299,7 +299,7 @@ body[data-viewer-state="EMPTY"] .nameplate {
 .chat-panel-header {
     padding: 18px 24px 12px;
     border-bottom: var(--hair) solid var(--gold-dim);
-    font-family: 'Chakra Petch', sans-serif;
+    font-family: var(--font-accent);
     font-size: 13px;
     letter-spacing: .2em;
     text-transform: uppercase;
@@ -326,7 +326,7 @@ body[data-viewer-state="EMPTY"] .nameplate {
     display: flex;
     flex-direction: column;
     gap: 14px;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-body);
     font-size: 14px;
     line-height: 1.5;
     color: var(--cream);
@@ -341,7 +341,7 @@ body[data-viewer-state="EMPTY"] .nameplate {
 }
 
 .transcript-item .label {
-    font-family: 'Chakra Petch', sans-serif;
+    font-family: var(--font-accent);
     font-size: 11px;
     letter-spacing: .15em;
     text-transform: uppercase;
@@ -368,7 +368,7 @@ body[data-viewer-state="EMPTY"] .nameplate {
     background: var(--ink-2);
     border: var(--hair) solid var(--gold-dim);
     color: var(--cream);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-body);
     font-size: 14px;
     padding: 8px 12px;
     outline: none;
@@ -387,7 +387,7 @@ body[data-viewer-state="EMPTY"] .nameplate {
     background: var(--gold);
     color: var(--ink);
     border: none;
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-display);
     font-size: 14px;
     padding: 8px 14px;
     cursor: pointer;
@@ -485,7 +485,7 @@ body.kiosk .chat-panel { display: none; }
 }
 .console-log.faded { opacity: 0; }
 .console-msg {
-    font-family: 'Cinzel', serif;
+    font-family: var(--font-display);
     letter-spacing: .03em;
     line-height: 1.4;
     text-align: center;
@@ -495,7 +495,7 @@ body.kiosk .chat-panel { display: none; }
 }
 .console-msg.user {
     color: var(--cream-dim);
-    font-family: 'Chakra Petch', sans-serif;
+    font-family: var(--font-accent);
     font-style: italic;
 }
 /* Newest line = the subtitle: brightest + larger. Older lines fade upward. */
@@ -517,7 +517,7 @@ body.kiosk .chat-panel { display: none; }
     background: rgba(10, 8, 18, .78);
     border: var(--hair) solid var(--gold-dim);
     color: var(--cream);
-    font-family: 'Chakra Petch', sans-serif;
+    font-family: var(--font-accent);
     font-size: 17px;
     letter-spacing: .04em;
     outline: none;
