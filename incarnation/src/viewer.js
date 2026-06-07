@@ -313,13 +313,16 @@ connection.addEventListener('stop_lip_sync', () => {
 });
 
 connection.addEventListener('show_pip', (e) => {
-    // Camera shows as a floating PiP (URL normalized so localhost feeds resolve
-    // to the serving host on remote TVs). The screen split is reserved for the
-    // future multi-3D-model cast, not the camera.
-    pip.apply(pipViewFromMessage('show_pip', withResolvedUrl(e.detail || {})));
+    // Camera shows as a comic-panel PiP on the left; body[data-pip] slides Silver
+    // to the right (CSS). URL normalized so localhost feeds resolve on remote TVs.
+    // The full screen split is reserved for the future multi-3D-model cast.
+    const view = pipViewFromMessage('show_pip', withResolvedUrl(e.detail || {}));
+    pip.apply(view);
+    document.body.dataset.pip = view.visible ? 'on' : 'off';
 });
 connection.addEventListener('dismiss_pip', () => {
     pip.apply(pipViewFromMessage('dismiss_pip', {}));
+    document.body.dataset.pip = 'off';
 });
 
 connection.addEventListener('persona_active', (e) => {

@@ -77,16 +77,15 @@
     --font-body:     var(--font-inter);
     --divider-display: block;          /* camera split shows the ink divider */
     --divider-fill:    var(--ink);
-    /* Camera PiP edge — manga: an inked frame, no gold border */
-    --pip-border:        none;
-    --pip-frame-display: block;
-    --pip-frame-stroke:  var(--cream);
+    /* Camera PiP — manga: a bold comic/manga panel (cream edge + dark keyline) */
+    --pip-border:  8px solid var(--cream);
+    --pip-shadow:  inset 0 0 0 2px var(--ink), 0 14px 38px rgba(0, 0, 0, .6);
 }
 
 [data-theme="classic"] {
     /* Same palette/fonts as today; differs in shape: no split divider, and the
-       camera PiP keeps today's gold hairline instead of the inked frame. */
+       camera PiP keeps today's gold hairline instead of the comic panel. */
     --divider-display: none;
-    --pip-border:        var(--hair) solid var(--gold);
-    --pip-frame-display: none;
+    --pip-border:  var(--hair) solid var(--gold);
+    --pip-shadow:  0 8px 32px var(--shadow-1);
 }
