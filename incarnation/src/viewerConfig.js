@@ -35,6 +35,7 @@ const DEFAULTS = Object.freeze({
     pixelRatio: null,
     theme: 'p5-basic',
     split: true,
+    cmdLog: true,
 });
 
 // The backend (FastAPI WS + REST) listens on a fixed port; its HOST is derived
@@ -89,6 +90,7 @@ export function loadConfig(search = window.location.search) {
         pixelRatio:  Number.isFinite(dpr) ? dpr : DEFAULTS.pixelRatio,
         theme:       VALID_THEMES.includes(p.get('theme')) ? p.get('theme') : DEFAULTS.theme,
         split:       parseBool(p.get('split'), DEFAULTS.split),
+        cmdLog:      parseBool(p.get('cmdlog'), DEFAULTS.cmdLog),
         wsUrl:       p.get('ws')  || backend.wsUrl,
         apiBase:     p.get('api') || backend.apiBase,
     };

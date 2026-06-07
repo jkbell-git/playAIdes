@@ -17,9 +17,19 @@ describe('loadConfig — defaults', () => {
             pixelRatio: null,
             theme: 'p5-basic',
             split: true,
+            cmdLog: true,
             wsUrl: 'ws://localhost:8765/ws',
             apiBase: 'http://localhost:8765',
         });
+    });
+});
+
+describe('loadConfig — cmdLog', () => {
+    it('defaults to true', () => {
+        expect(loadConfig('').cmdLog).toBe(true);
+    });
+    it('?cmdlog=0 disables', () => {
+        expect(loadConfig('?cmdlog=0').cmdLog).toBe(false);
     });
 });
 

@@ -183,11 +183,14 @@ if (consoleInputEl) consoleInputEl.addEventListener('focus', pokeConsole);
 const CMD_LOG_SKIP = new Set(['play_viseme_sequence', 'set_expression', 'clear_expressions', 'status']);
 const CMD_LOG_MAX = 40;
 const _cmdLogEl = document.getElementById('cmd-log');
+let _cmdFadeTimer = null;
 function _cmdSanitize(key, val) {
     if (/token|key|secret|auth|password|cookie|bearer|credential/i.test(key)) return '***';
     if (typeof val === 'string') {
         let s = val;
-        if (/^https?:\/\//i.test(s)) { try { const u = new URL(s); s = u.host + u.pathname; } catch (_) { /* leave as-is */ } }
+        // Never surface our host/IP — show the stable server id "playaides".
+        if (/^https?:\/\//i.test(s)) { try { const u = new URL(s); s = 'playaides' + u.pathname; } catch (_) { /* leave as-is */ } }
+        s = s.replace(/\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b/g, 'playaides');
         return s.length > 60 ? s.slice(0, 57) + '…' : s;
     }
     if (Array.isArray(val)) return `[${val.length}]`;
@@ -209,8 +212,18 @@ function pushCmdLog(msg) {
     _cmdLogEl.appendChild(line);
     while (_cmdLogEl.children.length > CMD_LOG_MAX) _cmdLogEl.removeChild(_cmdLogEl.firstChild);
     _cmdLogEl.scrollTop = _cmdLogEl.scrollHeight;
+    // Fade out like the subtitles after a few idle seconds.
+    _cmdLogEl.classList.remove('faded');
+    clearTimeout(_cmdFadeTimer);
+    _cmdFadeTimer = setTimeout(() => _cmdLogEl.classList.add('faded'), 8000);
 }
-connection.addEventListener('message', (e) => pushCmdLog(e.detail));
+// Command log is opt-out via ?cmdlog=0 — hidden + unwired when disabled.
+if (config.cmdLog && _cmdLogEl) {
+    _cmdLogEl.classList.add('faded');   // start hidden until the first command
+    connection.addEventListener('message', (e) => pushCmdLog(e.detail));
+} else {
+    document.body.classList.add('cmdlog-off');
+}
 
 // Pending text from the most recent assistant_message event — attached
 // to the next SPEAKING transition so the subtitle band can render.

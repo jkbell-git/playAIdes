@@ -905,11 +905,14 @@ body.lowfx .fx-slash {
     display: block;
     position: fixed;
     left: 3%;
-    top: 62%;
+    /* Anchor right under the PiP (its top:14% + height) so it tracks the viewport
+       instead of a fixed % that overlaps the dialogue on short/wide screens. */
+    top: calc(14vh + 42vw * 0.5625 + 16px);
     width: 40%;
-    height: min(16vh, 150px);
+    height: min(13vh, 110px);
     overflow-y: auto;
     overscroll-behavior: contain;
+    transition: opacity .6s ease;
     z-index: 6;
     padding: 10px 16px;
     background: rgba(8, 6, 9, .82);
@@ -930,6 +933,8 @@ body.lowfx .fx-slash {
 [data-theme="p5-basic"] .cmd-log .cmd-t    { color: #6b6478; margin-right: 8px; }
 [data-theme="p5-basic"] .cmd-log .cmd-type { color: #ff3a5a; font-weight: 700; margin-right: 8px; text-transform: uppercase; letter-spacing: .04em; }
 [data-theme="p5-basic"] .cmd-log .cmd-sum  { color: #b9b3d0; }
+[data-theme="p5-basic"] .cmd-log.faded { opacity: 0; }
+body.cmdlog-off .cmd-log { display: none; }
 
 /* ── Console bar / dialogue box (bottom) ─────────────────────── */
 [data-theme="p5-basic"] .console-bar {
