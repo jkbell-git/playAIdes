@@ -24,6 +24,7 @@ import { WipeOverlay } from './wipeOverlay.js';
 import { TranscriptModel } from './transcriptModel.js';
 import { ChatPanel } from './chatPanel.js';
 import { PipOverlay, pipViewFromMessage } from './pipOverlay.js';
+import { StageLayout, stageLayoutFromMessage } from './stageLayout.js';
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
@@ -60,6 +61,10 @@ const withResolvedUrl = (payload) =>
 const stateMachine = new ViewerState(State.EMPTY);
 const overlays = new ViewerOverlays(document, config, stateMachine);
 const pip = new PipOverlay(document);
+const stage = new StageLayout(document);
+// Split the screen for a camera only in the manga theme (classic uses the
+// floating PiP); ?split=0 forces the floating PiP everywhere.
+const splitEnabled = config.split && config.theme === 'manga';
 const incarnation = new Incarnation();
 const connection = new ConnectionManager();
 const audioCapture = new AudioCapture();
@@ -310,9 +315,16 @@ connection.addEventListener('stop_lip_sync', () => {
 });
 
 connection.addEventListener('show_pip', (e) => {
-    pip.apply(pipViewFromMessage('show_pip', e.detail || {}));
+    const payload = withResolvedUrl(e.detail || {});
+    const view = stageLayoutFromMessage('show_pip', payload, { splitEnabled });
+    stage.apply(view);
+    // Keep the floating PiP and the split mutually exclusive — only one shows.
+    pip.apply(view.layout === 'split-camera'
+        ? pipViewFromMessage('dismiss_pip', {})
+        : pipViewFromMessage('show_pip', payload));
 });
 connection.addEventListener('dismiss_pip', () => {
+    stage.apply(stageLayoutFromMessage('dismiss_pip', {}, { splitEnabled }));
     pip.apply(pipViewFromMessage('dismiss_pip', {}));
 });
 
