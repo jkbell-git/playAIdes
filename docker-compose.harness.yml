@@ -49,7 +49,7 @@ services:
       - |
         set -e
         export OLLAMA_HOST=http://ollama:11434
-        ollama pull "${LLM_MODEL:-qwen3:0.6b}"
+        ollama pull "qwen3:0.6b"
     restart: "no"
 
   # ── TTS: voicebox running the small Kokoro backend on the GPU ────────────────
@@ -106,7 +106,10 @@ services:
       - .:/app:rw
     environment:
       - LLM_URL=http://ollama:11434/v1
-      - LLM_MODEL=${LLM_MODEL:-qwen3:0.6b}
+      # Pinned to the small model on purpose — the harness is the TEST stack and
+      # must NOT inherit .env's LLM_MODEL (that targets the real backend, e.g.
+      # gemma3:4b, which isn't pulled here → ollama 404).
+      - LLM_MODEL=qwen3:0.6b
       - TTS_URL=http://voicebox:8008
       - VOICEBOX_URL=http://voicebox:8008
       - WHISPER_URL=http://whisper:9000

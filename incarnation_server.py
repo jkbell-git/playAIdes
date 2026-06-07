@@ -400,6 +400,56 @@ class IncarnationServer:
                 logger.exception(f"STT Proxy error: {e}")
                 raise HTTPException(status_code=502, detail=f"STT Proxy error: {e}")
 
+        # ── Voice ingest (mic client → STT → conversation, NO Home Assistant) ──
+        @self.app.post("/api/voice")
+        async def voice_ingest(audio: UploadFile = File(...), persona_id: str = None):
+            """One-shot voice turn for a *non-browser* mic client (ESP32 / the
+            phone debug page). Uploads an audio clip → Whisper STT → routes the
+            transcript through the SAME `user_input` path the browser uses, so
+            the bound viewer (Fire TV) speaks the reply. Returns what was heard.
+
+            Self-contained: playAIdes does STT + LLM + TTS itself; Home Assistant
+            is not involved. `persona_id` (optional query param) targets a
+            specific persona; omitted → the active persona answers.
+            """
+            audio_bytes = await audio.read()
+            try:
+                async with httpx.AsyncClient() as client:
+                    upstream = await client.post(
+                        f"{WHISPER_BASE}/asr",
+                        files={"audio_file": (audio.filename or "clip.wav",
+                                              audio_bytes,
+                                              audio.content_type or "audio/wav")},
+                        params={"output": "json"},
+                        timeout=30.0,
+                    )
+            except Exception as e:
+                logger.exception(f"/api/voice STT request failed: {e}")
+                raise HTTPException(status_code=502, detail=f"STT upstream unreachable: {e}")
+            if upstream.status_code != 200:
+                logger.error(f"/api/voice STT error: {upstream.status_code} {upstream.text!r}")
+                raise HTTPException(status_code=502, detail=f"STT upstream error: {upstream.status_code}")
+
+            data = upstream.json()
+            transcript = (data.get("text") or "").strip()
+            language = data.get("language", "")
+
+            routed = False
+            if transcript and self.on_message_callback:
+                payload = {"text": transcript}
+                pid = (persona_id or "").strip()
+                if pid:
+                    payload["persona_id"] = pid
+                # chat() is blocking (LLM call); run it off the event loop the
+                # same way POST /api/event dispatches its handler.
+                await asyncio.to_thread(
+                    self.on_message_callback,
+                    {"type": "user_input", "payload": payload},
+                )
+                routed = True
+
+            return {"text": transcript, "language": language, "routed": routed}
+
     # ── Server lifecycle ──────────────────────────────────────────────────────
     def _run_server(self):
         config = uvicorn.Config(app=self.app, host=self.host, port=self.port, log_level="info")

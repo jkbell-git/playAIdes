@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<!-- Phone/ESP32 stand-in mic page. Hold the button, talk; the audio is POSTed
+     to /api/voice, which runs STT → LLM → TTS and makes the bound viewer
+     (Fire TV) speak the reply. The reply plays on the TV, NOT here — this page
+     is just the microphone + a transcript readout.
+     getUserMedia requires a SECURE CONTEXT, so open this over HTTPS, e.g.
+     https://playaides-local.hogu.dev/data/mic.html (plain http://…:8765 will
+     not be allowed to use the mic). -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>playAIdes — Mic</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #0b0a12; color: #e8e6f0;
+           margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+           align-items: center; padding: 24px 18px; gap: 16px; }
+    h1 { font-size: 1.15rem; margin: 4px 0 0; }
+    .sub { color: #9a93b5; font-size: .85rem; text-align: center; margin: 0; max-width: 30rem; }
+    #banner { display: none; background: #3a1320; border: 1px solid #ff8d8d; color: #ff8d8d;
+              border-radius: 10px; padding: 12px 14px; font-size: .85rem; max-width: 32rem; }
+    #talk { -webkit-user-select: none; user-select: none; touch-action: none;
+            margin-top: 10px; width: 220px; height: 220px; border-radius: 50%;
+            border: 4px solid #3a3550; background: #15131f; color: #e8e6f0;
+            font-size: 1.15rem; font-weight: 700; cursor: pointer; transition: all .08s;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            padding: 18px; }
+    #talk:disabled { opacity: .4; cursor: not-allowed; }
+    #talk.rec { background: #c9a227; color: #1a1606; border-color: #f0c674; transform: scale(1.04); }
+    #talk.busy { background: #1c1930; color: #9a93b5; }
+    .heard { font-size: 1.05rem; min-height: 1.4em; text-align: center; max-width: 32rem;
+             color: #c9a227; }
+    pre { background: #08070d; border: 1px solid #2a2740; border-radius: 8px; padding: 10px 12px;
+          font-size: .78rem; width: 100%; max-width: 32rem; max-height: 34vh; overflow: auto;
+          white-space: pre-wrap; word-break: break-word; margin-top: auto; }
+    .ok { color: #6ee7a8; } .bad { color: #ff8d8d; } .warn { color: #f0c674; } .dim { color: #9a93b5; }
+  </style>
+</head>
+<body>
+  <h1>playAIdes — Mic</h1>
+  <p class="sub">Hold the button and speak. Silver replies on the <b>TV</b>, not here.</p>
+  <div id="banner"></div>
+  <button id="talk" disabled>Hold&nbsp;to&nbsp;Talk</button>
+  <div class="heard" id="heard"></div>
+  <pre id="log">starting…</pre>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const btn = $('talk'), heard = $('heard'), banner = $('banner'), logEl = $('log');
+  const stamp = () => new Date().toLocaleTimeString();
+  function log(msg, cls) { logEl.innerHTML = `<span class="${cls||'dim'}">[${stamp()}] ${msg}</span>\n` + logEl.innerHTML; }
+
+  // 1. Secure-context / capability guard. iOS Safari hides mediaDevices entirely
+  //    on insecure origins — fail loud with the fix instead of a cryptic error.
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    banner.style.display = 'block';
+    banner.textContent = 'Microphone blocked: this page must be opened over HTTPS '
+      + '(e.g. https://playaides-local.hogu.dev/data/mic.html). Plain http:// can’t use the mic.';
+    log('insecure context — getUserMedia unavailable', 'bad');
+  } else {
+    btn.disabled = false;
+    log('ready — hold the button and talk', 'ok');
+  }
+
+  // 2. Pick a recording mime the browser actually supports (iOS → mp4, Chrome → webm/opus).
+  function pickMime() {
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+    for (const t of types) { try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (_) {} }
+    return '';  // let the browser choose
+  }
+  const extFor = (m) => m.includes('webm') ? 'webm' : m.includes('ogg') ? 'ogg' : m.includes('mp4') ? 'mp4' : 'bin';
+
+  let stream = null, recorder = null, chunks = [], recording = false, busy = false;
+
+  async function ensureStream() {
+    if (stream) return stream;
+    log('requesting mic permission…');
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    log('mic granted', 'ok');
+    return stream;
+  }
+
+  async function startRec() {
+    if (recording || busy || btn.disabled) return;
+    try {
+      await ensureStream();
+    } catch (e) { log('mic permission denied: ' + e, 'bad'); return; }
+    const mime = pickMime();
+    chunks = [];
+    recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    recorder._mime = recorder.mimeType || mime || 'audio/webm';
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    recorder.onstop = () => sendClip(recorder._mime);
+    recorder.start();
+    recording = true;
+    btn.classList.add('rec');
+    btn.textContent = '● Listening…\nrelease to send';
+  }
+
+  function stopRec() {
+    if (!recording) return;
+    recording = false;
+    btn.classList.remove('rec');
+    try { recorder.stop(); } catch (_) {}
+  }
+
+  async function sendClip(mime) {
+    const blob = new Blob(chunks, { type: mime });
+    chunks = [];
+    if (!blob.size) { log('empty clip (too short?) — try again', 'warn'); resetBtn(); return; }
+    busy = true; btn.classList.add('busy'); btn.disabled = true; btn.textContent = 'Sending…';
+    heard.textContent = '…';
+    log(`sending ${(blob.size/1024).toFixed(1)} KB (${mime})`);
+    try {
+      const fd = new FormData();
+      fd.append('audio', blob, 'clip.' + extFor(mime));
+      const res = await fetch('/api/voice', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { log(`/api/voice → ${res.status} ${JSON.stringify(data)}`, 'bad'); }
+      else {
+        const t = (data.text || '').trim();
+        heard.textContent = t ? '“' + t + '”' : '(heard nothing)';
+        log(`heard: ${t || '(empty)'} | routed=${data.routed} | lang=${data.language||'?'}`,
+            t && data.routed ? 'ok' : 'warn');
+      }
+    } catch (e) {
+      log('request failed: ' + e, 'bad');
+    } finally {
+      resetBtn();
+    }
+  }
+
+  function resetBtn() {
+    busy = false; btn.classList.remove('busy');
+    btn.disabled = false; btn.textContent = 'Hold to Talk';
+  }
+
+  // 3. Hold-to-talk via pointer events (works for touch + mouse).
+  btn.addEventListener('pointerdown', (e) => { e.preventDefault(); startRec(); });
+  btn.addEventListener('pointerup',   (e) => { e.preventDefault(); stopRec();  });
+  btn.addEventListener('pointercancel', () => stopRec());
+  btn.addEventListener('pointerleave',  () => stopRec());
+  // Belt-and-suspenders for iOS Safari quirks.
+  btn.addEventListener('touchend', (e) => { e.preventDefault(); stopRec(); });
+  window.addEventListener('contextmenu', (e) => { if (e.target === btn) e.preventDefault(); });
+</script>
+</body>
+</html>
