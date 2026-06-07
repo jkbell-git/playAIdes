@@ -426,10 +426,9 @@ body.kiosk .chat-panel { display: none; }
    the mic/subtitle/nameplate overlays it has no config-flag gate. */
 .pip-overlay {
     position: fixed;
-    top: 50%;
+    top: 14%;
     left: 5%;
-    transform: translateY(-50%);
-    width: min(56vw, 760px);     /* ~2x the old size */
+    width: min(62vw, 860px);     /* a little bigger; top-anchored near Silver's head */
     aspect-ratio: 16 / 9;
     border: var(--pip-border, var(--hair) solid var(--gold));
     background: var(--ink-a90);
