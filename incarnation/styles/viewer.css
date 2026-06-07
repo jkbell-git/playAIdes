@@ -540,3 +540,45 @@ body.kiosk .chat-panel { display: none; }
    surface, so the standalone subtitle band and the side chat panel are retired. */
 .subtitle-band,
 #chat-panel { display: none; }
+
+/* ── Camera split layout (body[data-layout="split-camera"]) ──────────────
+   Silver's canvas shrinks to the left; the feed fills the right; an organic
+   ink divider (theme-controlled via --divider-display) leans on the seam.
+   The renderer is resized to the canvas box by scene.js (ResizeObserver). */
+.stage-split {
+    position: fixed;
+    inset: 0;
+    z-index: 2;                 /* above #viewer (z1), below mic/subtitle (z70+) */
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .35s var(--ease-snap);
+}
+body[data-layout="split-camera"] .stage-split { opacity: 1; }
+
+/* Avatar canvas → left panel. right:auto so width wins over inset:0. */
+body[data-layout="split-camera"] #viewer { width: 52%; right: auto; }
+
+.split-feed {
+    position: fixed;
+    top: 0; bottom: 0;
+    left: 52%; right: 0;
+    overflow: hidden;
+    background: var(--bg);
+}
+.split-feed-image { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.split-divider {
+    position: fixed;
+    top: -4%; height: 108%;
+    left: calc(52% - 28px);
+    width: 60px;
+    z-index: 3;
+    display: var(--divider-display, none);   /* 'none' in classic theme */
+    transform: rotate(4deg);
+    pointer-events: none;
+}
+.split-divider path { fill: var(--divider-fill, #000); }
+
+@media (prefers-reduced-motion: reduce) {
+    .stage-split { transition: none; }
+}
