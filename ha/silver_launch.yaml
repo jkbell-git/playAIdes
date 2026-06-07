@@ -1,0 +1,166 @@
+# ─────────────────────────────────────────────────────────────────────────
+# playAIdes — Silver kiosk launch  (Home Assistant package)
+#
+# Copy this whole file to your HA config as a package, e.g.
+#   <config>/packages/silver_launch.yaml
+# and make sure packages are enabled (once) in configuration.yaml:
+#   homeassistant:
+#     packages: !include_dir_named packages
+# Then Developer Tools → YAML → "Restart" (or check config + reload).
+#
+# Don't use packages? Paste each top-level block below into the matching
+# place instead: `rest_command:` and `script:` → configuration.yaml (or your
+# scripts.yaml via the UI), `automation:` → automations.yaml / the UI.
+#
+# What it gives you (all manual buttons — NO real trigger yet):
+#   script.silver_launch_box8         → launch viewer on Fire TV .0.8 (proven)
+#   script.silver_launch_living_room  → launch viewer on FirestickLivingRoom
+#   script.silver_launch_bedroom      → launch viewer on FireTVBedroomBox
+#   script.silver_greet               → Silver speaks a greeting (audio test)
+#   script.silver_show_camera         → live HA camera in the viewer's PiP
+#   script.silver_hide                → dismiss the PiP
+# Plus a DISABLED draft motion automation for when you're ready.
+#
+# Verified 2026-06-06 — END-TO-END on the BEDROOM box (media_player.fire_tv_192_168_0_233):
+# power on → force-stop+open Silk → input tap 960 540 → Silver appeared AND spoke
+# unattended (audio unlocked). Confirmed in the backend logs (viewer fetched the
+# greet's /api/tts/proxy 200 OK) and by the user by ear. /api/event contract
+# (demo_say / demo_camera / demo_dismiss) returns matched:true; androidtv.adb_command
+# signature current per HA docs.
+# NOTE: don't gate the tap on /api/state bound_client_count — it only counts viewers
+# that send set_active_persona; the kiosk viewer receives events as a plain WS client
+# without "binding", so use the fixed wait_s delay below (not that counter).
+# ─────────────────────────────────────────────────────────────────────────
+
+# POST /api/event {"name": <name>, "payload": {...}} — no auth (PLAYAIDES_API_KEY empty).
+rest_command:
+  playaides_event:
+    url: "http://192.168.0.7:8765/api/event"
+    method: POST
+    content_type: "application/json"
+    payload: '{"name": "{{ name }}", "payload": {{ (evpayload | default({})) | to_json }}}'
+
+script:
+  # ── Core, parameterized launch sequence — the three wrappers below call it ──
+  silver_launch_kiosk:
+    alias: "Silver — launch kiosk (core)"
+    mode: restart
+    fields:
+      target:
+        description: "Fire TV media_player entity to launch on"
+        required: true
+        example: media_player.fire_tv_192_168_0_8
+      tap_x:
+        description: "Audio-unlock tap X (center of a 1080p screen = 960)"
+        default: 960
+      tap_y:
+        description: "Audio-unlock tap Y (center of a 1080p screen = 540)"
+        default: 540
+      wait_s:
+        description: "Seconds to wait for Silk + the page to load before the unlock tap"
+        default: 10
+    sequence:
+      - alias: "Power on the TV (CEC) + wake the Fire TV"
+        service: media_player.turn_on
+        target:
+          entity_id: "{{ target }}"
+      - delay: { seconds: 2 }
+      - alias: "Force-stop Silk so the next launch navigates FRESH (a VIEW intent on an already-open Silk can just resume its last tab instead of loading the URL — proven on the bedroom box)"
+        service: androidtv.adb_command
+        target:
+          entity_id: "{{ target }}"
+        data:
+          command: "am force-stop com.amazon.cloud9"
+      - delay: { seconds: 1 }
+      - alias: "Open Silk straight to the kiosk viewer"
+        service: androidtv.adb_command
+        target:
+          entity_id: "{{ target }}"
+        # com.amazon.cloud9 = Amazon Silk. URL is double-quoted so the device
+        # shell treats '?' / '=' literally.
+        data:
+          command: 'am start -a android.intent.action.VIEW -d "http://192.168.0.7:8765/?kiosk=1" com.amazon.cloud9'
+      - alias: "Wait for Silk to launch + the page to load"
+        delay:
+          seconds: "{{ wait_s | int }}"
+      - alias: "Synthetic tap = trusted user-gesture → unlocks audio autoplay (the proven trick; keyevent does NOT work)"
+        service: androidtv.adb_command
+        target:
+          entity_id: "{{ target }}"
+        data:
+          command: "input tap {{ tap_x | int }} {{ tap_y | int }}"
+
+  # ── One thin wrapper per box → one dead-simple dashboard button each ──
+  silver_launch_box8:
+    alias: "Launch Silver — Fire TV .0.8 (proven)"
+    icon: mdi:television-play
+    sequence:
+      - service: script.silver_launch_kiosk
+        data:
+          target: media_player.fire_tv_192_168_0_8
+
+  silver_launch_living_room:
+    alias: "Launch Silver — Living Room"
+    icon: mdi:television-play
+    sequence:
+      - service: script.silver_launch_kiosk
+        data:
+          target: media_player.fire_tv_192_168_0_234
+          # tap_x/tap_y may need tuning if this box isn't 1080p — see README.
+
+  silver_launch_bedroom:
+    alias: "Launch Silver — Bedroom"
+    icon: mdi:television-play
+    sequence:
+      - service: script.silver_launch_kiosk
+        data:
+          target: media_player.fire_tv_192_168_0_233
+
+  # ── Viewer control buttons (mirror the dev control panel; need a bound viewer) ──
+  silver_greet:
+    alias: "Silver — Greet (say)"
+    icon: mdi:account-voice
+    sequence:
+      - service: rest_command.playaides_event
+        data:
+          name: demo_say
+          evpayload:
+            url: "http://192.168.0.7:8765/data/pip-test.svg"
+            text: "Hello, I am Silver. If you can hear me, the audio works."
+
+  silver_show_camera:
+    alias: "Silver — Show camera"
+    icon: mdi:cctv
+    sequence:
+      - service: rest_command.playaides_event
+        data:
+          name: demo_camera
+          evpayload:
+            source: camera.printer_gym_camera_live_view
+
+  silver_hide:
+    alias: "Silver — Hide PiP"
+    icon: mdi:eye-off
+    sequence:
+      - service: rest_command.playaides_event
+        data:
+          name: demo_dismiss
+          evpayload: {}
+
+automation:
+  # DRAFT — starts DISABLED. Prove the buttons first, pick a box, then turn it
+  # on (and ideally swap in a better-placed motion sensor than the garage one).
+  - id: silver_launch_on_motion
+    alias: "Silver — launch on motion (DRAFT — disabled)"
+    description: >-
+      Motion → turn on the TV + open the kiosk viewer + unlock audio.
+      Enable once the launch buttons are proven and you've chosen a box.
+    initial_state: false
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.konnected_524364_motion
+        to: "on"
+    condition: []
+    action:
+      - service: script.silver_launch_living_room   # ← change to your chosen box

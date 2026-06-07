@@ -1,0 +1,51 @@
+# playAIdes — Silver launch & control dashboard card.
+# Add to any dashboard: Edit dashboard → "+ Add card" → search "Manual" →
+# paste this. (Requires silver_launch.yaml installed first.)
+type: vertical-stack
+cards:
+  - type: markdown
+    content: "### Silver — launch & control"
+  - type: grid
+    columns: 3
+    square: false
+    cards:
+      - type: button
+        name: "Launch · .0.8"
+        icon: mdi:television-play
+        tap_action:
+          action: perform-action
+          perform_action: script.silver_launch_box8
+      - type: button
+        name: "Launch · Living Rm"
+        icon: mdi:television-play
+        tap_action:
+          action: perform-action
+          perform_action: script.silver_launch_living_room
+      - type: button
+        name: "Launch · Bedroom"
+        icon: mdi:television-play
+        tap_action:
+          action: perform-action
+          perform_action: script.silver_launch_bedroom
+  - type: grid
+    columns: 3
+    square: false
+    cards:
+      - type: button
+        name: Greet
+        icon: mdi:account-voice
+        tap_action:
+          action: perform-action
+          perform_action: script.silver_greet
+      - type: button
+        name: Camera
+        icon: mdi:cctv
+        tap_action:
+          action: perform-action
+          perform_action: script.silver_show_camera
+      - type: button
+        name: Hide
+        icon: mdi:eye-off
+        tap_action:
+          action: perform-action
+          perform_action: script.silver_hide
