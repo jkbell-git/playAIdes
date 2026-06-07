@@ -43,6 +43,10 @@ if (config.kiosk) {
     controls.enabled = false;
 }
 
+// Theme: drive the CSS [data-theme] layer. Defaults to 'manga'; ?theme=classic
+// switches to today's chrome (and the floating PiP instead of the camera split).
+document.body.dataset.theme = config.theme;
+
 // Dev aid: opt-in camera tuner (?debug=1) — sliders for height / target / distance
 // with a live pose readout + copy, so a hand-framed shot can be read off and baked in.
 createDebugPanel(camera, controls);
@@ -318,6 +322,9 @@ connection.addEventListener('persona_active', (e) => {
         wake_words: Array.isArray(e.detail?.wake_words) ? e.detail.wake_words : [],
         dismiss_words: Array.isArray(e.detail?.dismiss_words) ? e.detail.dismiss_words : [],
     };
+    // A persona may carry its own look; apply it if present (server payload
+    // extension — absent today, so this is a no-op until wired server-side).
+    if (e.detail?.theme) document.body.dataset.theme = e.detail.theme;
     overlays.setPersonaName(activePersona.name);
     chatPanel.setPersona(
         activePersona.name,
