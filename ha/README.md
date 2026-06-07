@@ -14,6 +14,23 @@ logs (the viewer fetched the greet's `/api/tts/proxy` 200 OK) and by ear. All fi
 entities present; the `/api/event` contract (`demo_say` / `demo_camera` / `demo_dismiss`)
 returns `matched: true`.
 
+## Launch from the host CLI (no HA dashboard needed)
+
+`bin/silver-launch.py` replicates this exact sequence by calling the HA REST API
+directly, so it works whether or not the package below is installed in HA. It
+reads `HA_URL` + `HA_TOKEN` from the environment or the project `.env` (the token
+is only used in the Authorization header — never printed).
+
+```bash
+bin/silver-launch.py bedroom              # also: box8 | living  (default: bedroom)
+bin/silver-launch.py bedroom --wait 12 --tap 960 540
+bin/silver-launch.py bedroom --url 'http://192.168.0.7:8765/?kiosk=1&cmdlog=0'
+```
+
+If a box doesn't render at 1080p the audio-unlock tap may miss — pass `--tap X Y`.
+This is how the launch is driven from the dev host; the HA scripts/dashboard
+below are the in-HA equivalent (and the path for motion/automation triggers).
+
 ## What you get (all manual buttons — no real-world trigger yet)
 
 - **Launch · .0.8 / Living Rm / Bedroom** — turn on the TV (CEC) → force-stop + open Silk
