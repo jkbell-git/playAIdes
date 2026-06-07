@@ -13,6 +13,11 @@ What's working:
 - Basic animation loading (local file)
 - Animation playback over WebSockets
 
+## Project docs
+
+- [Continuity log](./CONTINUITY.md) — current focus, open TODOs, known issues, decisions
+- [User guide](./docs/USER_GUIDE.md) — how to install and run this
+
 ## Incarnation pages
 
 The `incarnation/` directory is a Vite app (`npm run dev`, default port `5173`) that serves three top-level HTML pages. Open each at `http://localhost:5173/<filename>`.
