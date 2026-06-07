@@ -28,7 +28,7 @@ const renderScale = cfg.pixelRatio != null
     ? Math.max(0.5, Math.min(3, cfg.pixelRatio))
     : Math.min(window.devicePixelRatio, lowQuality ? 1 : 2);
 renderer.setPixelRatio(renderScale);
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight, false); // false: let CSS own the canvas box (needed for the split)
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -89,12 +89,20 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // ── Resize handler ──────────────────────────────────────────────────────────
-function onResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
+// Drive size from the CANVAS box, not the window: the camera split changes the
+// canvas width via CSS (which never fires window 'resize'), and we must keep the
+// drawing buffer + camera aspect matched to the element to avoid distorting Silver.
+function resizeRendererToCanvas() {
+    const w = canvas.clientWidth || window.innerWidth;
+    const h = canvas.clientHeight || window.innerHeight;
+    if (w === 0 || h === 0) return;
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(w, h, false); // false: don't override the CSS-controlled size
 }
-window.addEventListener('resize', onResize);
+resizeRendererToCanvas();
+const _canvasResizeObserver = new ResizeObserver(() => resizeRendererToCanvas());
+_canvasResizeObserver.observe(canvas);
 
 // ── Clock ───────────────────────────────────────────────────────────────────
 const clock = new THREE.Clock();
