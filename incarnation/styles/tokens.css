@@ -34,6 +34,23 @@
 
     --ease-snap:  cubic-bezier(.2, .8, .2, 1);
     --ease-slash: cubic-bezier(.7, .1, .2, 1);
+
+    /* ── Precomputed alpha variants (no color-mix(): old Silk) ───────── */
+    --ink-a50:    rgba(10, 8, 18, .50);
+    --ink-a70:    rgba(10, 8, 18, .70);
+    --ink-a78:    rgba(10, 8, 18, .78);
+    --ink-a80:    rgba(10, 8, 18, .80);
+    --ink-a82:    rgba(10, 8, 18, .82);
+    --ink-a90:    rgba(10, 8, 18, .90);
+    --ink-a92:    rgba(10, 8, 18, .92);
+    --ink-a95:    rgba(10, 8, 18, .95);
+    --ink-a98:    rgba(10, 8, 18, .98);
+    --shadow-1:   rgba(0, 0, 0, .5);
+
+    /* ── Font stacks ─────────────────────────────────────────────────── */
+    --font-cinzel: 'Cinzel', serif;
+    --font-chakra: 'Chakra Petch', sans-serif;
+    --font-inter:  'Inter', system-ui, sans-serif;
 }
 
 /* Selection color is shared across pages */
