@@ -24,7 +24,9 @@ import { WipeOverlay } from './wipeOverlay.js';
 import { TranscriptModel } from './transcriptModel.js';
 import { ChatPanel } from './chatPanel.js';
 import { PipOverlay, pipViewFromMessage } from './pipOverlay.js';
-import { StageLayout, stageLayoutFromMessage } from './stageLayout.js';
+// NOTE: stageLayout.js (the split-screen primitive) is parked for the future
+// multi-3D-model "cast" view. It is intentionally NOT wired to the camera/PiP —
+// a camera shows as a floating PiP, not a screen split.
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 const config = loadConfig();
@@ -45,7 +47,7 @@ if (config.kiosk) {
 }
 
 // Theme: drive the CSS [data-theme] layer. Defaults to 'manga'; ?theme=classic
-// switches to today's chrome (and the floating PiP instead of the camera split).
+// switches to today's chrome. (The camera always shows as a floating PiP.)
 document.body.dataset.theme = config.theme;
 
 // Dev aid: opt-in camera tuner (?debug=1) — sliders for height / target / distance
@@ -61,10 +63,6 @@ const withResolvedUrl = (payload) =>
 const stateMachine = new ViewerState(State.EMPTY);
 const overlays = new ViewerOverlays(document, config, stateMachine);
 const pip = new PipOverlay(document);
-const stage = new StageLayout(document);
-// Split the screen for a camera only in the manga theme (classic uses the
-// floating PiP); ?split=0 forces the floating PiP everywhere.
-const splitEnabled = config.split && config.theme === 'manga';
 const incarnation = new Incarnation();
 const connection = new ConnectionManager();
 const audioCapture = new AudioCapture();
@@ -315,16 +313,12 @@ connection.addEventListener('stop_lip_sync', () => {
 });
 
 connection.addEventListener('show_pip', (e) => {
-    const payload = withResolvedUrl(e.detail || {});
-    const view = stageLayoutFromMessage('show_pip', payload, { splitEnabled });
-    stage.apply(view);
-    // Keep the floating PiP and the split mutually exclusive — only one shows.
-    pip.apply(view.layout === 'split-camera'
-        ? pipViewFromMessage('dismiss_pip', {})
-        : pipViewFromMessage('show_pip', payload));
+    // Camera shows as a floating PiP (URL normalized so localhost feeds resolve
+    // to the serving host on remote TVs). The screen split is reserved for the
+    // future multi-3D-model cast, not the camera.
+    pip.apply(pipViewFromMessage('show_pip', withResolvedUrl(e.detail || {})));
 });
 connection.addEventListener('dismiss_pip', () => {
-    stage.apply(stageLayoutFromMessage('dismiss_pip', {}, { splitEnabled }));
     pip.apply(pipViewFromMessage('dismiss_pip', {}));
 });
 
