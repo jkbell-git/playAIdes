@@ -36,6 +36,9 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
       ("lock the look → bake"); `?quality=low` already drops them as a stopgap.
 - [ ] Remove the throwaway preview mock `data/_mock_p5.html` when done.
 - [ ] (optional) Install `ha/silver_launch.yaml` in HA + tune the bedroom audio-unlock tap.
+- [ ] Refresh the README "Incarnation pages" + "Running" sections — stale: they describe
+      the Vite dev server on `:5173` and three HTML pages, but the viewer is now served by
+      the backend on `:8765` and has the theme system. (User to do next session.)
 
 ## Known issues
 
