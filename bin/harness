@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Start / stop / inspect the playAIdes test-harness stack — the self-contained
+# full pipeline (backend :8765, frontend :5173, ollama LLM, whisper STT,
+# voicebox TTS). A thin wrapper over `docker compose -f docker-compose.harness.yml`
+# so you never have to remember the -f flag.
+#
+# The backend hot-reloads on Python edits (it runs under `watchfiles` with the
+# repo bind-mounted at /app), so you RARELY need `restart` — only for non-.py
+# config (e.g. personas/silver/persona.json) or env changes.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+F=docker-compose.harness.yml
+dc() { docker compose -f "$F" "$@"; }
+
+case "${1:-help}" in
+  up)      dc up -d "${@:2}" ;;                      # start everything (detached)
+  down)    dc down "${@:2}" ;;                       # stop & remove containers
+  restart) dc restart "${2:-backend}" ;;             # restart one service (default: backend)
+  logs)    dc logs "${2:-backend}" --tail "${3:-50}" ;;  # bounded recent logs (no follow → never hangs)
+  ps)      dc ps ;;                                  # container status
+  build)   dc build "${@:2}" ;;                      # rebuild image(s)
+  *)
+    cat >&2 <<'EOF'
+usage: bin/harness {up|down|restart [svc]|logs [svc] [n]|ps|build [svc]}
+
+  up        start the whole harness (backend :8765, frontend :5173, llm/stt/tts)
+  down      stop & remove the harness containers
+  restart   restart one service (default: backend) — RARELY needed; watchfiles
+            auto-reloads .py edits. Use it for non-.py config / env changes.
+  logs      tail recent logs for one service (default: backend, last 50 lines)
+  ps        harness container status
+  build     rebuild image(s)
+EOF
+    exit 2 ;;
+esac

@@ -185,6 +185,27 @@ Vite dev server (port `5173`, for hot-reload), and `whisper` (STT).
 > tiny Ollama + voicebox + whisper), and `docker-compose.test.yml` / `docker-compose.live.yml`
 > (the test runners — see [Tests](#tests)). The USER_GUIDE walks the harness flow.
 
+### Harness — the all-in-one stack (easiest, and what's usually running)
+
+The **harness bundles its own** tiny LLM (Ollama), TTS (voicebox), and STT (whisper), so
+nothing external is needed — it's the simplest way to run the whole thing. A helper script
+wraps the compose `-f` flag so you don't have to remember it:
+
+```bash
+bin/harness up             # start backend :8765 + frontend :5173 + llm/stt/tts (detached)
+bin/harness ps             # container status
+bin/harness logs backend   # recent backend logs (bounded; add a line count: logs backend 100)
+bin/harness restart        # restart the backend — RARELY needed (see hot-reload below)
+bin/harness down           # stop & remove everything
+```
+
+You almost never need `restart`: saving a `*.py` file hot-reloads the backend in <2 s via
+`watchfiles` (the repo is bind-mounted at `/app`). Use `restart` only for non-`.py` config
+(e.g. `personas/silver/persona.json`) or env changes. Equivalent without the helper:
+`docker compose -f docker-compose.harness.yml up -d`.
+
+### Dev stack (alternative — for active frontend work; needs external Ollama + voicebox)
+
 The viewer is normally **served by the backend on `:8765`** (it serves the built
 `incarnation/dist`), which is what the Fire TV / kiosk and `bin/silver-launch.py` point at.
 The `:5173` Vite dev server is the hot-reload alternative for frontend development.

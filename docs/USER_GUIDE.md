@@ -8,9 +8,9 @@ viewer (`incarnation/`) renders the avatar plus a themeable "game-UI" chrome.
 
 ## Setup
 
-- **Backend + services** run via Docker Compose (the dev/test stack):
-  `docker compose -f docker-compose.harness.yml up -d` — backend on `:8765` plus
-  ollama / whisper / voicebox.
+- **Backend + services** run as a Docker Compose stack — start it with `bin/harness up`
+  (wraps `docker compose -f docker-compose.harness.yml up -d`): backend on `:8765` plus
+  ollama / whisper / voicebox. The helper also has `down`, `ps`, `logs`, `restart`.
 - **Front-end** (the viewer the backend serves): `cd incarnation && npm install` (first
   time), then `npx vite build` → outputs `incarnation/dist`, served by the backend at `/`.
 - **Home Assistant** (optional): set `HA_URL` / `HA_TOKEN` in `.env`
@@ -20,8 +20,8 @@ viewer (`incarnation/`) renders the avatar plus a themeable "game-UI" chrome.
 ## Run it
 
 ```bash
-# 1. bring up the harness (backend + LLM/STT/TTS)
-docker compose -f docker-compose.harness.yml up -d
+# 1. bring up the harness (backend + LLM/STT/TTS); stop later with: bin/harness down
+bin/harness up
 
 # 2. (re)build the viewer after any incarnation/ change
 cd incarnation && npx vite build
@@ -30,8 +30,9 @@ cd incarnation && npx vite build
 #     http://192.168.0.7:8765/                         # default theme = p5-basic
 #     http://192.168.0.7:8765/?kiosk=1&nameplate=1     # TV / kiosk
 
-# 3b. or launch it on a Fire TV via Home Assistant
+# 3b. or launch it on a Fire TV via Home Assistant — from the CLI:
 bin/silver-launch.py bedroom                            # also: box8 | living
+#     ...or self-service: open data/control.html → "Fire TV" buttons (pick a theme + TV)
 ```
 
 Useful viewer URL params: `?theme=p5-basic|fate-basic|manga-basic|classic`, `?kiosk=1`,
