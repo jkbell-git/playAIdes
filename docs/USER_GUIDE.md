@@ -41,6 +41,7 @@ console), `?ws=` / `?api=` (point at a remote backend).
 ## Examples / common tasks
 
 - **See a theme:** `http://192.168.0.7:8765/?theme=p5-basic`
+- **Compare all theme widgets (dev/design):** open `incarnation/design-preview.html` via the Vite dev server (`:5173`, switch with `?theme=`) — a full game-UI eval page, not the live viewer.
 - **Camera in the PiP:** open `http://192.168.0.7:8765/data/control.html` → "Show camera on TV".
 - **Test audio (greet):** `data/control.html` → "Say on TV" (or HA `script.silver_greet`).
 - **Launch on the bedroom TV:** `bin/silver-launch.py bedroom`.

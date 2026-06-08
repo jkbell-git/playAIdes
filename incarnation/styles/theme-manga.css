@@ -1,0 +1,261 @@
+/* =============================================================
+   theme-manga.css — "manga-basic": DARK, moody seinen manga page
+   (Jujutsu-Kaisen vibe). Near-black gritty backdrop, light frame
+   lines, high contrast, sharp + jagged. Procedural (CSS/SVG only,
+   the "-basic" tier). NO Japanese — English labels, manga LOOK only.
+
+   Layout: date stamp + PiP + actions on the LEFT; nameplate + bond +
+   topics + status on the RIGHT. Dark page, LIGHT ink lines/text.
+
+   Inverted polarity vs a normal manga page: the page is dark and the
+   "ink" reads light, so chrome = dark panels with light borders/text.
+   All scoped under [data-theme="manga-basic"].
+   ============================================================= */
+
+[data-theme="manga-basic"] {
+    --bg:        #100e0b;
+    --text:      #e8e3d8;
+    --cream:     #e8e3d8;
+    --cream-dim: #b0a99c;
+    --gold:      #e8e3d8;
+    --gold-hi:   #ffffff;
+    --gold-dim:  #7d766a;
+    --accent:    #e8e3d8;
+    --accent-2:  #ffffff;
+    --muted:     #5a544a;
+    --font-display: 'Anton', sans-serif;
+    --font-accent:  'Oswald', sans-serif;
+    --font-body:    'Inter', system-ui, sans-serif;
+    --pip-frame-display: block;
+    --pip-frame-stroke:  #e8e3d8;
+    /* shared dark-manga tokens */
+    --m-line:    #d8d3c6;   /* light ink line */
+    --m-line-dim:#8d877b;
+    --m-panel:   #1a160f;   /* dark chrome panel fill */
+    --m-text:    #ece8df;
+}
+
+/* ── Body backdrop: deep, moody, gritty dark ────────────────────────────── */
+[data-theme="manga-basic"] body {
+    background:
+        radial-gradient(135% 120% at 50% 36%, #1d1813 0%, #110e0b 62%, #070605 100%);
+    color: #e8e3d8;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ── Theme FX: the comic PAGE (tessellating dark panels + sketches) ──────── */
+.fx-manga-tone, .fx-manga-halftone, .fx-manga-speed, .fx-manga-splat, .fx-manga-panels { display: none; }
+
+[data-theme="manga-basic"] #theme-fx { display: block; position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+[data-theme="manga-basic"] #theme-fx > * { display: none; }
+[data-theme="manga-basic"] #theme-fx > .fx-manga-panels { display: block; }
+
+[data-theme="manga-basic"] .fx-manga-panels { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* sharp + jagged: thin crisp light strokes, hard miter corners, no smoothing */
+[data-theme="manga-basic"] .fx-manga-panels .mp-lines {
+    stroke: var(--m-line); stroke-width: 1.5; stroke-linejoin: miter; stroke-miterlimit: 5;
+}
+[data-theme="manga-basic"] .fx-manga-panels .mp-speed,
+[data-theme="manga-basic"] .fx-manga-panels .mp-hatch { stroke: #b9b3a6; }
+
+/* ── Date stamp (TOP-LEFT) ──────────────────────────────────────────────── */
+[data-theme="manga-basic"] #date-badge {
+    display: block; position: fixed; top: 24px; left: 30px; right: auto;
+    transform: rotate(-2deg); z-index: 50; pointer-events: none;
+    background: var(--m-panel); border: 1px solid var(--m-line); color: #ece8df; padding: 5px 14px 4px;
+}
+[data-theme="manga-basic"] .date-bg { display: none; }
+[data-theme="manga-basic"] .date-row { display: flex; align-items: baseline; gap: 7px; padding: 0; transform: none; }
+[data-theme="manga-basic"] .date-m { display: inline; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: .7rem; letter-spacing: .12em; color: #cfcabe; transform: none; }
+[data-theme="manga-basic"] .date-d { font-family: 'Anton', sans-serif; font-size: 1.3rem; line-height: 1; color: #fff; }
+[data-theme="manga-basic"] .date-d span { transform: none; }
+[data-theme="manga-basic"] .date-dow { font-family: 'Anton', sans-serif; font-size: .8rem; color: #8d877b; transform: none; }
+[data-theme="manga-basic"] .date-when { position: static; display: block; background: none; border: none; color: #a39d90; font-family: 'Oswald', sans-serif; font-size: .56rem; letter-spacing: .26em; padding: 1px 0 0; transform: none; clip-path: none; }
+[data-theme="manga-basic"] .date-place { display: none; }
+
+/* ── Nameplate (TOP-RIGHT, bold white REI emerging from the dark) ───────── */
+[data-theme="manga-basic"] .nameplate {
+    top: 22px; right: 28px; left: auto; flex-direction: column; align-items: flex-end; gap: 2px;
+    background: transparent; border: none; backdrop-filter: none; padding: 0; clip-path: none; transform: none; z-index: 50;
+}
+[data-theme="manga-basic"] .nameplate-conn { display: none; }
+[data-theme="manga-basic"] .nameplate-emblem {
+    display: block; width: 30px; height: 30px; position: absolute; right: -4px; top: -2px; opacity: .85;
+    filter: url(#ink-edge);
+}
+[data-theme="manga-basic"] .nameplate-emblem polygon:nth-of-type(1) { fill: #e8e3d8; }
+[data-theme="manga-basic"] .nameplate-emblem polygon:nth-of-type(2) { fill: #100e0b; }
+[data-theme="manga-basic"] .nameplate-sub {
+    order: -1; display: block; background: none; clip-path: none; padding: 0; margin: 0 0 1px 0;
+    font-family: 'Oswald', sans-serif; font-weight: 600; font-size: .56rem; letter-spacing: .22em;
+    text-transform: uppercase; color: #9a9286;
+}
+[data-theme="manga-basic"] .nameplate-sub b { color: #e8e3d8; }
+[data-theme="manga-basic"] .nameplate-name {
+    display: inline-block; font-family: 'Anton', sans-serif; font-size: 2.4rem; line-height: .9;
+    color: #f4f0e6; background: transparent; padding: 0;
+    text-shadow: 2px 3px 0 #000, 0 0 14px rgba(0,0,0,.6);
+    letter-spacing: .02em;
+}
+
+/* ── Bond bar (under nameplate) ─────────────────────────────────────────── */
+[data-theme="manga-basic"] .bond {
+    display: flex; align-items: center; gap: 8px; position: fixed; top: 84px; right: 30px; left: auto; z-index: 50;
+    font-family: 'Oswald', sans-serif; color: #cfcabe;
+}
+[data-theme="manga-basic"] .bond-label { font-size: .6rem; letter-spacing: .18em; text-transform: uppercase; font-weight: 700; }
+[data-theme="manga-basic"] .bond-lvl { font-family: 'Anton', sans-serif; font-size: 1.1rem; color: #fff; }
+[data-theme="manga-basic"] .bond-pips { display: inline-flex; gap: 4px; }
+[data-theme="manga-basic"] .bond-pips i { width: 9px; height: 9px; border: 1.5px solid #cfcabe; transform: rotate(45deg); background: transparent; }
+[data-theme="manga-basic"] .bond-pips i.on { background: #e8e3d8; }
+[data-theme="manga-basic"] .bond-next { font-size: .56rem; letter-spacing: .12em; color: #7d766a; }
+
+/* ── Camera PiP (LEFT; dark feed + light brushed ink frame) ─────────────── */
+[data-theme="manga-basic"] .pip-overlay {
+    top: 24%; left: 3.5%; right: auto; width: 33%; aspect-ratio: 16/9;
+    border: none; background: #0c0a08; padding: 6px;
+    box-shadow: 6px 8px 0 rgba(0,0,0,.6); overflow: visible; z-index: 40;
+}
+[data-theme="manga-basic"] .pip-label {
+    display: block; position: absolute; top: -19px; left: 2px;
+    font-family: 'Oswald', sans-serif; font-weight: 700; font-size: .56rem; letter-spacing: .36em; color: #cfcabe;
+}
+[data-theme="manga-basic"] .pip-feed {
+    width: 100%; height: 100%; background-color: #1a160f;
+    background-image:
+        radial-gradient(circle at center, #56504420 1px, transparent 1.4px),
+        linear-gradient(125deg, rgba(232,227,216,.10), transparent 55%);
+    background-size: 5px 5px, 100% 100%;
+}
+[data-theme="manga-basic"] .pip-feed-l { position: absolute; top: 8px; left: 11px; font-size: .52rem; letter-spacing: .12em; color: #d8d3c6; font-family: 'Oswald', sans-serif; font-weight: 700; }
+[data-theme="manga-basic"] .pip-feed-r { position: absolute; top: 8px; right: 11px; font-size: .52rem; color: #d8d3c6; font-weight: 700; }
+[data-theme="manga-basic"] .pip-feed-box { position: absolute; left: 50%; top: 52%; width: 58px; height: 36px; transform: translate(-50%,-50%); border: 1.5px solid rgba(232,227,216,.4); }
+[data-theme="manga-basic"] .pip-corner { display: none; }
+[data-theme="manga-basic"] .pip-frame { filter: url(#ink-edge); }
+[data-theme="manga-basic"] .pip-frame path { stroke: #e8e3d8; stroke-width: 6; }
+[data-theme="manga-basic"] .pip-cap {
+    display: inline-flex; align-items: baseline; gap: 7px; position: absolute; left: 0; bottom: -24px;
+    background: #e8e3d8; color: #14110d; padding: 4px 12px; transform: rotate(-1.5deg);
+    clip-path: polygon(3% 0,100% 0,97% 100%,0 100%);
+}
+[data-theme="manga-basic"] .pip-cap b { font-family: 'Anton', sans-serif; font-size: .92rem; }
+[data-theme="manga-basic"] .pip-cap span { font-size: .58rem; opacity: .8; }
+
+/* ── Topics (RIGHT; dark rows w/ light borders, selected inverted light) ── */
+[data-theme="manga-basic"] .topics { display: block; position: fixed; right: 26px; top: 28%; z-index: 40; width: 250px; }
+[data-theme="manga-basic"] .topics-head {
+    font-family: 'Anton', sans-serif; font-size: 1rem; letter-spacing: .14em; color: #ece8df;
+    margin: 0 2px 8px 0; text-align: right; border-bottom: 2px solid #d8d3c6; padding-bottom: 4px;
+}
+[data-theme="manga-basic"] .topics-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+[data-theme="manga-basic"] .topic {
+    display: flex; align-items: center; gap: 9px; background: #1a160f; border: 1.5px solid #d8d3c6;
+    padding: 6px 10px; font-family: 'Oswald', sans-serif; font-weight: 600; font-size: .78rem; color: #ddd8cc;
+    clip-path: polygon(2% 0,100% 0,98% 100%,0 100%);
+}
+[data-theme="manga-basic"] .topic-icon { display: none; }
+[data-theme="manga-basic"] .topic-label { flex: 1; }
+[data-theme="manga-basic"] .topic-thumb {
+    display: block; width: 26px; height: 26px; flex-shrink: 0; border: 1px solid #d8d3c6;
+    background-color: #2a241a;
+    background-image: radial-gradient(circle at center, #cfcabe 1px, transparent 1.3px);
+    background-size: 3.5px 3.5px;
+}
+[data-theme="manga-basic"] .topic.sel { background: #e8e3d8; color: #14110d; border-color: #e8e3d8; }
+[data-theme="manga-basic"] .topic.sel .topic-thumb { border-color: #14110d; }
+
+/* ── Action menu (LEFT edge; dark tabs, light borders) ──────────────────── */
+[data-theme="manga-basic"] .action-menu { display: flex; flex-direction: column; gap: 6px; position: fixed; left: 26px; bottom: 6%; z-index: 40; }
+[data-theme="manga-basic"] .action {
+    display: flex; align-items: center; gap: 9px; background: #1a160f; border: 1.5px solid #d8d3c6;
+    padding: 5px 16px 5px 8px; font-family: 'Anton', sans-serif; color: #ddd8cc;
+    clip-path: polygon(0 0,100% 0,88% 100%,0 100%);
+}
+[data-theme="manga-basic"] .action-key { display: grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid #d8d3c6; font-family: 'Oswald', sans-serif; font-size: .64rem; }
+[data-theme="manga-basic"] .action-label { font-size: .9rem; text-transform: uppercase; letter-spacing: .03em; }
+[data-theme="manga-basic"] .action:first-child { background: #e8e3d8; color: #14110d; }
+[data-theme="manga-basic"] .action:first-child .action-key { border-color: #14110d; }
+
+/* ── Dialogue / console (bottom; dark box, light sharp border, white text) ─ */
+[data-theme="manga-basic"] .console-bar { bottom: 6%; }
+[data-theme="manga-basic"] .console-nametag { display: block; align-self: flex-start; margin-left: 24px; margin-bottom: -10px; z-index: 3; position: relative; transition: opacity .3s ease; }
+[data-theme="manga-basic"] .console-bar.console-idle .console-nametag { opacity: 0; }
+[data-theme="manga-basic"] .console-nametag-text {
+    display: inline-block; background: #e8e3d8; color: #14110d; font-family: 'Anton', sans-serif; font-size: 1.1rem;
+    padding: 3px 18px 1px; transform: rotate(-1.5deg); clip-path: polygon(4% 0,100% 0,96% 100%,0 100%); letter-spacing: .04em;
+}
+[data-theme="manga-basic"] .console-log {
+    position: relative; background: transparent; color: #ece8df;
+    clip-path: none; border: none; padding: 22px 28px;
+}
+/* light sharp rim (outermost) */
+[data-theme="manga-basic"] .console-log::before {
+    content: ''; position: absolute; inset: -3px; background: #d8d3c6; z-index: 0;
+    clip-path: polygon(0 14%,1.2% 0,100% 7%,99% 100%,1% 90%);
+    box-shadow: 6px 7px 0 rgba(0,0,0,.5);
+}
+/* dark box on top of the light rim */
+[data-theme="manga-basic"] .console-log::after {
+    content: ''; position: absolute; inset: 0; background: #16120d; z-index: 0;
+    clip-path: polygon(0 14%,1.2% 0,100% 7%,99% 100%,1% 90%);
+}
+[data-theme="manga-basic"] .console-msg {
+    position: relative; z-index: 1;
+    font-family: 'Inter', system-ui, sans-serif; font-size: 1.02rem; line-height: 1.5; color: #ece8df; text-align: left;
+}
+[data-theme="manga-basic"] .console-msg:nth-last-child(1)::after { content: '▼'; color: #ece8df; margin-left: 8px; }
+[data-theme="manga-basic"] .console-input {
+    background: #1a160f; border: 1.5px solid #d8d3c6; color: #ece8df; font-family: 'Oswald', sans-serif;
+    clip-path: polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);
+}
+[data-theme="manga-basic"] .console-input::placeholder { color: #7d766a; }
+[data-theme="manga-basic"] .console-input:focus { border-color: #fff; }
+[data-theme="manga-basic"] .console-send { background: #e8e3d8; color: #14110d; clip-path: polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%); }
+[data-theme="manga-basic"] .console-send:hover { background: #fff; }
+
+/* ── Mic indicator (light ink diamond) ──────────────────────────────────── */
+[data-theme="manga-basic"] .mic-indicator {
+    width: 14px; height: 14px; border-radius: 0; background: #e8e3d8; box-shadow: 0 0 10px rgba(232,227,216,.4);
+    clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%);
+}
+[data-theme="manga-basic"] .mic-indicator.state-speaking { background: #fff; box-shadow: 0 0 14px rgba(255,255,255,.6); }
+
+/* ── Status meter (bottom-right; Master + halftone portrait) ────────────── */
+[data-theme="manga-basic"] .status-meter { display: flex; align-items: center; gap: 12px; flex-direction: row-reverse; position: fixed; right: 30px; bottom: 7%; z-index: 40; }
+[data-theme="manga-basic"] .status-mood { display: none; }
+[data-theme="manga-basic"] .status-master { display: flex; flex-direction: column; align-items: flex-end; gap: 0; text-align: right; font-family: 'Oswald', sans-serif; color: #ddd8cc; }
+[data-theme="manga-basic"] .status-master-title { font-family: 'Anton', sans-serif; font-size: .9rem; letter-spacing: .08em; color: #fff; }
+[data-theme="manga-basic"] .status-master-lvl { font-size: .72rem; font-weight: 700; }
+[data-theme="manga-basic"] .status-master-ap { font-size: .6rem; letter-spacing: .1em; color: #8d877b; }
+[data-theme="manga-basic"] .status-emblem {
+    width: 50px; height: 50px; border: 2px solid #d8d3c6; background-color: #2a241a;
+    background-image: radial-gradient(circle at center, #cfcabe 1.1px, transparent 1.4px); background-size: 4px 4px;
+    box-shadow: 4px 5px 0 rgba(0,0,0,.5);
+}
+
+/* ── Control hint bar (bottom; light on dark) ───────────────────────────── */
+[data-theme="manga-basic"] .control-bar {
+    display: flex; gap: 24px; align-items: center; justify-content: center; position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    padding: 7px 26px; background: linear-gradient(0deg, rgba(7,6,5,.95), transparent);
+    font-family: 'Oswald', sans-serif; font-weight: 600; font-size: .64rem; letter-spacing: .14em; color: #a39d90; text-transform: uppercase;
+}
+[data-theme="manga-basic"] .control b { color: #14110d; background: #e8e3d8; margin-right: 5px; padding: 1px 6px; font-family: 'Anton', sans-serif; letter-spacing: 0; }
+
+[data-theme="manga-basic"] .viewer-strip { display: none; }
+
+/* ── Command-log console (under the PiP; dark terminal, light text) ──────── */
+[data-theme="manga-basic"] .cmd-log {
+    display: block; position: fixed; left: 3.5%;
+    top: calc(24vh + 18.6vw + 44px); width: 31%; height: min(11vh, 86px);
+    overflow-y: auto; overscroll-behavior: contain; z-index: 6;
+    padding: 9px 14px; transition: opacity .6s ease;
+    background: rgba(16,14,11,.85); border: 1.5px solid #d8d3c6; box-shadow: 5px 6px 0 rgba(0,0,0,.5);
+    clip-path: polygon(0 5%,1% 0,100% 3%,99% 100%,1% 96%);
+    font-family: 'Oswald', ui-monospace, monospace; font-size: 12px; line-height: 1.55; color: #ddd8cc;
+    scrollbar-width: thin; scrollbar-color: #8d877b transparent;
+}
+[data-theme="manga-basic"] .cmd-log .cmd-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-theme="manga-basic"] .cmd-log .cmd-t    { color: #7d766a; margin-right: 8px; }
+[data-theme="manga-basic"] .cmd-log .cmd-type { color: #fff; font-weight: 700; margin-right: 8px; text-transform: uppercase; letter-spacing: .04em; }
+[data-theme="manga-basic"] .cmd-log .cmd-sum  { color: #a39d90; }
+[data-theme="manga-basic"] .cmd-log.faded { opacity: 0; }

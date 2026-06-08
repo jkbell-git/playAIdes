@@ -15,10 +15,16 @@
           <feTurbulence type="fractalNoise" baseFrequency="0.018 0.05" numOctaves="2" seed="7" result="n"/>
           <feDisplacementMap in="SourceGraphic" in2="n" scale="11" xChannelSelector="R" yChannelSelector="G"/>
         </filter>
+        <!-- manga-basic: brushed ink edge (nameplate emblem, ink splat) -->
+        <filter id="ink-edge">
+          <feTurbulence type="fractalNoise" baseFrequency="0.04 0.08" numOctaves="2" seed="11" result="n"/>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
       </defs>
     </svg>
 
-    <!-- ── Theme FX layers (inert outside [data-theme="p5-basic"]) ──────────── -->
+    <!-- ── Theme FX backdrop layers. Each block is shown only under its own
+         [data-theme] (p5 / fate / manga) and stays inert otherwise. ─────────── -->
     <div id="theme-fx" aria-hidden="true">
       <div class="fx-slash"></div>
       <div class="fx-ring"></div>
@@ -30,6 +36,43 @@
       </svg>
       <svg class="fx-splat fx-splat-dark" viewBox="0 0 100 100" aria-hidden="true">
         <path d="M52 12c6 8 16 4 18 14s-8 14-4 22-2 18-12 16-16 8-24 2-16 0-16-12 8-12 4-22-8-16 2-22 12 2 18-6 6-8 14 8Z"/>
+      </svg>
+      <!-- fate-basic backdrop: soft drape + vignette + ornate magic circle (hero) -->
+      <div class="fx-fate-drape"></div>
+      <div class="fx-fate-sparkles"></div>
+      <div class="fx-fate-vignette"></div>
+      <svg class="fx-fate-circle" viewBox="0 0 200 200" aria-hidden="true">
+        <circle cx="100" cy="100" r="94"/><circle cx="100" cy="100" r="80"/>
+        <circle cx="100" cy="100" r="54"/><circle cx="100" cy="100" r="30"/>
+        <polygon points="100,20 169,140 31,140"/><polygon points="100,180 31,60 169,60"/>
+      </svg>
+      <!-- manga-basic backdrop: bold ink slash + halftone moon (heroes) -->
+      <div class="fx-manga-tone"></div>
+      <div class="fx-manga-halftone"></div>
+      <div class="fx-manga-speed"></div>
+      <svg class="fx-manga-splat" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M50 8c8 6 4 18 14 20s18-6 20 6-10 14-6 24-2 20-14 16-14 10-24 6-18 2-20-10 6-16-2-24-12-12-6-22 14-4 18-14 14-8 22-2Z"/>
+      </svg>
+      <svg class="fx-manga-panels" viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs><pattern id="mangaTone" width="4.5" height="4.5" patternUnits="userSpaceOnUse"><circle cx="2.25" cy="2.25" r=".9" fill="#cfcabe"/></pattern></defs>
+        <!-- panel fills (dark, slightly varied) tessellate the page with thin gutters -->
+        <g class="mp-fill">
+          <polygon points="6,6 146,10 140,40 148,68 6,66" fill="#191510"/>
+          <polygon points="152,8 314,6 314,66 158,70 152,40" fill="#14110c"/>
+          <polygon points="6,74 96,70 100,120 92,174 6,174" fill="#1d1813"/>
+          <polygon points="104,74 314,72 314,174 102,174" fill="#100e0b"/>
+        </g>
+        <!-- sketches inside the panels: screentone, speed lines, cross-hatch -->
+        <polygon points="152,8 314,6 314,66 158,70 152,40" fill="url(#mangaTone)" opacity=".5"/>
+        <g class="mp-speed" fill="none" stroke-width=".7" opacity=".5"><path d="M20,64 70,10 M40,66 92,12 M60,66 116,14 M84,64 138,16 M104,62 146,22"/></g>
+        <g class="mp-hatch" fill="none" stroke-width=".6" opacity=".42"><path d="M10,90 90,150 M10,110 84,168 M14,80 96,138 M90,90 14,150 M92,110 20,166"/></g>
+        <!-- panel borders: light, sharp, jagged -->
+        <g class="mp-lines" fill="none">
+          <polygon points="6,6 146,10 140,40 148,68 6,66"/>
+          <polygon points="152,8 314,6 314,66 158,70 152,40"/>
+          <polygon points="6,74 96,70 100,120 92,174 6,174"/>
+          <polygon points="104,74 314,72 314,174 102,174"/>
+        </g>
       </svg>
     </div>
 

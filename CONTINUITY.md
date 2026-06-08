@@ -13,11 +13,22 @@ TV (Cube, `media_player.fire_tv_192_168_0_233`). It has the full chrome: red-roo
 camera PiP, torn black dialogue box, red diamond mic, and a sanitized command-log console
 under the PiP.
 
+**`fate-basic` + `manga-basic` are built, user-approved, AND wired into the live viewer**
+(2026-06-07). The full game-UI (Topics list, action menu, bond pips, status meter, control
+bar) is evaluated on the **design-preview page**; the live viewer now re-skins the REAL
+chrome (nameplate, date, camera PiP, dialogue, mic, backdrop) — switch with
+`?theme=fate-basic|manga-basic` on `:8765` (rebuilt). Decorative widgets stay preview-only
+(not in `index.html`'s DOM). To wire them live, `viewer.css` `@import`s the theme files and
+`index.html` gained the fate/manga backdrop fx layers + an `#ink-edge` SVG filter. p5-basic
+is unchanged. See *Decisions*. NO Japanese in manga (look only).
+
 **Next concrete steps:**
 1. Resolve the two Fire-TV launch issues (see *Known issues*: fullscreen + audio test).
-2. Build **`fate-basic`** (navy/indigo + gold filigree) and **`manga-basic`** (B&W
-   halftone/ink) reusing the p5-basic chrome structure.
-3. Then `-max` variants with custom art when the user supplies PNGs.
+2. (Optional, on demand) **Wire a chosen theme live**: one-line `@import` of its `theme-*.css`
+   into `viewer.css` — only the real elements re-skin; the decorative widgets stay
+   preview-only (they're not in `index.html`'s DOM).
+3. Polish: manga PiP's "GYM CAM · LIVE / ● REC" labels are cramped at the panel's top edge.
+4. Then `-max` variants with custom art when the user supplies PNGs.
 
 Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` → reload
 `http://192.168.0.7:8765/` (backend serves `incarnation/dist`). Launch on the TV with
@@ -25,8 +36,14 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
 
 ## TODO
 
-- [ ] Build `fate-basic` theme (navy/indigo + gold filigree) — reuse p5-basic chrome.
-- [ ] Build `manga-basic` theme (B&W halftone / ink / torn paper) — reuse p5-basic chrome.
+- [x] Build `fate-basic` theme (navy/indigo + gold filigree). Done 2026-06-07, full game-UI.
+- [x] Build `manga-basic` theme (B&W halftone / ink / torn paper, no JP). Done 2026-06-07.
+- [x] Wire fate/manga into the live viewer (`viewer.css` @imports + `index.html` fx layers +
+      `#ink-edge` filter). Done 2026-06-07 — all three themes selectable live via `?theme=`.
+- [ ] Polish: manga PiP top labels ("GYM CAM · LIVE / ● REC") are cramped on the panel edge.
+- [ ] (Optional refactor) Extract the live p5 rules from `viewer.css` into a `theme-p5.css`
+      for symmetry with fate/manga. Skipped now to avoid destabilising the on-TV p5 build;
+      everything bundles into one CSS so it's cosmetic-only. See *Decisions* (CSS split).
 - [ ] Add `-max` theme variants (custom art): user supplies transparent PNGs (torn frames,
       ornate emblems, splatter); agent wires them via `border-image` / overlays.
 - [ ] **Update the stale spec** `docs/superpowers/specs/2026-06-07-ui-theme-system-camera-split-design.md`
@@ -34,11 +51,11 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
       for a future multi-3D-model "cast".
 - [ ] If Fire TV perf is poor, **bake** the p5 grain + torn-slash to static PNGs
       ("lock the look → bake"); `?quality=low` already drops them as a stopgap.
-- [ ] Remove the throwaway preview mock `data/_mock_p5.html` when done.
+- [ ] Delete `data/_mock_p5.html` — now SUPERSEDED by `incarnation/design-preview.html`.
+      (Agent's `rm` was blocked by the permission classifier; user to remove or approve.)
 - [ ] (optional) Install `ha/silver_launch.yaml` in HA + tune the bedroom audio-unlock tap.
-- [ ] Refresh the README "Incarnation pages" + "Running" sections — stale: they describe
-      the Vite dev server on `:5173` and three HTML pages, but the viewer is now served by
-      the backend on `:8765` and has the theme system. (User to do next session.)
+- [x] Refresh the stale README (Incarnation pages / Viewer / Running + HA endpoint count).
+      Done 2026-06-07 via a living-docs sweep (full rewrite adopted from `LivDoc-README.md`).
 
 ## Known issues
 
@@ -54,8 +71,8 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
 - **[minor, perf] p5-basic effects may be heavy on the Fire TV Cube** — SVG
   turbulence/displacement (torn frames) + film grain. `?quality=low` (sets `body.lowfx`)
   drops the grain + big slash filter. "Bake to PNG" is the durable fix if still heavy.
-- **[minor] `data/_mock_p5.html`** — an untracked throwaway preview mock (served at
-  `/data/_mock_p5.html`); delete when theming is settled.
+- **[minor] `data/_mock_p5.html`** — throwaway p5 mock, now superseded by
+  `incarnation/design-preview.html` (the switchable p5/fate/manga eval page). Safe to delete.
 
 ## Decisions
 
@@ -80,3 +97,24 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
 - [2026-06-07] **`bin/silver-launch.py`** replicates the `ha/silver_launch.yaml` launch
   sequence via the HA REST API (reads `HA_TOKEN` from env/`.env`, never printed) — makes
   the previously one-off TV launch reproducible.
+- [2026-06-07] **Full game-UI is design-eval only; decorative widgets are CSS-only.** The
+  reference art (P5/Fate/Manga) shows many widgets — Topics list, action menu, bond pips,
+  status meter (MOOD / Master-AP), control bar — that have NO backing data. They are styled
+  but **never added to the live viewer DOM** (keeps the Fire TV lean). They render only on
+  `incarnation/design-preview.html`, a switchable (p5/fate/manga, `?theme=`) page used to
+  evaluate the look. The live viewer keeps showing only the real subset (date, nameplate,
+  camera PiP, dialogue, mic, command-log, backdrop).
+- [2026-06-07] **Per-theme source files, single served bundle.** New files
+  `styles/theme-fate.css`, `styles/theme-manga.css`, `styles/theme-p5-extra.css` (p5's new
+  widgets). The live `viewer.css` / `index.html` were left UNTOUCHED (p5 is mid-test on the
+  TV — no regression risk). Rationale on perf: Vite bundles all CSS into one hashed
+  `/assets/*.css`, and the backend has no `/styles` mount + a SPA catch-all, so true runtime
+  per-theme lazy-loading would fight the build. The real Fire-TV cost is RENDER (turbulence
+  filters, grain, blend modes) and only the active `[data-theme]` triggers those — inactive
+  themes match no live DOM. So one bundle is already performant; the split is for
+  maintainability. Each theme re-points the semantic tokens (`--bg`/`--gold`/`--cream`/
+  `--font-*`/`--ink-a*`) so the base chrome inherits its colours, then overrides shape/position.
+- [2026-06-07] **No Japanese in manga-basic** (user call): B&W halftone/ink/torn-paper LOOK
+  with English labels; don't fabricate JP strings that aren't in the data. Layouts mirror
+  each reference (fate/manga: nameplate top-left, secondary info top-right) since position is
+  just a per-theme CSS property on the shared DOM.

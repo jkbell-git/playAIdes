@@ -5,6 +5,12 @@
    ============================================================= */
 
 @import url('./tokens.css');
+/* Live theme skins. fate/manga re-skin the REAL chrome (nameplate, PiP, dialogue,
+   mic, backdrop) via [data-theme]; switch with ?theme=fate-basic|manga-basic. Their
+   decorative game-UI widgets ride along in these files too but only render on
+   design-preview.html (which has the extra DOM). p5-basic stays inline below. */
+@import url('./theme-fate.css');
+@import url('./theme-manga.css');
 
 /* ── Reset ────────────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }

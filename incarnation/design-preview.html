@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PlayAIdes — theme design preview (p5 / fate / manga)</title>
+
+  <!-- The real theme system. base + per-theme skins. The decorative widgets
+       (topics, action menu, bond, status meter, control bar) live ONLY on this
+       evaluation page — they are NOT in the live viewer DOM. -->
+  <link rel="stylesheet" href="/styles/viewer.css" />
+  <link rel="stylesheet" href="/styles/theme-p5-extra.css" />
+  <link rel="stylesheet" href="/styles/theme-fate.css" />
+  <link rel="stylesheet" href="/styles/theme-manga.css" />
+
+  <style>
+    /* ── Preview-only chrome (NOT part of any theme) ───────────────────── */
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+
+    /* Theme switcher — fixed, un-themed, always on top */
+    #theme-switch {
+      position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+      z-index: 9999; display: flex; gap: 6px;
+      background: rgba(0,0,0,.6); padding: 6px; border-radius: 999px;
+      backdrop-filter: blur(4px); font-family: system-ui, sans-serif;
+    }
+    #theme-switch button {
+      border: 1px solid rgba(255,255,255,.25); background: transparent;
+      color: #fff; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+      padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: .15s;
+    }
+    #theme-switch button:hover { background: rgba(255,255,255,.12); }
+    #theme-switch button[aria-pressed="true"] { background: #fff; color: #111; font-weight: 700; }
+
+    /* Faux avatar — stands in for the live 3D model so chrome composes around it */
+    .preview-avatar {
+      position: absolute; left: 50%; bottom: -4%; transform: translateX(-46%);
+      width: 38vmin; height: 92%; z-index: 2; pointer-events: none;
+      background: radial-gradient(closest-side at 50% 30%,
+        rgba(255,255,255,.13), rgba(255,255,255,.03) 58%, transparent 72%);
+      border-radius: 46% 46% 18% 18% / 60% 60% 12% 12%;
+    }
+    .preview-avatar-tag {
+      position: absolute; left: 50%; bottom: 14px; transform: translateX(-46%);
+      z-index: 2; font: 600 .56rem/1 system-ui, sans-serif; letter-spacing: .34em;
+      color: rgba(255,255,255,.4); pointer-events: none; white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body data-theme="p5-basic">
+
+  <!-- Theme switcher -->
+  <div id="theme-switch">
+    <button data-set="p5-basic"    aria-pressed="true">Persona 5</button>
+    <button data-set="fate-basic"  aria-pressed="false">Fate</button>
+    <button data-set="manga-basic" aria-pressed="false">Manga</button>
+  </div>
+
+  <!-- ── Procedural SVG filters (torn edges, rough ink) ─────────────────── -->
+  <svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+    <defs>
+      <filter id="torn">
+        <feTurbulence type="fractalNoise" baseFrequency="0.018 0.05" numOctaves="2" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="11" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <filter id="torn-rough">
+        <feTurbulence type="fractalNoise" baseFrequency="0.012 0.03" numOctaves="3" seed="4" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="20" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <filter id="ink-edge">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04 0.08" numOctaves="2" seed="11" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- ── Theme FX backdrop layers (each theme shows/hides its own) ───────── -->
+  <div id="theme-fx" aria-hidden="true">
+    <!-- p5 -->
+    <div class="fx-slash"></div>
+    <div class="fx-ring"></div>
+    <div class="fx-vignette"></div>
+    <div class="fx-grain"></div>
+    <svg class="fx-splat fx-splat-red" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M50 8c8 6 4 18 14 20s18-6 20 6-10 14-6 24-2 20-14 16-14 10-24 6-18 2-20-10 6-16-2-24-12-12-6-22 14-4 18-14 14-8 22-2Z"/>
+    </svg>
+    <svg class="fx-splat fx-splat-dark" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M52 12c6 8 16 4 18 14s-8 14-4 22-2 18-12 16-16 8-24 2-16 0-16-12 8-12 4-22-8-16 2-22 12 2 18-6 6-8 14 8Z"/>
+    </svg>
+    <!-- fate: soft drape + vignette + ornate magic circle (hero) -->
+    <div class="fx-fate-drape"></div>
+    <div class="fx-fate-sparkles"></div>
+    <div class="fx-fate-vignette"></div>
+    <svg class="fx-fate-circle" viewBox="0 0 200 200" aria-hidden="true">
+      <circle cx="100" cy="100" r="94"/><circle cx="100" cy="100" r="80"/>
+      <circle cx="100" cy="100" r="54"/><circle cx="100" cy="100" r="30"/>
+      <polygon points="100,20 169,140 31,140"/><polygon points="100,180 31,60 169,60"/>
+    </svg>
+    <!-- manga: bold ink slash + halftone moon (heroes) -->
+    <div class="fx-manga-tone"></div>
+    <div class="fx-manga-halftone"></div>
+    <div class="fx-manga-speed"></div>
+    <svg class="fx-manga-splat" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M50 8c8 6 4 18 14 20s18-6 20 6-10 14-6 24-2 20-14 16-14 10-24 6-18 2-20-10 6-16-2-24-12-12-6-22 14-4 18-14 14-8 22-2Z"/>
+    </svg>
+    <svg class="fx-manga-panels" viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><pattern id="mangaTone" width="4.5" height="4.5" patternUnits="userSpaceOnUse"><circle cx="2.25" cy="2.25" r=".9" fill="#cfcabe"/></pattern></defs>
+      <g class="mp-fill">
+        <polygon points="6,6 146,10 140,40 148,68 6,66" fill="#191510"/>
+        <polygon points="152,8 314,6 314,66 158,70 152,40" fill="#14110c"/>
+        <polygon points="6,74 96,70 100,120 92,174 6,174" fill="#1d1813"/>
+        <polygon points="104,74 314,72 314,174 102,174" fill="#100e0b"/>
+      </g>
+      <polygon points="152,8 314,6 314,66 158,70 152,40" fill="url(#mangaTone)" opacity=".5"/>
+      <g class="mp-speed" fill="none" stroke-width=".7" opacity=".5"><path d="M20,64 70,10 M40,66 92,12 M60,66 116,14 M84,64 138,16 M104,62 146,22"/></g>
+      <g class="mp-hatch" fill="none" stroke-width=".6" opacity=".42"><path d="M10,90 90,150 M10,110 84,168 M14,80 96,138 M90,90 14,150 M92,110 20,166"/></g>
+      <g class="mp-lines" fill="none">
+        <polygon points="6,6 146,10 140,40 148,68 6,66"/>
+        <polygon points="152,8 314,6 314,66 158,70 152,40"/>
+        <polygon points="6,74 96,70 100,120 92,174 6,174"/>
+        <polygon points="104,74 314,72 314,174 102,174"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Faux avatar -->
+  <div class="preview-avatar"></div>
+  <div class="preview-avatar-tag">SILVER · LIVE 3D AVATAR (placeholder)</div>
+
+  <!-- ── Date / time masthead ───────────────────────────────────────────── -->
+  <div id="date-badge" class="date-badge">
+    <div class="date-bg"></div>
+    <div class="date-row"><span class="date-m">JUN</span><span class="date-d"><span>07</span></span><span class="date-dow">SAT</span></div>
+    <div class="date-when">EVENING</div>
+    <!-- fate/manga use a softer location line under the time -->
+    <div class="date-place">Magus Residence</div>
+  </div>
+
+  <!-- ── Nameplate ──────────────────────────────────────────────────────── -->
+  <div id="nameplate" class="nameplate">
+    <svg class="nameplate-emblem" viewBox="0 0 52 52" aria-hidden="true">
+      <polygon points="26,1 33,19 51,19 37,31 42,51 26,39 10,51 15,31 1,19 19,19" fill="#fff"/>
+      <polygon points="26,12 30,22 40,22 32,29 35,40 26,33 17,40 20,29 12,22 22,22" fill="#c20016"/>
+    </svg>
+    <span class="nameplate-conn connected"></span>
+    <span id="nameplate-name" class="nameplate-name">SILVER</span>
+    <span class="nameplate-sub">AI · <b>PERSONA</b></span>
+  </div>
+
+  <!-- ── Bond / rank bar (decorative) ───────────────────────────────────── -->
+  <div class="bond" aria-hidden="true">
+    <span class="bond-label">Bond Lv.</span>
+    <span class="bond-lvl">5</span>
+    <span class="bond-pips"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>
+    <span class="bond-next">NEXT 1,250</span>
+  </div>
+
+  <!-- ── Camera PiP ─────────────────────────────────────────────────────── -->
+  <div id="pip-overlay" class="pip-overlay visible">
+    <div class="pip-label">PICTURE IN PICTURE</div>
+    <div class="pip-frame-fill"></div>
+    <div class="pip-image pip-feed" role="img" aria-label="camera feed placeholder">
+      <span class="pip-feed-l">GYM CAM · LIVE</span>
+      <span class="pip-feed-r">● REC</span>
+      <span class="pip-feed-box"></span>
+    </div>
+    <svg id="pip-frame" class="pip-frame" viewBox="0 0 200 116" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M3,4 C60,1 140,6 197,2 C199,40 197,80 198,112 C150,115 60,110 3,114 C1,80 2,38 2,4 Z" />
+    </svg>
+    <!-- ornate corner brackets (fate) -->
+    <span class="pip-corner tl"></span><span class="pip-corner tr"></span>
+    <span class="pip-corner bl"></span><span class="pip-corner br"></span>
+    <div class="pip-cap"><b>GYM CAM</b><span>· live feed</span></div>
+  </div>
+
+  <!-- ── Command / debug log (p5 terminal console) ──────────────────────── -->
+  <div id="cmd-log" class="cmd-log" aria-hidden="true">
+    <div class="cmd-line"><span class="cmd-t">19:42:07</span><span class="cmd-type">show_pip</span><span class="cmd-sum">source=gym_cam</span></div>
+    <div class="cmd-line"><span class="cmd-t">19:42:09</span><span class="cmd-type">say</span><span class="cmd-sum">"the rack is loaded…"</span></div>
+    <div class="cmd-line"><span class="cmd-t">19:42:11</span><span class="cmd-type">set_mood</span><span class="cmd-sum">value=0.72</span></div>
+  </div>
+
+  <!-- ── Topics list (decorative) ───────────────────────────────────────── -->
+  <aside class="topics" aria-hidden="true">
+    <div class="topics-head">Topics</div>
+    <ul class="topics-list">
+      <li class="topic sel"><span class="topic-icon"></span><span class="topic-label">The Gym Cam</span><span class="topic-thumb"></span></li>
+      <li class="topic"><span class="topic-icon"></span><span class="topic-label">Today's Plan</span><span class="topic-thumb"></span></li>
+      <li class="topic"><span class="topic-icon"></span><span class="topic-label">The Weather</span><span class="topic-thumb"></span></li>
+      <li class="topic"><span class="topic-icon"></span><span class="topic-label">Music</span><span class="topic-thumb"></span></li>
+      <li class="topic"><span class="topic-icon"></span><span class="topic-label">About Yourself</span><span class="topic-thumb"></span></li>
+    </ul>
+  </aside>
+
+  <!-- ── Action menu (decorative) ───────────────────────────────────────── -->
+  <nav class="action-menu" aria-hidden="true">
+    <div class="action"><span class="action-key">△</span><span class="action-label">Talk</span></div>
+    <div class="action"><span class="action-key">▢</span><span class="action-label">Gift</span></div>
+    <div class="action"><span class="action-key">○</span><span class="action-label">Record</span></div>
+    <div class="action"><span class="action-key">✕</span><span class="action-label">System</span></div>
+  </nav>
+
+  <!-- ── Dialogue / console ─────────────────────────────────────────────── -->
+  <div id="console-bar" class="console-bar">
+    <div class="console-nametag"><span class="console-nametag-text">SILVER</span></div>
+    <div id="console-log" class="console-log">
+      <div class="console-msg">Ah— the gym camera again. Someone left the rack loaded. Shall I keep watch, or would you rather I look away?</div>
+    </div>
+    <form class="console-input-row" onsubmit="return false">
+      <input class="console-input" type="text" placeholder="type to speak…" />
+      <button class="console-send" type="submit" aria-label="Send">▶</button>
+    </form>
+  </div>
+
+  <!-- ── Mic indicator ──────────────────────────────────────────────────── -->
+  <div id="mic-indicator" class="mic-indicator state-speaking"></div>
+
+  <!-- ── Status meter (decorative) ──────────────────────────────────────── -->
+  <div class="status-meter" aria-hidden="true">
+    <div class="status-emblem"></div>
+    <div class="status-rows">
+      <div class="status-mood"><span class="status-mood-label">Mood</span><span class="status-mood-val">72%</span></div>
+      <div class="status-master">
+        <span class="status-master-title">Master</span>
+        <span class="status-master-lvl">Lv. 120</span>
+        <span class="status-master-ap">AP 140/140</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Control hint bar (decorative) ──────────────────────────────────── -->
+  <div class="control-bar" aria-hidden="true">
+    <span class="control"><b>L1·R1</b> Switch</span>
+    <span class="control"><b>○</b> Log</span>
+    <span class="control"><b>△</b> Auto</span>
+    <span class="control"><b>≡</b> Menu</span>
+  </div>
+
+  <script>
+    const sw = document.getElementById('theme-switch');
+    const VALID = ['p5-basic', 'fate-basic', 'manga-basic'];
+    function setTheme(name) {
+      if (!VALID.includes(name)) return;
+      document.body.dataset.theme = name;
+      sw.querySelectorAll('button').forEach(b =>
+        b.setAttribute('aria-pressed', String(b.dataset.set === name)));
+    }
+    // ?theme=fate-basic deep-links a theme (used for screenshots).
+    const initial = new URLSearchParams(location.search).get('theme');
+    if (initial) setTheme(initial);
+    // Theme switcher — flips body[data-theme]; everything else is pure CSS.
+    sw.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-set]');
+      if (btn) setTheme(btn.dataset.set);
+    });
+  </script>
+</body>
+</html>

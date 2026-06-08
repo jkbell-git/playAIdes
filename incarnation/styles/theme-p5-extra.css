@@ -1,0 +1,161 @@
+/* =============================================================
+   theme-p5-extra.css — Persona-5 "basic": the DECORATIVE game-UI
+   widgets (topics list, action menu, bond bar, status meter,
+   control bar, PiP label/caption). These live ONLY on the design
+   preview page, never in the live viewer DOM.
+
+   The live p5 element skins (date, nameplate, PiP frame, dialogue,
+   mic, backdrop FX) stay in viewer.css. This file only ADDS the
+   extra chrome, all scoped under [data-theme="p5-basic"].
+   ============================================================= */
+
+/* Decorative widgets are hidden by default; each theme opts in. */
+.bond, .topics, .action-menu, .status-meter, .control-bar,
+.pip-label, .pip-cap, .pip-corner, .date-place { display: none; }
+
+/* ── PiP label + camera-feed placeholder + caption ──────────────────────── */
+[data-theme="p5-basic"] .pip-label {
+    display: block;
+    position: absolute;
+    top: -22px; left: 18px;
+    font-family: 'Oswald', sans-serif; font-weight: 700;
+    font-size: .62rem; letter-spacing: .44em; color: #fff;
+    text-shadow: 1px 1px 0 #000;
+}
+[data-theme="p5-basic"] .pip-feed {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background-color: #15171c;
+    background-image: repeating-linear-gradient(0deg,
+        rgba(255,255,255,.05) 0 1px, transparent 1px 4px);
+}
+[data-theme="p5-basic"] .pip-feed-l {
+    position: absolute; top: 9px; left: 14px;
+    font-size: .55rem; letter-spacing: .14em; color: rgba(190,255,200,.8);
+}
+[data-theme="p5-basic"] .pip-feed-r {
+    position: absolute; top: 9px; right: 14px; font-size: .55rem; color: #ff5a5a;
+}
+[data-theme="p5-basic"] .pip-feed-box {
+    position: absolute; left: 50%; top: 54%; width: 64px; height: 40px;
+    transform: translate(-50%,-50%); border: 1px solid rgba(190,255,200,.3);
+}
+[data-theme="p5-basic"] .pip-cap {
+    display: inline-flex; align-items: center; gap: 7px;
+    position: absolute; left: 26px; bottom: -16px; z-index: 2;
+    background: #e11a3a; color: #fff; padding: 6px 14px;
+    transform: rotate(-1.5deg);
+    clip-path: polygon(5% 0,100% 0,95% 100%,0 100%);
+    filter: drop-shadow(3px 4px 0 rgba(0,0,0,.7));
+}
+[data-theme="p5-basic"] .pip-cap b { font-family: 'Anton', sans-serif; font-size: 1rem; }
+[data-theme="p5-basic"] .pip-cap span { font-size: .66rem; opacity: .9; }
+
+/* ── Bond / rank bar (top, white skew tag + red pips) ───────────────────── */
+[data-theme="p5-basic"] .bond {
+    display: flex; align-items: center; gap: 8px;
+    position: fixed; top: 30px; left: 27%; z-index: 50;
+    transform: skewX(-8deg) rotate(-1.5deg);
+    background: #fff; color: #0b0b0b; padding: 4px 14px;
+    clip-path: polygon(4% 0,100% 0,96% 100%,0 100%);
+    filter: drop-shadow(3px 4px 0 rgba(0,0,0,.6));
+    font-family: 'Oswald', sans-serif; font-weight: 700;
+}
+[data-theme="p5-basic"] .bond > * { transform: skewX(8deg); }
+[data-theme="p5-basic"] .bond-label { font-size: .62rem; letter-spacing: .22em; text-transform: uppercase; }
+[data-theme="p5-basic"] .bond-lvl { font-family: 'Anton', sans-serif; font-size: 1.3rem; color: #c20016; }
+[data-theme="p5-basic"] .bond-pips { display: inline-flex; gap: 4px; }
+[data-theme="p5-basic"] .bond-pips i {
+    width: 9px; height: 9px; background: rgba(11,11,11,.2);
+    clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%);
+}
+[data-theme="p5-basic"] .bond-pips i.on { background: #c20016; }
+[data-theme="p5-basic"] .bond-next { font-size: .56rem; letter-spacing: .12em; color: #7a0d20; }
+
+/* ── Topics list (right; red selected row) ──────────────────────────────── */
+[data-theme="p5-basic"] .topics {
+    display: block; position: fixed; right: 26px; top: 31%; z-index: 40;
+    width: 232px; transform: rotate(1deg);
+}
+[data-theme="p5-basic"] .topics-head {
+    font-family: 'Oswald', sans-serif; font-weight: 700; font-size: .64rem;
+    letter-spacing: .4em; color: #fff; text-align: right;
+    margin: 0 6px 8px 0; text-shadow: 1px 1px 0 #000;
+}
+[data-theme="p5-basic"] .topics-list { list-style: none; margin: 0; padding: 0; }
+[data-theme="p5-basic"] .topic {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(11,11,11,.78); color: #f4f4f4;
+    border-left: 3px solid rgba(255,255,255,.25);
+    font-family: 'Oswald', sans-serif; font-size: .82rem;
+    padding: 7px 14px; margin-bottom: 4px;
+    clip-path: polygon(3% 0,100% 0,97% 100%,0 100%);
+}
+[data-theme="p5-basic"] .topic-icon {
+    width: 7px; height: 7px; background: #fff; flex-shrink: 0;
+    clip-path: polygon(50% 0,100% 50%,50% 100%,0 50%);
+}
+[data-theme="p5-basic"] .topic-label { flex: 1; }
+[data-theme="p5-basic"] .topic-thumb { display: none; }
+[data-theme="p5-basic"] .topic.sel {
+    background: #c20016; color: #fff; font-weight: 700;
+    border-left-color: #fff; transform: translateX(-8px) skewX(-3deg);
+    filter: drop-shadow(3px 4px 0 rgba(0,0,0,.5));
+}
+[data-theme="p5-basic"] .topic.sel .topic-icon { background: #fff; }
+
+/* ── Action menu (left edge; controller glyphs) ─────────────────────────── */
+[data-theme="p5-basic"] .action-menu {
+    display: flex; flex-direction: column; gap: 9px;
+    position: fixed; left: 20px; top: 52%; transform: translateY(-50%) rotate(-1deg); z-index: 40;
+}
+[data-theme="p5-basic"] .action {
+    display: flex; align-items: center; gap: 9px;
+    background: rgba(11,11,11,.82); color: #fff;
+    padding: 5px 16px 5px 8px;
+    clip-path: polygon(0 0,100% 0,86% 100%,0 100%);
+    font-family: 'Anton', sans-serif; letter-spacing: .04em;
+}
+[data-theme="p5-basic"] .action-key {
+    display: grid; place-items: center; width: 20px; height: 20px;
+    border: 1.5px solid #fff; color: #fff; font-family: system-ui, sans-serif; font-size: .7rem;
+}
+[data-theme="p5-basic"] .action-label { font-size: .98rem; text-transform: uppercase; }
+[data-theme="p5-basic"] .action:first-child { background: #c20016; }
+
+/* ── Status meter (bottom-right; MOOD %) ────────────────────────────────── */
+[data-theme="p5-basic"] .status-meter {
+    display: flex; align-items: center; gap: 12px; flex-direction: row-reverse;
+    position: fixed; right: 28px; bottom: 12%; z-index: 40; transform: rotate(1.5deg);
+}
+[data-theme="p5-basic"] .status-master { display: none; }
+[data-theme="p5-basic"] .status-mood {
+    display: flex; align-items: baseline; gap: 8px;
+    background: #fff; color: #0b0b0b; padding: 4px 16px;
+    transform: skewX(-8deg); clip-path: polygon(5% 0,100% 0,95% 100%,0 100%);
+    filter: drop-shadow(3px 4px 0 rgba(0,0,0,.6));
+}
+[data-theme="p5-basic"] .status-mood > * { transform: skewX(8deg); }
+[data-theme="p5-basic"] .status-mood-label {
+    font-family: 'Oswald', sans-serif; font-weight: 700; font-size: .6rem; letter-spacing: .24em; text-transform: uppercase;
+}
+[data-theme="p5-basic"] .status-mood-val { font-family: 'Anton', sans-serif; font-size: 1.5rem; color: #c20016; }
+[data-theme="p5-basic"] .status-emblem {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 40%, #e11a3a, #7a0010);
+    box-shadow: 0 0 0 2px #fff, 3px 4px 0 rgba(0,0,0,.6);
+    clip-path: polygon(50% 0,93% 25%,100% 75%,50% 100%,0 75%,7% 25%);
+}
+
+/* ── Control hint bar (bottom strip) ────────────────────────────────────── */
+[data-theme="p5-basic"] .control-bar {
+    display: flex; gap: 26px; align-items: center;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    padding: 7px 26px; background: linear-gradient(0deg, rgba(11,11,11,.92), transparent);
+    font-family: 'Oswald', sans-serif; font-size: .68rem; letter-spacing: .14em;
+    color: rgba(255,255,255,.7); text-transform: uppercase;
+}
+[data-theme="p5-basic"] .control b {
+    display: inline-block; margin-right: 5px; color: #0b0b0b; background: #fff;
+    padding: 1px 7px; font-family: 'Anton', sans-serif; letter-spacing: 0;
+}
