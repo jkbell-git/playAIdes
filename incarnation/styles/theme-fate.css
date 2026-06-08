@@ -112,16 +112,22 @@
     transform: none; text-align: left; z-index: 50; pointer-events: none;
 }
 [data-theme="fate-basic"] .date-bg { display: none; }
-[data-theme="fate-basic"] .date-row { display: block; padding: 0; transform: none; }
+[data-theme="fate-basic"] .date-row { display: flex; align-items: baseline; gap: 9px; padding: 0; transform: none; }
+/* Month + day = muted supporting text; the weekday is the gold hero (no time-of-day). */
 [data-theme="fate-basic"] .date-m,
-[data-theme="fate-basic"] .date-dow { display: none; }
-[data-theme="fate-basic"] .date-when {
-    position: static; display: block; background: none; border: none; transform: none;
+[data-theme="fate-basic"] .date-d {
+    display: inline; position: static; background: none; border: none; transform: none;
     clip-path: none; padding: 0;
-    font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.15rem;
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: .82rem;
+    letter-spacing: .2em; color: #aab0d8;
+}
+[data-theme="fate-basic"] .date-d span { transform: none; }
+[data-theme="fate-basic"] .date-dow {
+    display: inline; font-family: 'Cinzel', serif; font-weight: 700; font-size: 1.15rem;
     letter-spacing: .14em; color: #f4dd9a;
     text-shadow: 0 0 14px rgba(244,221,154,.35);
 }
+[data-theme="fate-basic"] .date-when { display: none; }
 [data-theme="fate-basic"] .date-place {
     display: block; margin-top: 3px;
     font-family: 'Cinzel', serif; font-size: .68rem; letter-spacing: .26em;
