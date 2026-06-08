@@ -74,10 +74,12 @@
     /* default = WHITE panel: black lines on paper, clear white hotspot */
     --bg:#f4efe5; --line:#15120d; --hot:#fcfaf4; --hot-r:4.5%;
 }
-/* BLACK panels (the diagonal pair): white lines from a bright white hotspot */
+/* DARK panels (the diagonal pair): white lines from a bright white hotspot.
+   --bg lightened from near-black #15120d to a softer charcoal so the dark
+   panels read less heavy against the white page. */
 [data-theme="manga-basic"] .fx-manga-panels > i:nth-child(2),
 [data-theme="manga-basic"] .fx-manga-panels > i:nth-child(3) {
-    --bg:#15120d; --line:#efe9dd; --hot:#ffffff; --hot-r:3.5%;
+    --bg:#34302a; --line:#efe9dd; --hot:#ffffff; --hot-r:3.5%;
 }
 /* optional darkening scrim to sit the loud page back as a backdrop */
 [data-theme="manga-basic"] .fx-manga-panels::after {
