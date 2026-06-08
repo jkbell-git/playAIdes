@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<!-- Dev control panel for the persona skill+trigger framework.
+     Served by the backend at /data/control.html (same origin as the API,
+     so no CORS and — in dev mode, PLAYAIDES_API_KEY unset — no token).
+     Press a button here → POST /api/event → event trigger fires → the bound
+     viewer (Fire TV / browser) shows the PiP. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>playAIdes — TV control</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: system-ui, sans-serif; background: #0b0a12; color: #e8e6f0;
+           margin: 0; padding: 24px; max-width: 720px; }
+    h1 { font-size: 1.2rem; margin: 0 0 4px; }
+    .sub { color: #9a93b5; margin: 0 0 20px; font-size: .85rem; }
+    fieldset { border: 1px solid #3a3550; border-radius: 10px; margin: 0 0 18px; padding: 14px 16px; }
+    legend { padding: 0 6px; color: #c9a227; font-weight: 600; }
+    label { display: block; font-size: .8rem; color: #b9b3d0; margin: 10px 0 4px; }
+    input, select, textarea { width: 100%; box-sizing: border-box; background: #15131f;
+           border: 1px solid #3a3550; color: #e8e6f0; border-radius: 7px; padding: 9px 10px; font-size: .95rem; }
+    textarea { font-family: ui-monospace, monospace; min-height: 64px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    button { flex: 1 1 auto; cursor: pointer; border: 0; border-radius: 8px; padding: 12px 14px;
+             font-size: 1rem; font-weight: 600; }
+    .show { background: #c9a227; color: #1a1606; }
+    .hide { background: #2a2740; color: #e8e6f0; }
+    .ghost { background: #1c1930; color: #b9b3d0; flex: 0 0 auto; }
+    pre { background: #08070d; border: 1px solid #2a2740; border-radius: 8px; padding: 12px;
+          font-size: .8rem; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+    .ok { color: #6ee7a8; } .bad { color: #ff8d8d; } .warn { color: #f0c674; }
+    code { color: #c9a227; }
+  </style>
+</head>
+<body>
+  <h1>playAIdes — TV control</h1>
+  <p class="sub">POSTs <code>/api/event</code> on this same backend. Open the viewer on your Fire TV / browser first so a client is <b>bound</b> to Silver, then press a button.</p>
+
+  <fieldset>
+    <legend>Picture-in-picture</legend>
+    <label for="url">Image / stream URL (resolved by the viewer)</label>
+    <input id="url" value="http://192.168.0.7:8765/data/pip-test.svg" />
+    <label for="kind">Kind</label>
+    <select id="kind">
+      <option value="snapshot">snapshot (still image &lt;img&gt;)</option>
+      <option value="live">live (MJPEG stream)</option>
+    </select>
+    <div class="row">
+      <button class="show" onclick="showPip()">▶ Show on TV</button>
+      <button class="hide" onclick="dismissPip()">■ Hide on TV</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>HA camera — live MJPEG via camera_proxy</legend>
+    <label for="camsrc">Camera entity_id (from your HA)</label>
+    <input id="camsrc" value="camera.printer_gym_camera_hd_stream" />
+    <div class="row">
+      <button class="show" onclick="showCamera()">📹 Show camera on TV</button>
+      <button class="hide" onclick="dismissPip()">■ Hide</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Speech — audio + lip-sync test (no mic needed)</legend>
+    <label for="saytext">What Silver says on the TV</label>
+    <input id="saytext" value="Hello, I am Silver. If you can hear me, the audio works." />
+    <div class="row">
+      <button class="show" onclick="sayOnTv()">🔊 Say on TV</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Raw event</legend>
+    <label for="evname">Event name</label>
+    <input id="evname" value="demo_pip" />
+    <label for="evpayload">Payload (JSON)</label>
+    <textarea id="evpayload">{ "url": "http://192.168.0.7:8765/data/pip-test.svg", "kind": "snapshot" }</textarea>
+    <div class="row">
+      <button class="ghost" onclick="sendRaw()">Send raw event</button>
+      <button class="ghost" onclick="refreshState()">Refresh status</button>
+    </div>
+  </fieldset>
+
+  <h3 style="font-size:.9rem;color:#9a93b5;">Status</h3>
+  <pre id="log">Loading…</pre>
+
+<script>
+  const log = document.getElementById('log');
+  function stamp() { const d = new Date(); return d.toLocaleTimeString(); }
+  function write(msg, cls) {
+    log.innerHTML = `<span class="${cls||''}">[${stamp()}] ${msg}</span>\n` + log.innerHTML;
+  }
+
+  async function postEvent(name, payload) {
+    try {
+      const res = await fetch('/api/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, payload })
+      });
+      const body = await res.json().catch(() => ({}));
+      const cls = res.ok && body.matched ? 'ok' : (res.ok ? 'warn' : 'bad');
+      write(`POST /api/event {name:"${name}"} → ${res.status} ${JSON.stringify(body)}`, cls);
+      if (res.ok && !body.matched) write('matched:false — no enabled trigger for that event (check persona.json / spelling)', 'warn');
+    } catch (e) {
+      write('fetch failed: ' + e, 'bad');
+    }
+  }
+
+  function showPip()    { postEvent('demo_pip', { url: document.getElementById('url').value, kind: document.getElementById('kind').value }); }
+  function dismissPip() { postEvent('demo_dismiss', {}); }
+  function sayOnTv()    { postEvent('demo_say', { url: document.getElementById('url').value, text: document.getElementById('saytext').value }); }
+  function showCamera() { postEvent('demo_camera', { source: document.getElementById('camsrc').value }); }
+
+  function sendRaw() {
+    let payload;
+    try { payload = JSON.parse(document.getElementById('evpayload').value || '{}'); }
+    catch (e) { return write('payload is not valid JSON: ' + e, 'bad'); }
+    postEvent(document.getElementById('evname').value, payload);
+  }
+
+  async function refreshState() {
+    try {
+      const res = await fetch('/api/state');
+      const s = await res.json();
+      const n = s.bound_client_count;
+      write(`/api/state → active=${s.active_persona_id}, bound viewers=${n}` +
+            (n === 0 ? '  ⚠ no viewer connected — open the TV/browser viewer' : ''), n === 0 ? 'warn' : 'ok');
+    } catch (e) { write('state fetch failed: ' + e, 'bad'); }
+  }
+
+  refreshState();
+</script>
+</body>
+</html>

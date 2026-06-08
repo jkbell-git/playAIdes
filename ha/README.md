@@ -36,7 +36,7 @@ below are the in-HA equivalent (and the path for motion/automation triggers).
 - **Launch · .0.8 / Living Rm / Bedroom** — turn on the TV (CEC) → force-stop + open Silk
   to `http://192.168.0.7:8765/?kiosk=1` → wait → ADB `input tap` to unlock audio autoplay.
 - **Greet** — Silver speaks a line (audio test).
-- **Camera** — live HA camera (`camera.printer_gym_camera_live_view`) in the viewer's PiP.
+- **Camera** — live HA camera (`camera.printer_gym_camera_hd_stream`) in the viewer's PiP.
 - **Hide** — dismiss the PiP.
 
 The launch sequence is one parameterized core script (`silver_launch_kiosk`); the three

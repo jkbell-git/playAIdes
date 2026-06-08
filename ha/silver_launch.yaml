@@ -136,7 +136,7 @@ script:
         data:
           name: demo_camera
           evpayload:
-            source: camera.printer_gym_camera_live_view
+            source: camera.printer_gym_camera_hd_stream
 
   silver_hide:
     alias: "Silver — Hide PiP"
