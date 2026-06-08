@@ -18,6 +18,7 @@ import { loadConfig } from './viewerConfig.js';
 // render shadows and allow a higher pixel ratio.
 const cfg = loadConfig();
 const lowQuality = cfg.quality === 'low';
+const gpuFix = !!cfg.gpufix;   // ?gpufix=1 — tighten the near plane to fight z-fighting / banding on weak GPUs
 
 // ── Renderer ────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('viewer');
@@ -51,7 +52,7 @@ scene.fog = new THREE.Fog(bgColor, 8, 20);
 const camera = new THREE.PerspectiveCamera(
     45,
     window.innerWidth / window.innerHeight,
-    0.1,
+    gpuFix ? 0.5 : 0.1,   // gpufix: a tighter near plane sharply improves depth precision (less z-fighting)
     100
 );
 camera.position.set(0, 1.23, 0.88);   // matches focusOnHead's locked framing

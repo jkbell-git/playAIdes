@@ -458,6 +458,23 @@ body.kiosk .chat-panel { display: none; }
 
 .pip-overlay.visible { opacity: 1; }
 
+/* Loading veil — covers the canvas until the VRM model is ready, so a slow load
+   on a weak TV reads as "loading", not "frozen". viewer.js adds .hidden on load. */
+.loading-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    background: #07060b; color: #e8e6f0;
+    font-family: system-ui, sans-serif; font-size: 1rem; letter-spacing: .06em;
+    transition: opacity .5s ease;
+}
+.loading-overlay.hidden { opacity: 0; pointer-events: none; }
+.loading-spinner {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 3px solid rgba(232,230,240,.22); border-top-color: #e8e6f0;
+    animation: loading-spin .9s linear infinite;
+}
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+
 .pip-image {
     width: 100%;
     height: 100%;

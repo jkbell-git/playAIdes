@@ -73,6 +73,13 @@
     <!-- Phase 4: red-diagonal wipe shown during persona swap (200 ms). -->
     <div id="wipe-overlay" class="wipe-overlay"></div>
 
+    <!-- Loading veil over the canvas until the VRM model is ready (the 16 MB model
+         is slow to load + GPU-upload on weak TVs; viewer.js drops it on model_loaded). -->
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <span>Loading…</span>
+    </div>
+
     <!-- Camera split layout (manga theme): Silver's canvas shrinks to the left,
          the live feed fills the right, an organic ink divider sits on the seam.
          Toggled by body[data-layout="split-camera"] (see stageLayout.js). -->

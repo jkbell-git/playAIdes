@@ -294,6 +294,7 @@ connection.addEventListener('load_model', async (e) => {
     try {
         const info = await incarnation.handleCommand('load_model', withResolvedUrl(e.detail));
         connection.send('status', { state: 'model_loaded', ...info });
+        document.getElementById('loading-overlay')?.classList.add('hidden');   // model is in — drop the loading veil
         // We stay in EMPTY here — INTRO begins when the intro animation
         // actually starts playing (via play_animation below).
         if (incarnation.vrm) {
@@ -307,6 +308,8 @@ connection.addEventListener('load_model', async (e) => {
         console.error('[viewer] load_model failed:', err);
     }
 });
+// Safety net: if no model ever loads, don't trap the loading overlay forever.
+setTimeout(() => document.getElementById('loading-overlay')?.classList.add('hidden'), 25000);
 
 connection.addEventListener('load_animation', async (e) => {
     const info = await incarnation.handleCommand('load_animation', withResolvedUrl(e.detail));
