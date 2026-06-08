@@ -29,3 +29,17 @@ dist/
 # Runtime-generated persona assets (models, tts outputs)
 personas/*/avatar/
 personas/*/tts/
+personas/*/chat_history.json
+# Characters stay private until a default is chosen for release.
+# (force-add the future default with: git add -f personas/<name>/persona.json)
+personas/*/persona.json
+
+# Private / non-redistributable assets — keep local, never publish.
+# Characters & model sources are already covered by models/ above; this also
+# catches VRMA animation packs stored outside models/ (user-downloaded, not
+# redistributable) and any local backup files.
+*.vrma
+*.bak
+
+# Session handoff scratch (tag-out / tag-in baton)
+.tag-team/
