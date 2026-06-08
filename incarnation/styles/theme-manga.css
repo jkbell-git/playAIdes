@@ -43,46 +43,40 @@
 }
 
 /* ── Theme FX: full-page focus-line (集中線) MONTAGE ─────────────────────────
-   A grid of comic panels, each filled with a radial focus-line burst built
-   from ONE repeating-conic-gradient — razor-thin at the convergence point,
-   fanning wider toward the edge (exactly how manga speed lines taper).
-   Alternating black/white polarity; thin black panel borders on a light page.
-   Pure CSS, no SVG, scales infinitely. Every knob lives in this block. */
+   FOUR comic panels carved by two diagonal seams that cross near the centre;
+   the light page shows through the ~2% insets as ANGLED gutters. Each panel is
+   a radial focus-line burst (one repeating-conic-gradient — razor-thin at the
+   convergence, fanning toward the edges). Pure CSS, no SVG. Knobs in this block. */
 .fx-manga-tone, .fx-manga-halftone, .fx-manga-speed, .fx-manga-splat, .fx-manga-panels { display: none; }
 
 [data-theme="manga-basic"] #theme-fx { display: block; position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 [data-theme="manga-basic"] #theme-fx > * { display: none; }
-[data-theme="manga-basic"] #theme-fx > .fx-manga-panels { display: grid; }
+[data-theme="manga-basic"] #theme-fx > .fx-manga-panels { display: block; }
 
 [data-theme="manga-basic"] .fx-manga-panels {
     position: absolute; inset: 0;
-    grid-template-columns: repeat(12, 1fr);
-    grid-template-rows: 1fr 1fr;
-    gap: 5px; padding: 5px;
-    background: var(--mp-page, #ece6da);   /* light gutter / page channel */
+    background: var(--mp-page, #ece6da);   /* the page; shows through as the angled gutters */
     /* ── TUNING KNOBS ─────────────────────────────────────────────── */
-    --mp-lw:    .5deg;   /* focus-line thickness (angular)              */
-    --mp-gap:   2.7deg;  /* line-to-line spacing (bigger = sparser)     */
-    --mp-bord:  1.5px;   /* panel border weight                         */
-    --mp-scrim: 0;       /* 0 = punchy B&W; raise toward .5 to sit back  */
+    --mp-lw:    .5deg;   /* focus-line thickness (angular)             */
+    --mp-gap:   2.7deg;  /* line-to-line spacing (bigger = sparser)    */
+    --mp-scrim: 0;       /* 0 = punchy B&W; raise toward .5 to sit back */
 }
-/* every panel: a framed cell with a focus-line burst from (--cx,--cy) */
+/* each panel fills the frame, is clipped to its angled quadrant, and carries a
+   focus-line burst converging on (--cx,--cy) */
 [data-theme="manga-basic"] .fx-manga-panels > i {
-    position: relative; overflow: hidden;
-    box-shadow: inset 0 0 0 var(--mp-bord) #15120d;     /* thin black panel border */
+    position: absolute; inset: 0;
     background-color: var(--bg);
     background-image:
         radial-gradient(circle at var(--cx,50%) var(--cy,45%),
-            var(--hot) 0 var(--hot-r,4%), transparent calc(var(--hot-r,4%) + 15%)),
+            var(--hot) 0 var(--hot-r,4%), transparent calc(var(--hot-r,4%) + 16%)),
         repeating-conic-gradient(from var(--spin,0deg) at var(--cx,50%) var(--cy,45%),
             var(--line) 0 var(--mp-lw), transparent var(--mp-lw) var(--mp-gap));
     /* default = WHITE panel: black lines on paper, clear white hotspot */
     --bg:#f4efe5; --line:#15120d; --hot:#fcfaf4; --hot-r:4.5%;
 }
-/* BLACK panels: white lines bursting from a bright white hotspot */
+/* BLACK panels (the diagonal pair): white lines from a bright white hotspot */
 [data-theme="manga-basic"] .fx-manga-panels > i:nth-child(2),
-[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(3),
-[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(6) {
+[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(3) {
     --bg:#15120d; --line:#efe9dd; --hot:#ffffff; --hot-r:3.5%;
 }
 /* optional darkening scrim to sit the loud page back as a backdrop */
@@ -90,19 +84,12 @@
     content:''; position:absolute; inset:0; pointer-events:none;
     background: rgba(8,7,5, var(--mp-scrim));
 }
-/* ── panel placement + focal points (row 1 = 4 panels, row 2 = 3) ──────── */
-[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(1){ grid-area:1/1/2/5;   --cx:62%; --cy:36%; }
-[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(2){ grid-area:1/5/2/8;   --cx:46%; --cy:54%; }
-[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(3){ grid-area:1/8/2/10;  --cx:52%; --cy:42%; }
-[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(4){ grid-area:1/10/2/13; --cx:40%; --cy:48%; }
-[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(5){ grid-area:2/1/3/6;   --cx:44%; --cy:58%; }
-[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(6){ grid-area:2/6/3/9;   --cx:54%; --cy:46%; }
-[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(7){ grid-area:2/9/3/13;  --cx:50%; --cy:40%; }
-/* dynamic / hand-placed feel: slight per-panel tilt → diagonal gutters.
-   Dormant until the container gets .mp-tilt (URL knob ?tilt=1, or bake it in). */
-[data-theme="manga-basic"] .fx-manga-panels.mp-tilt > i              { transform: scale(1.07); }
-[data-theme="manga-basic"] .fx-manga-panels.mp-tilt > i:nth-child(odd)  { transform: rotate(-1.4deg) scale(1.09); }
-[data-theme="manga-basic"] .fx-manga-panels.mp-tilt > i:nth-child(even) { transform: rotate(1.6deg)  scale(1.09); }
+/* ── 4 panels: two diagonal seams (V tilts left going down, H tilts down going
+      right) cross near centre; the ~2% insets become the angled white gutters ── */
+[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(1){ clip-path: polygon(0 0, 53% 0, 49% 48%, 0 43%);            --cx:33%; --cy:27%; }  /* TL */
+[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(2){ clip-path: polygon(55% 0, 100% 0, 100% 53%, 51% 48.5%);      --cx:72%; --cy:29%; }  /* TR */
+[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(3){ clip-path: polygon(0 45%, 49% 50.5%, 45% 100%, 0 100%);       --cx:27%; --cy:71%; }  /* BL */
+[data-theme="manga-basic"] .fx-manga-panels > i:nth-child(4){ clip-path: polygon(51% 51.5%, 100% 55%, 100% 100%, 47% 100%); --cx:70%; --cy:73%; }  /* BR */
 
 /* ── Date stamp (TOP-LEFT) ──────────────────────────────────────────────── */
 [data-theme="manga-basic"] #date-badge {
