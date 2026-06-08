@@ -176,7 +176,7 @@
 
 /* ── Camera PiP (LEFT, ornate gold corner brackets) ─────────────────────── */
 [data-theme="fate-basic"] .pip-overlay {
-    top: 23%; left: 3.5%; right: auto; width: 33%; aspect-ratio: 16/9;
+    /* geometry shared in base via --pip-* ; fate keeps only its gilded frame skin */
     border: 1px solid rgba(217,178,90,.5);
     background: rgba(10,14,38,.6);
     box-shadow: 0 14px 50px rgba(0,0,0,.55), inset 0 0 30px rgba(111,111,208,.12);
@@ -338,8 +338,8 @@
 
 /* ── Command-log console (under the PiP; indigo/gold terminal) ───────────── */
 [data-theme="fate-basic"] .cmd-log {
-    display: block; position: fixed; left: 3.5%;
-    top: calc(23vh + 18.6vw + 46px); width: 31%; height: min(11vh, 86px);
+    display: block; position: fixed; left: var(--pip-left);
+    top: calc(var(--pip-top) + var(--pip-w) * 0.5625 + 46px); width: 40%; height: min(11vh, 86px);
     overflow-y: auto; overscroll-behavior: contain; z-index: 6;
     padding: 9px 14px; transition: opacity .6s ease;
     background: rgba(10,14,38,.7); border: 1px solid rgba(217,178,90,.35); border-radius: 7px;

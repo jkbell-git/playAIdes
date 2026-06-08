@@ -430,11 +430,21 @@ body.kiosk .chat-panel { display: none; }
    (z 70/80) and below the chat panel (z 90) and wipe (z 200). It is
    command-driven (only visible while a show_pip is active), so unlike
    the mic/subtitle/nameplate overlays it has no config-flag gate. */
+/* Shared PiP geometry — THE single source of truth for the camera/PiP box's size
+   and position. Every theme inherits this (Option A: size is shared; only the
+   skin/frame differs per theme). The command-log anchors derive from these too,
+   so changing the PiP size here moves the PiP AND every cmd-log in lockstep.
+   p5's slant (transform: rotate) is skin, not geometry — it stays scoped to p5. */
+:root {
+    --pip-top:  14vh;   /* distance from top of the viewport          */
+    --pip-left: 3%;     /* distance from the left                      */
+    --pip-w:    42vw;   /* width; PiP height = --pip-w * 0.5625 (16:9) */
+}
 .pip-overlay {
     position: fixed;
-    top: 14%;
-    left: 5%;
-    width: min(62vw, 860px);     /* a little bigger; top-anchored near Silver's head */
+    top: var(--pip-top);
+    left: var(--pip-left);
+    width: var(--pip-w);
     aspect-ratio: 16 / 9;
     border: var(--pip-border, var(--hair) solid var(--gold));
     background: var(--ink-a90);
@@ -872,13 +882,11 @@ body.lowfx .fx-slash {
 
 /* ── PiP overlay (p5-basic: tilted torn-white frame) ─────────── */
 [data-theme="p5-basic"] .pip-overlay {
-    top: 14%;
-    left: 3%;
-    width: 42%;
+    /* size/position now shared in base via --pip-* ; p5 keeps only its skin + slant */
     border: none;
     background: transparent;
     box-shadow: none;
-    transform: rotate(-3deg);
+    transform: rotate(-3deg);   /* Persona-5 slant — intentionally p5-ONLY */
     overflow: visible;
 }
 
@@ -910,10 +918,10 @@ body.lowfx .fx-slash {
 [data-theme="p5-basic"] .cmd-log {
     display: block;
     position: fixed;
-    left: 3%;
-    /* Anchor right under the PiP (its top:14% + height) so it tracks the viewport
-       instead of a fixed % that overlaps the dialogue on short/wide screens. */
-    top: calc(14vh + 42vw * 0.5625 + 16px);
+    left: var(--pip-left);
+    /* Anchor right under the PiP (its top + derived 16:9 height) so it tracks the
+       viewport instead of a fixed % that overlaps the dialogue on short/wide screens. */
+    top: calc(var(--pip-top) + var(--pip-w) * 0.5625 + 16px);
     width: 40%;
     height: min(13vh, 110px);
     overflow-y: auto;

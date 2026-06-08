@@ -158,7 +158,7 @@
 
 /* ── Camera PiP (LEFT; dark feed + light brushed ink frame) ─────────────── */
 [data-theme="manga-basic"] .pip-overlay {
-    top: 24%; left: 3.5%; right: auto; width: 33%; aspect-ratio: 16/9;
+    /* geometry shared in base via --pip-* ; manga keeps only its dark ink-frame skin */
     border: none; background: #0c0a08; padding: 6px;
     box-shadow: 6px 8px 0 rgba(0,0,0,.6); overflow: visible; z-index: 40;
 }
@@ -291,8 +291,8 @@
 
 /* ── Command-log console (under the PiP; dark terminal, light text) ──────── */
 [data-theme="manga-basic"] .cmd-log {
-    display: block; position: fixed; left: 3.5%;
-    top: calc(24vh + 18.6vw + 44px); width: 31%; height: min(11vh, 86px);
+    display: block; position: fixed; left: var(--pip-left);
+    top: calc(var(--pip-top) + var(--pip-w) * 0.5625 + 44px); width: 40%; height: min(11vh, 86px);
     overflow-y: auto; overscroll-behavior: contain; z-index: 6;
     padding: 9px 14px; transition: opacity .6s ease;
     background: rgba(16,14,11,.85); border: 1.5px solid #d8d3c6; box-shadow: 5px 6px 0 rgba(0,0,0,.5);
