@@ -38,11 +38,19 @@ Useful viewer URL params: `?theme=p5-basic|fate-basic|manga-basic|classic`, `?ki
 `?nameplate=1`, `?quality=low` (drop heavy FX on weak GPUs), `?cmdlog=0` (hide the command
 console), `?ws=` / `?api=` (point at a remote backend).
 
+The **manga** theme's backdrop is a focus-line (集中線) montage — 4 panels split by angled
+gutters. Dev-only, tune it live (no rebuild) on the manga theme:
+`?theme=manga-basic&scrim=.25&gap=2&lw=.6` — `scrim` = darkening over the panels, `lw` =
+speed-line thickness, `gap` = line spacing (bigger = sparser). Omit them for the baked-in
+defaults. (The angled gutters between panels are fixed in the CSS, not a URL knob.)
+
 ## Examples / common tasks
 
 - **See a theme:** `http://192.168.0.7:8765/?theme=p5-basic`
 - **Compare all theme widgets (dev/design):** open `incarnation/design-preview.html` via the Vite dev server (`:5173`, switch with `?theme=`) — a full game-UI eval page, not the live viewer.
 - **Camera in the PiP:** open `http://192.168.0.7:8765/data/control.html` → "Show camera on TV".
+  The entity field defaults to `camera.printer_gym_camera_hd_stream` (a lighter `_sd_stream`
+  also exists); edit it to point at any HA camera entity_id.
 - **Test audio (greet):** `data/control.html` → "Say on TV" (or HA `script.silver_greet`).
 - **Launch on the bedroom TV:** `bin/silver-launch.py bedroom`.
 

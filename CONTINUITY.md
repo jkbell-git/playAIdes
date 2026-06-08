@@ -22,12 +22,27 @@ chrome (nameplate, date, camera PiP, dialogue, mic, backdrop) — switch with
 `index.html` gained the fate/manga backdrop fx layers + an `#ink-edge` SVG filter. p5-basic
 is unchanged. See *Decisions*. NO Japanese in manga (look only).
 
+**This session (2026-06-08), still on `feat/ui-theme-camera-split`:** the three themes
+remain live-selectable; several refinements landed. (1) **Camera works again** — HA
+removed/re-added the gym camera, so the hardcoded entity moved from
+`camera.printer_gym_camera_live_view` to **`camera.printer_gym_camera_hd_stream`** (a
+lighter `_sd_stream` also exists) across `personas/silver/persona.json`, `data/control.html`,
+`ha/silver_launch.yaml`, `ha/README.md`. (2) The **manga backdrop pivoted to a focus-line
+(集中線) montage** — 4 panels carved by two diagonal `clip-path` seams (genuinely angled
+gutters), pure-CSS conic-gradient speed-lines (the hand-placed SVG was dropped), de-browned
+to neutral B&W with charcoal `#34302a` darks. Tune it live without a rebuild via
+`?scrim=&gap=&lw=` (dev-only; no params = baked defaults). (3) **PiP geometry is now one
+shared source** (`:root --pip-top/--pip-left/--pip-w` in `viewer.css`); every theme derives
+from the base so the PiP can't drift (fixed a bug where it had been tuned on
+`[data-theme=p5-basic]`, leaving fate/manga smaller). (4) **Fate masthead now shows
+month + weekday** (e.g. `JUN 07 SAT`) instead of the time-of-day word.
+
 **Next concrete steps:**
 1. Resolve the two Fire-TV launch issues (see *Known issues*: fullscreen + audio test).
-2. (Optional, on demand) **Wire a chosen theme live**: one-line `@import` of its `theme-*.css`
-   into `viewer.css` — only the real elements re-skin; the decorative widgets stay
-   preview-only (they're not in `index.html`'s DOM).
-3. Polish: manga PiP's "GYM CAM · LIVE / ● REC" labels are cramped at the panel's top edge.
+2. Surface a "camera unavailable" notice in the viewer — right now an offline HA camera
+   fails silently (see *Known issues*).
+3. Bake/finalize the manga montage tuning (`scrim`/density) into the CSS defaults once the
+   look is locked, and retire the dev `?scrim/gap/lw` knobs.
 4. Then `-max` variants with custom art when the user supplies PNGs.
 
 Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` → reload
@@ -40,10 +55,22 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
 - [x] Build `manga-basic` theme (B&W halftone / ink / torn paper, no JP). Done 2026-06-07.
 - [x] Wire fate/manga into the live viewer (`viewer.css` @imports + `index.html` fx layers +
       `#ink-edge` filter). Done 2026-06-07 — all three themes selectable live via `?theme=`.
-- [ ] Polish: manga PiP top labels ("GYM CAM · LIVE / ● REC") are cramped on the panel edge.
+- [~] Polish: manga PiP top labels ("GYM CAM · LIVE / ● REC") at the panel edge. RE-EVAL'd
+      2026-06-08 — the PiP now derives from the shared base geometry (same size/position in
+      every theme), so the manga-specific cramping is largely resolved; verify on the TV and
+      close if the labels now fit.
 - [ ] (Optional refactor) Extract the live p5 rules from `viewer.css` into a `theme-p5.css`
-      for symmetry with fate/manga. Skipped now to avoid destabilising the on-TV p5 build;
-      everything bundles into one CSS so it's cosmetic-only. See *Decisions* (CSS split).
+      for symmetry with fate/manga. PARTIALLY superseded 2026-06-08 — the PiP geometry was
+      hoisted to a shared `:root` base (per-theme rules keep only skin), so the base/skin
+      split now exists for the PiP; the rest of p5's live rules are still inline in
+      `viewer.css`. See *Decisions* (CSS split, shared PiP geometry).
+- [ ] (optional) Full month/weekday NAMES for the fate masthead (currently abbreviated, e.g.
+      `JUN 07 SAT`). Date data already carries the abbreviated form; long form would need
+      either richer date data or client-side expansion.
+- [ ] (optional) Surface a "camera unavailable" notice in the viewer when an HA camera is
+      offline (see *Known issues* — `skills/pip.py` currently fails silently).
+- [ ] (optional) Bake the manga montage tuning (`scrim`/line-density) into the CSS defaults
+      once the look is locked, then drop the dev-only `?scrim/gap/lw` URL knobs.
 - [ ] Add `-max` theme variants (custom art): user supplies transparent PNGs (torn frames,
       ornate emblems, splatter); agent wires them via `border-image` / overlays.
 - [ ] **Update the stale spec** `docs/superpowers/specs/2026-06-07-ui-theme-system-camera-split-design.md`
@@ -73,6 +100,11 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
   drops the grain + big slash filter. "Bake to PNG" is the durable fix if still heavy.
 - **[minor] `data/_mock_p5.html`** — throwaway p5 mock, now superseded by
   `incarnation/design-preview.html` (the switchable p5/fate/manga eval page). Safe to delete.
+- **[minor, UX] Offline HA camera fails silently** — when an HA camera entity is
+  `unavailable`/offline, `skills/pip.py` `show_pip` returns `SkillResult(ok=False, error=...)`
+  and sends nothing to the viewer: no PiP, no on-screen "camera unavailable" notice, so it
+  looks like a bug to the user. Surfaced 2026-06-08. Fix: have `show_pip` push a viewer
+  notice on the unresolved-source / offline path.
 
 ## Decisions
 
@@ -118,3 +150,27 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
   with English labels; don't fabricate JP strings that aren't in the data. Layouts mirror
   each reference (fate/manga: nameplate top-left, secondary info top-right) since position is
   just a per-theme CSS property on the shared DOM.
+- [2026-06-08] **Manga backdrop → focus-line (集中線) montage** (PIVOT). Replaced the earlier
+  dark-seinen / hand-placed-SVG direction with a full-page montage of radial speed-lines
+  drawn purely in CSS (`repeating-conic-gradient`); dropped the SVG, de-browned to neutral
+  B&W. The manga *chrome* (PiP/dialogue ink frames) is unchanged — only the *backdrop* pivoted.
+  Rejected: keeping the hand-authored SVG (harder to tune, brown cast).
+- [2026-06-08] **Manga montage = 4 panels with angled gutters** (clip-path). Simplified the
+  initial 7-panel grid to 4 panels carved by two diagonal `clip-path` seams, so the gutters
+  are genuinely angled rather than orthogonal. Retired the grid/border/`tilt` knobs; kept
+  `scrim` + line-density (`lw`) as the live tuning dials, plus charcoal `#34302a` darks
+  (lightened from near-black `#15120d`). Tunable live via dev-only `?scrim/gap/lw` (no rebuild).
+- [2026-06-08] **Shared PiP geometry: tune the base, not per-theme.** PiP size/position lives
+  once in `viewer.css` `:root` (`--pip-top/--pip-left/--pip-w`); the base `.pip-overlay` and
+  all three cmd-logs derive from it, and per-theme rules keep only skin (p5 torn frame +
+  intentional `rotate(-3deg)` slant; fate gold frame; manga ink frame). Fixes a drift bug
+  where the PiP had been tuned on `[data-theme=p5-basic]` instead of the base, shrinking the
+  fate/manga PiP. Rejected: continuing to set geometry per-theme (drifts).
+- [2026-06-08] **Camera entity repointed to `camera.printer_gym_camera_hd_stream`.** HA
+  removed and re-added the gym camera, retiring `camera.printer_gym_camera_live_view`; the
+  hardcoded id was updated everywhere it's baked in (persona voice trigger, dev panel
+  default, HA launch YAML + README). A lighter `_sd_stream` exists as an alternative. (The
+  `demo_camera` event already templates `{payload.source}`, so the control panel stays generic.)
+- [2026-06-08] **Fate masthead shows month + weekday** (e.g. `JUN 07 SAT`, weekday as the
+  gold hero) instead of the time-of-day word (AFTERNOON/EVENING). CSS-only, fate-scoped,
+  reuses the existing abbreviated date data.
