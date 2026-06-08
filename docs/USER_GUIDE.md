@@ -53,6 +53,7 @@ defaults. (The angled gutters between panels are fixed in the CSS, not a URL kno
   The entity field defaults to `camera.printer_gym_camera_hd_stream` (a lighter `_sd_stream`
   also exists); edit it to point at any HA camera entity_id.
 - **Test audio (greet):** `data/control.html` → "Say on TV" (or HA `script.silver_greet`).
+- **Talk to Silver (mic):** open `control.html` over **HTTPS** (`https://playaides-local.hogu.dev/data/control.html`) → hold "Talk to Silver" and speak; the mic needs a secure context, and Silver's reply plays on the bound TV.
 - **Launch on the bedroom TV:** `bin/silver-launch.py bedroom`.
 
 ## Troubleshooting
