@@ -95,8 +95,8 @@ def main():
                     help="viewer URL to open")
     ap.add_argument("--tap", nargs=2, type=int, default=[960, 540], metavar=("X", "Y"),
                     help="audio-unlock tap coords (default 960 540 = 1080p centre)")
-    ap.add_argument("--scrolls", type=int, default=8,
-                    help="DPAD_DOWN key events to scroll the page down & hide Silk's toolbar (0 = skip)")
+    ap.add_argument("--menu-presses", type=int, default=2,
+                    help="KEYCODE_MENU (82) presses to hide Silk's address/toolbar (0 = skip)")
     ap.add_argument("--wait", type=int, default=10,
                     help="seconds to wait for Silk + the page before the tap")
     a = ap.parse_args()
@@ -116,17 +116,18 @@ def main():
     print(f"  4/6 wait {a.wait}s for load …")
     time.sleep(a.wait)
     print(f"  5/6 tap {a.tap[0]},{a.tap[1]} (audio)  :", adb(f"input tap {a.tap[0]} {a.tap[1]}"))
-    # Silk keeps its URL/toolbar visible; scrolling the page DOWN hides it. Fire TV is
-    # remote-driven, so a *touch* swipe is ignored — replicate the remote with DPAD_DOWN
-    # key events (keycode 20), which is how it hid by hand.
-    if a.scrolls > 0:
+    # Silk keeps its URL/toolbar visible. A *touch* swipe is ignored (Fire TV is
+    # remote-driven) and DPAD_DOWN (keycode 20) scrolling did NOT hide it. Pressing the
+    # remote's Menu / hamburger button DOES hide the bar (~2 presses by hand) — replicate
+    # that with KEYCODE_MENU (keycode 82).
+    if a.menu_presses > 0:
         time.sleep(1)
-        for _ in range(a.scrolls):
-            adb("input keyevent 20")   # DPAD_DOWN — scroll the page down a notch
-            time.sleep(0.35)
-        print(f"  6/6 DPAD_DOWN x{a.scrolls} (hide bar): sent")
+        for _ in range(a.menu_presses):
+            adb("input keyevent 82")   # KEYCODE_MENU — toggles Silk's address/toolbar away
+            time.sleep(0.6)
+        print(f"  6/6 MENU x{a.menu_presses} (hide bar)   : sent")
     else:
-        print("  6/6 hide toolbar          : skipped (--scrolls 0)")
+        print("  6/6 hide toolbar          : skipped (--menu-presses 0)")
     print(f"done — Silver should be on the {a.box} TV.")
 
 

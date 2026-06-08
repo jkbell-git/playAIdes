@@ -38,7 +38,9 @@ from the base so the PiP can't drift (fixed a bug where it had been tuned on
 month + weekday** (e.g. `JUN 07 SAT`) instead of the time-of-day word.
 
 **Next concrete steps:**
-1. Resolve the two Fire-TV launch issues (see *Known issues*: fullscreen + audio test).
+1. ~~Fire-TV address-bar / fullscreen~~ **DONE 2026-06-08** — KEYCODE_MENU (82) ×2 hides
+   Silk's bar, confirmed on the Cube. Remaining launch item: the audio-on-launch test (see
+   *Known issues*).
 2. Surface a "camera unavailable" notice in the viewer — right now an offline HA camera
    fails silently (see *Known issues*).
 3. Bake/finalize the manga montage tuning (`scrim`/density) into the CSS defaults once the
@@ -88,10 +90,12 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
 
 - **[minor, Fire TV / Silk] Viewer doesn't go truly fullscreen** — Silk keeps its URL bar;
   `requestFullscreen()` is NOT honored on Fire TV Silk (confirmed 2026-06-08) and touch
-  swipes are ignored (Fire TV is remote-driven). **Mitigated:** the launch sends DPAD_DOWN
-  key events (`bin/silver-launch.py --scrolls`) to scroll the page down so Silk hides the
-  bar; it re-shows on Silk's ~6 h refresh — accepted as good-enough. Kiosk-browser
-  alternatives evaluated in `docs/firetv-kiosk-browsers.md`. Surfaced 2026-06-07.
+  swipes are ignored (Fire TV is remote-driven). **RESOLVED 2026-06-08:** the launch sends
+  KEYCODE_MENU (`input keyevent 82`) ×2 — the remote's Menu / hamburger button — which DOES
+  hide the bar (confirmed working on the bedroom Cube; `bin/silver-launch.py --menu-presses`,
+  default 2). The earlier DPAD_DOWN scroll attempt did NOT hide it. The bar still re-shows on
+  Silk's ~6 h refresh — accepted as good-enough. Kiosk-browser alternatives evaluated in
+  `docs/firetv-kiosk-browsers.md`. Surfaced 2026-06-07.
 - **[major, Fire TV / audio] No audio on launch** — partly expected: `bin/silver-launch.py`
   only *opens* the viewer; Silver doesn't speak until a greet/conversation, so there's
   nothing to hear yet. To test audio, trigger `script.silver_greet` or `data/control.html` →
@@ -187,8 +191,10 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
   gold hero) instead of the time-of-day word (AFTERNOON/EVENING). CSS-only, fate-scoped,
   reuses the existing abbreviated date data.
 - [2026-06-08] **Kiosk browser = stay on Silk** (no app install). The launch hides Silk's
-  URL bar with DPAD_DOWN key events (remote-scroll; `bin/silver-launch.py --scrolls`); the
-  ~6 h reappear is accepted. `requestFullscreen()` + touch swipes don't work on Silk.
+  URL bar with KEYCODE_MENU presses (`input keyevent 82` ×2; `bin/silver-launch.py
+  --menu-presses`) — the remote's Menu / hamburger button, confirmed working on the Cube; the
+  ~6 h reappear is accepted. (DPAD_DOWN remote-scroll was tried first and did NOT hide it.)
+  `requestFullscreen()` + touch swipes don't work on Silk.
   Dedicated kiosk browsers (Fully Kiosk = sideload but best, REST API + HA integration;
   ClickSimply Kiosk = Appstore, no sideload) were evaluated and parked in
   `docs/firetv-kiosk-browsers.md` for the future. Also added control.html launch toggles
