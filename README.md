@@ -12,7 +12,7 @@ What's working:
 
 **Incarnation (the viewer)**
 - VRM model loading + animation playback (VRMA / Mixamo) over WebSockets
-- Themeable "game-UI" viewer chrome: nameplate, date masthead, torn/inked camera PiP, dialogue/subtitle band, mic indicator, and a sanitized command-log console — switchable via `?theme=` (`p5-basic` default, plus `fate-basic`, `manga-basic`, `classic`)
+- Themeable "game-UI" viewer chrome — nameplate, date masthead, camera PiP, dialogue/subtitle band, mic indicator, sanitized command-log, and per-theme procedural backdrops (p5 red-room, fate gold magic-circle, manga focus-line 集中線 montage) — switchable via `?theme=` (`p5-basic` default, plus `fate-basic`, `manga-basic`, `classic`)
 - Floating camera **picture-in-picture** with a theme-selectable inked frame (driven by `show_pip` / `dismiss_pip` WS commands; HA can push a live camera feed into it)
 - Sanitized **command-log console** showing the real WS command stream (secrets redacted, host/IP masked, truncated); opt out with `?cmdlog=0`
 - **Kiosk mode** (`?kiosk=1`) for unattended TVs: chrome defaults off, cursor hidden, camera director owns framing, best-effort keep-awake + fullscreen
