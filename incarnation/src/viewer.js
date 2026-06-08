@@ -44,6 +44,17 @@ if (config.kiosk) {
     // focus/animation shots still position the camera directly (update() ignores
     // the enabled flag).
     controls.enabled = false;
+    // Best-effort, on the FIRST user gesture (the launch's audio-unlock tap counts as one):
+    // request TRUE fullscreen — hides Silk's URL/toolbar far better than the scroll trick,
+    // and it survives Silk's ~6 h refresh — plus a screen wake lock (keep-awake; needs a
+    // secure context, so it's a graceful no-op over plain http). Both fail silently if
+    // unsupported, so the launch-time swipe still covers the scroll-hide fallback.
+    const goFullscreenAndAwake = () => {
+        try { document.documentElement.requestFullscreen?.().catch(() => {}); } catch (_) {}
+        try { navigator.wakeLock?.request?.('screen').catch(() => {}); } catch (_) {}
+        ['pointerdown', 'keydown', 'click'].forEach((ev) => window.removeEventListener(ev, goFullscreenAndAwake));
+    };
+    ['pointerdown', 'keydown', 'click'].forEach((ev) => window.addEventListener(ev, goFullscreenAndAwake));
 }
 
 // Theme: drive the CSS [data-theme] layer. (The camera always shows as a floating PiP.)
