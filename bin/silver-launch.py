@@ -95,9 +95,8 @@ def main():
                     help="viewer URL to open")
     ap.add_argument("--tap", nargs=2, type=int, default=[960, 540], metavar=("X", "Y"),
                     help="audio-unlock tap coords (default 960 540 = 1080p centre)")
-    ap.add_argument("--swipe", nargs=4, type=int, default=[960, 880, 960, 240], metavar=("X1", "Y1", "X2", "Y2"),
-                    help="swipe-up gesture to scroll down & hide Silk's toolbar/URL bar (default 1080p)")
-    ap.add_argument("--no-swipe", action="store_true", help="skip the toolbar-hide swipe")
+    ap.add_argument("--scrolls", type=int, default=8,
+                    help="DPAD_DOWN key events to scroll the page down & hide Silk's toolbar (0 = skip)")
     ap.add_argument("--wait", type=int, default=10,
                     help="seconds to wait for Silk + the page before the tap")
     a = ap.parse_args()
@@ -117,14 +116,17 @@ def main():
     print(f"  4/6 wait {a.wait}s for load …")
     time.sleep(a.wait)
     print(f"  5/6 tap {a.tap[0]},{a.tap[1]} (audio)  :", adb(f"input tap {a.tap[0]} {a.tap[1]}"))
-    # Silk keeps its URL/toolbar visible; scrolling the page down hides it. Replicate
-    # that with a swipe-up gesture (a real input event, which Silk honors).
-    if a.no_swipe:
-        print("  6/6 swipe (hide toolbar)  : skipped (--no-swipe)")
-    else:
+    # Silk keeps its URL/toolbar visible; scrolling the page DOWN hides it. Fire TV is
+    # remote-driven, so a *touch* swipe is ignored — replicate the remote with DPAD_DOWN
+    # key events (keycode 20), which is how it hid by hand.
+    if a.scrolls > 0:
         time.sleep(1)
-        s = a.swipe
-        print(f"  6/6 swipe {s[0]},{s[1]}→{s[2]},{s[3]} (hide bar):", adb(f"input swipe {s[0]} {s[1]} {s[2]} {s[3]} 250"))
+        for _ in range(a.scrolls):
+            adb("input keyevent 20")   # DPAD_DOWN — scroll the page down a notch
+            time.sleep(0.35)
+        print(f"  6/6 DPAD_DOWN x{a.scrolls} (hide bar): sent")
+    else:
+        print("  6/6 hide toolbar          : skipped (--scrolls 0)")
     print(f"done — Silver should be on the {a.box} TV.")
 
 
