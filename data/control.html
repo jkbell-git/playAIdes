@@ -38,6 +38,22 @@
   <p class="sub">POSTs <code>/api/event</code> on this same backend. Open the viewer on your Fire TV / browser first so a client is <b>bound</b> to Silver, then press a button.</p>
 
   <fieldset>
+    <legend>Fire TV — launch the kiosk viewer</legend>
+    <label for="launch-theme">Theme to open</label>
+    <select id="launch-theme">
+      <option value="p5-basic">p5-basic (default)</option>
+      <option value="fate-basic">fate-basic</option>
+      <option value="manga-basic">manga-basic</option>
+    </select>
+    <div class="row">
+      <button class="show" onclick="launch('bedroom')">▶ Bedroom</button>
+      <button class="show" onclick="launch('box8')">▶ Box .0.8</button>
+      <button class="show" onclick="launch('living')">▶ Living</button>
+    </div>
+    <p style="font-size:.72rem;color:#7c76a0;margin:9px 0 0">CEC power-on → open Silk to the kiosk URL → audio-unlock tap. Takes ~10–15s; watch the TV.</p>
+  </fieldset>
+
+  <fieldset>
     <legend>Picture-in-picture</legend>
     <label for="url">Image / stream URL (resolved by the viewer)</label>
     <input id="url" value="http://192.168.0.7:8765/data/pip-test.svg" />
@@ -113,6 +129,18 @@
   function dismissPip() { postEvent('demo_dismiss', {}); }
   function sayOnTv()    { postEvent('demo_say', { url: document.getElementById('url').value, text: document.getElementById('saytext').value }); }
   function showCamera() { postEvent('demo_camera', { source: document.getElementById('camsrc').value }); }
+
+  function launch(box) {
+    const theme = document.getElementById('launch-theme').value;
+    fetch('/api/launch', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ box, theme })
+    }).then(async (res) => {
+      const b = await res.json().catch(() => ({}));
+      write(`POST /api/launch {box:"${box}", theme:"${theme}"} → ${res.status} ${JSON.stringify(b)}`, res.ok ? 'ok' : 'bad');
+      if (res.status === 404) write('⚠ /api/launch not found — restart the backend once to load the new endpoint.', 'warn');
+    }).catch((e) => write('launch failed: ' + e, 'bad'));
+  }
 
   function sendRaw() {
     let payload;

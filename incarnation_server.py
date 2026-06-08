@@ -4,6 +4,8 @@ import logging
 import threading
 import os
 import shutil
+import subprocess
+import sys
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -160,6 +162,37 @@ class IncarnationServer:
             if self.event_handler is None:
                 raise HTTPException(status_code=503, detail="event handling unavailable")
             return await asyncio.to_thread(self.event_handler, body.name, body.payload)
+
+        # ── Fire TV kiosk launch (dev control panel) ───────────────────────────
+        class LaunchBody(BaseModel):
+            box: str = "bedroom"
+            theme: Optional[str] = None
+
+        @self.app.post("/api/launch")
+        async def launch_kiosk(body: LaunchBody, _auth=Depends(require_api_key)):
+            """Kick off the Fire TV kiosk launch (CEC power-on -> force-stop Silk ->
+            open the kiosk URL -> audio-unlock tap) by running bin/silver-launch.py
+            in the background. Lets the dev control panel launch a TV with NO HA
+            token in the browser — the subprocess reads HA_URL/HA_TOKEN from this
+            backend's own env / the project .env (never via argv, never logged)."""
+            boxes = {"bedroom", "box8", "living"}
+            if body.box not in boxes:
+                raise HTTPException(status_code=400, detail=f"box must be one of {sorted(boxes)}")
+            theme = body.theme if body.theme in {"p5-basic", "fate-basic", "manga-basic", "classic"} else None
+            url = "http://192.168.0.7:8765/?kiosk=1&nameplate=1" + (f"&theme={theme}" if theme else "")
+            repo = os.path.dirname(os.path.abspath(__file__))
+            script = os.path.join(repo, "bin", "silver-launch.py")
+            if not os.path.exists(script):
+                raise HTTPException(status_code=500, detail="silver-launch.py not found on the server")
+            try:
+                subprocess.Popen([sys.executable, script, body.box, "--url", url],
+                                 cwd=repo, start_new_session=True)
+            except Exception as e:
+                logger.warning("kiosk launch failed to spawn: %s", e)
+                raise HTTPException(status_code=500, detail="failed to start the launcher")
+            logger.info("kiosk launch kicked off: box=%s theme=%s", body.box, theme)
+            return {"ok": True, "box": body.box, "theme": theme, "url": url,
+                    "note": "powering on + opening Silk (~10-15s)"}
 
         @self.app.get("/api/state")
         async def get_state():
