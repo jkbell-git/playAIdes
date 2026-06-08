@@ -17,6 +17,56 @@ viewer (`incarnation/`) renders the avatar plus a themeable "game-UI" chrome.
   (see `README.md` → "Home Assistant integration").
 - Full details live in the repo `README.md` (Running + HA sections).
 
+## Getting the assets (characters & animations)
+
+The avatar models and animations are **not** included in the repo — characters are kept
+private, and the animation pack can't be legally redistributed (see the license note below).
+A fresh clone runs the UI but has no avatar to show until you supply two things. Both live
+under gitignored paths, so your assets stay local and won't get committed.
+
+### 1. A character (VRM model + persona)
+
+1. Get a `.vrm` avatar — make one for free in
+   [VRoid Studio](https://vroid.com/en/studio), or use any VRM you have the rights to.
+2. Drop the model under the viewer's models dir:
+   `incarnation/public/models/<name>/<name>.vrm`
+3. Add a persona so the backend can load it — create `personas/<id>/persona.json`
+   pointing at the model (`model_url` is relative to `incarnation/public/`):
+
+   ```json
+   {
+     "name": "Aria",
+     "is_default": true,
+     "avatar": {
+       "model_url": "models/aria/aria.vrm",
+       "idle_animation": "model_pose",
+       "intro_animation": "VRMA_01"
+     }
+   }
+   ```
+
+   The backend loads the persona with `is_default: true` (else the first alphabetically).
+   `personas/handy.json` is a minimal reference example. You can also upload a VRM live from
+   the creator UI (`POST /api/upload/avatar`).
+
+### 2. Animations (VRMA pack)
+
+The viewer plays `.vrma` (VRM Animation) clips from `incarnation/public/vrma/animations/`.
+Each file's name (without `.vrma`) is the clip name personas reference via `idle_animation`
+/ `intro_animation`; the built-in fallback idle is `model_pose` (`DEFAULT_IDLE_ANIMATION` in
+`playAIdes.py`).
+
+1. Download the free **VRoid Project "VRM Animation" 7-pack** from the official BOOTH page:
+   <https://vroid.booth.pm/items/5512385> (motions: full-body, greeting, peace sign, shoot,
+   spin, model pose, squat).
+2. Copy the `.vrma` files into `incarnation/public/vrma/animations/`. Ensure a
+   `model_pose.vrma` exists for the default idle (the pack's "Model pose" is `VRMA_06`).
+
+**License:** copyright pixiv Inc.; free to use (including commercially) but **do not
+redistribute the raw/riggable files** — that's why they aren't bundled here. If you use them,
+credit *"Animation credits to pixiv Inc.'s VRoid Project"*. Full terms ship in the pack's
+readme.
+
 ## Run it
 
 ```bash
