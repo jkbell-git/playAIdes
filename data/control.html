@@ -53,6 +53,12 @@
       <option value="fate-basic">fate-basic</option>
       <option value="manga-basic">manga-basic</option>
     </select>
+    <label style="display:flex;align-items:center;gap:8px;margin:10px 0 0;color:#b9b3d0;font-size:.85rem">
+      <input type="checkbox" id="launch-quality" style="width:auto" /> Low quality — faster load on weak TVs
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;margin:5px 0 0;color:#b9b3d0;font-size:.85rem">
+      <input type="checkbox" id="launch-gpufix" style="width:auto" /> GPU-safe rendering — fixes wireframe / face banding
+    </label>
     <div class="row">
       <button class="show" onclick="launch('bedroom')">▶ Bedroom</button>
       <button class="show" onclick="launch('box8')">▶ Box .0.8</button>
@@ -148,9 +154,11 @@
 
   function launch(box) {
     const theme = document.getElementById('launch-theme').value;
+    const quality = document.getElementById('launch-quality').checked ? 'low' : null;
+    const gpufix = document.getElementById('launch-gpufix').checked;
     fetch('/api/launch', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ box, theme })
+      body: JSON.stringify({ box, theme, quality, gpufix })
     }).then(async (res) => {
       const b = await res.json().catch(() => ({}));
       write(`POST /api/launch {box:"${box}", theme:"${theme}"} → ${res.status} ${JSON.stringify(b)}`, res.ok ? 'ok' : 'bad');

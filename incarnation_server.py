@@ -167,6 +167,8 @@ class IncarnationServer:
         class LaunchBody(BaseModel):
             box: str = "bedroom"
             theme: Optional[str] = None
+            quality: Optional[str] = None     # "low" → drop heavy FX / pixelRatio on weak TVs
+            gpufix: bool = False              # depth/precision render fix (wireframe/banding)
 
         @self.app.post("/api/launch")
         async def launch_kiosk(body: LaunchBody, _auth=Depends(require_api_key)):
@@ -179,7 +181,11 @@ class IncarnationServer:
             if body.box not in boxes:
                 raise HTTPException(status_code=400, detail=f"box must be one of {sorted(boxes)}")
             theme = body.theme if body.theme in {"p5-basic", "fate-basic", "manga-basic", "classic"} else None
-            url = "http://192.168.0.7:8765/?kiosk=1&nameplate=1" + (f"&theme={theme}" if theme else "")
+            params = ["kiosk=1", "nameplate=1"]
+            if theme: params.append(f"theme={theme}")
+            if body.quality in {"low", "high"}: params.append(f"quality={body.quality}")
+            if body.gpufix: params.append("gpufix=1")
+            url = "http://192.168.0.7:8765/?" + "&".join(params)
             repo = os.path.dirname(os.path.abspath(__file__))
             script = os.path.join(repo, "bin", "silver-launch.py")
             if not os.path.exists(script):
@@ -191,8 +197,8 @@ class IncarnationServer:
                 logger.warning("kiosk launch failed to spawn: %s", e)
                 raise HTTPException(status_code=500, detail="failed to start the launcher")
             logger.info("kiosk launch kicked off: box=%s theme=%s", body.box, theme)
-            return {"ok": True, "box": body.box, "theme": theme, "url": url,
-                    "note": "powering on + opening Silk (~10-15s)"}
+            return {"ok": True, "box": body.box, "theme": theme, "quality": body.quality,
+                    "gpufix": body.gpufix, "url": url, "note": "powering on + opening Silk (~10-15s)"}
 
         @self.app.get("/api/state")
         async def get_state():
