@@ -31,6 +31,14 @@
           font-size: .8rem; overflow: auto; white-space: pre-wrap; word-break: break-word; }
     .ok { color: #6ee7a8; } .bad { color: #ff8d8d; } .warn { color: #f0c674; }
     code { color: #c9a227; }
+    #talk { width: 100%; padding: 18px; font-size: 1.05rem; font-weight: 600; cursor: pointer;
+            border: 1px solid #3a3550; border-radius: 8px; background: #15131f; color: #e8e6f0;
+            -webkit-user-select: none; user-select: none; touch-action: none; transition: all .08s; }
+    #talk:disabled { opacity: .45; cursor: not-allowed; }
+    #talk.rec  { background: #c9a227; color: #1a1606; border-color: #f0c674; }
+    #talk.busy { background: #1c1930; color: #9a93b5; }
+    .heard { text-align: center; color: #c9a227; min-height: 1.3em; margin-top: 8px; }
+    #mic-banner { font-size: .82rem; margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -85,6 +93,14 @@
     <div class="row">
       <button class="show" onclick="sayOnTv()">🔊 Say on TV</button>
     </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Talk to Silver — phone mic (HTTPS only)</legend>
+    <p class="sub" style="margin:0 0 10px">Hold the button and speak; Silver replies on the <b>TV</b>, not here. Needs a secure context — open this page via <code>https://playaides-local.hogu.dev/data/control.html</code>; plain http can't use the mic.</p>
+    <div id="mic-banner" class="bad" style="display:none"></div>
+    <button id="talk" disabled>🎤 Hold to Talk</button>
+    <div class="heard" id="heard"></div>
   </fieldset>
 
   <fieldset>
@@ -160,6 +176,75 @@
   }
 
   refreshState();
+
+  // ── Phone mic: hold to talk → POST /api/voice (STT → LLM → TTS; reply plays on the TV).
+  //    Ported from data/mic.html. getUserMedia needs a secure context (HTTPS / localhost). ──
+  (function initMic() {
+    const btn = document.getElementById('talk');
+    const heard = document.getElementById('heard');
+    const banner = document.getElementById('mic-banner');
+    if (!btn) return;
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      banner.style.display = 'block';
+      banner.textContent = '🎤 blocked: open this page over HTTPS (https://playaides-local.hogu.dev/data/control.html) — plain http:// can’t use the mic.';
+      write('mic unavailable — insecure context (use the HTTPS URL)', 'warn');
+      return;
+    }
+    btn.disabled = false;
+    const pickMime = () => {
+      for (const t of ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'])
+        { try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (_) {} }
+      return '';
+    };
+    const extFor = (m) => m.includes('webm') ? 'webm' : m.includes('ogg') ? 'ogg' : m.includes('mp4') ? 'mp4' : 'bin';
+    let stream = null, recorder = null, chunks = [], recording = false, busy = false;
+
+    async function startRec() {
+      if (recording || busy || btn.disabled) return;
+      try { if (!stream) stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+      catch (e) { write('mic permission denied: ' + e, 'bad'); return; }
+      const mime = pickMime();
+      chunks = [];
+      recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      recorder._mime = recorder.mimeType || mime || 'audio/webm';
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      recorder.onstop = () => sendClip(recorder._mime);
+      recorder.start();
+      recording = true; btn.classList.add('rec'); btn.textContent = '● Listening… release to send';
+    }
+    function stopRec() {
+      if (!recording) return;
+      recording = false; btn.classList.remove('rec');
+      try { recorder.stop(); } catch (_) {}
+    }
+    async function sendClip(mime) {
+      const blob = new Blob(chunks, { type: mime }); chunks = [];
+      if (!blob.size) { write('empty clip (too short?) — try again', 'warn'); return resetBtn(); }
+      busy = true; btn.classList.add('busy'); btn.disabled = true; btn.textContent = 'Sending…'; heard.textContent = '…';
+      write(`mic: sending ${(blob.size / 1024).toFixed(1)} KB (${mime})`);
+      try {
+        const fd = new FormData();
+        fd.append('audio', blob, 'clip.' + extFor(mime));
+        const res = await fetch('/api/voice', { method: 'POST', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { write(`/api/voice → ${res.status} ${JSON.stringify(data)}`, 'bad'); }
+        else {
+          const t = (data.text || '').trim();
+          heard.textContent = t ? '“' + t + '”' : '(heard nothing)';
+          write(`heard: ${t || '(empty)'} | routed=${data.routed} | lang=${data.language || '?'}`, t && data.routed ? 'ok' : 'warn');
+        }
+      } catch (e) { write('mic request failed: ' + e, 'bad'); }
+      finally { resetBtn(); }
+    }
+    function resetBtn() { busy = false; btn.classList.remove('busy'); btn.disabled = false; btn.textContent = '🎤 Hold to Talk'; }
+
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); startRec(); });
+    btn.addEventListener('pointerup',   (e) => { e.preventDefault(); stopRec(); });
+    btn.addEventListener('pointercancel', () => stopRec());
+    btn.addEventListener('pointerleave',  () => stopRec());
+    btn.addEventListener('touchend', (e) => { e.preventDefault(); stopRec(); });
+    window.addEventListener('contextmenu', (e) => { if (e.target === btn) e.preventDefault(); });
+  })();
 </script>
 </body>
 </html>
