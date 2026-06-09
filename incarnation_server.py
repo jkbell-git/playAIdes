@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 try:
     from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File
     from backend.api.deps import require_api_key
+    from backend.stores import config_store
+    from backend.api.integrations import router as integrations_router
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import StreamingResponse
     import uvicorn
@@ -78,6 +80,13 @@ class IncarnationServer:
         os.makedirs("incarnation/public/outputs", exist_ok=True)
         os.makedirs("incarnation/public/vrma/animations", exist_ok=True)
 
+        # One-time migration: seed the integrations store from today's hardcoded
+        # values so the console has a starting point and the cutover is non-breaking.
+        try:
+            config_store.seed_if_absent()
+        except Exception as e:  # never let a seed failure block server startup
+            logger.warning("integrations store seed skipped: %s", e)
+
         self.app.mount("/data", StaticFiles(directory="data"), name="data")
         self.app.mount("/personas", StaticFiles(directory="personas"), name="personas")
         self.app.mount("/outputs", StaticFiles(directory="incarnation/public/outputs"), name="outputs")
@@ -114,6 +123,7 @@ class IncarnationServer:
             )
 
         self._setup_routes()
+        self.app.include_router(integrations_router)
 
         self.thread = threading.Thread(target=self._run_server, daemon=True)
         self.thread.start()
