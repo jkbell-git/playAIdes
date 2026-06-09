@@ -35,3 +35,14 @@ def test_load_falls_back_when_mapping_empty(tmp_path: Path):
     out = launch_targets.load_launch_targets(
         store_path=str(path), fallback=launch_targets.DEFAULT_LAUNCH_TARGETS)
     assert out == launch_targets.DEFAULT_LAUNCH_TARGETS
+
+
+def test_load_falls_back_on_unreadable_store(tmp_path: Path):
+    # A store path that exists but can't be JSON-read (here a directory -> OSError)
+    # must degrade to defaults, not crash. Guards the field case where a root-owned
+    # config/integrations.json (mode 600) crashed bin/silver-launch.py.
+    bad = tmp_path / "integrations.json"
+    bad.mkdir()
+    out = launch_targets.load_launch_targets(
+        store_path=str(bad), fallback=launch_targets.DEFAULT_LAUNCH_TARGETS)
+    assert out == launch_targets.DEFAULT_LAUNCH_TARGETS

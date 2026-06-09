@@ -27,7 +27,8 @@ def load_launch_targets(store_path: str = "config/integrations.json",
     try:
         with open(store_path) as f:
             store = json.load(f)
-    except (FileNotFoundError, ValueError):
+    except (OSError, ValueError):
+        # Missing, unreadable (e.g. bad perms), or malformed store -> defaults.
         return fallback
     targets = (store.get("mappings") or {}).get("launch_targets") or []
     out: dict[str, str] = {}

@@ -19,7 +19,7 @@ def _load(path: str) -> dict:
     try:
         with open(path) as f:
             return json.load(f)
-    except (FileNotFoundError, ValueError):
+    except (OSError, ValueError):
         return {}
 
 

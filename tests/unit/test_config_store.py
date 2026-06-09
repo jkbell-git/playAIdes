@@ -42,3 +42,14 @@ def test_seed_is_idempotent(tmp_path):
     assert config_store.seed_if_absent(path, env={"HA_URL": "x"}) is True
     assert config_store.seed_if_absent(path, env={"HA_URL": "y"}) is False  # already there
     assert config_store.load(path)["providers"]["homeassistant"]["config"]["base_url"] == "x"
+
+
+def test_load_returns_skeleton_on_unreadable_or_malformed(tmp_path):
+    # Unreadable (a directory -> OSError) and malformed JSON (ValueError) both degrade
+    # to the empty skeleton instead of crashing the caller.
+    as_dir = tmp_path / "as_dir.json"
+    as_dir.mkdir()
+    assert config_store.load(str(as_dir)) == {"providers": {}, "mappings": {}}
+    malformed = tmp_path / "bad.json"
+    malformed.write_text("{not valid json")
+    assert config_store.load(str(malformed)) == {"providers": {}, "mappings": {}}

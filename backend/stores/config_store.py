@@ -22,7 +22,8 @@ def load(path: str = DEFAULT_PATH) -> dict:
     try:
         with open(path) as f:
             return json.load(f)
-    except FileNotFoundError:
+    except (OSError, ValueError):
+        # Missing, unreadable (e.g. bad perms), or malformed store -> empty skeleton.
         return _empty()
 
 
