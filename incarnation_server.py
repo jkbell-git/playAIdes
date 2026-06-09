@@ -28,6 +28,20 @@ import os
 import shutil
 
 
+class WebSocketDisplayChannel:
+    """DisplayChannel implementation backed by the WS broadcast.
+
+    Thread-safe: broadcast_to_persona uses asyncio.run_coroutine_threadsafe,
+    so a worker thread running a turn can push frames without touching the
+    event loop."""
+
+    def __init__(self, server):
+        self._server = server
+
+    def push(self, persona_id: str, event_type: str, payload: dict) -> None:
+        self._server.broadcast_to_persona(persona_id, event_type, payload)
+
+
 class PersonaCreate(BaseModel):
     name: str
     description: str = ""

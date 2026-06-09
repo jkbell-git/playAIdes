@@ -129,6 +129,21 @@ class StubIncarnationServer:
         self.commands.append((cmd_type, payload or {}))
 
 
+class RecordingDisplayChannel:
+    """DisplayChannel test double — records every (persona_id, type, payload) push."""
+
+    def __init__(self):
+        self.pushes: list[tuple[str, str, dict]] = []
+
+    def push(self, persona_id: str, event_type: str, payload: dict) -> None:
+        self.pushes.append((persona_id, event_type, payload))
+
+
+@pytest.fixture
+def recording_display() -> "RecordingDisplayChannel":
+    return RecordingDisplayChannel()
+
+
 @pytest.fixture
 def no_incarnation(monkeypatch: pytest.MonkeyPatch):
     """Replace IncarnationServer with StubIncarnationServer for the test.
