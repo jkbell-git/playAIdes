@@ -1,8 +1,11 @@
 """HomeAssistantProvider normalizes /api/states and routes invoke() (HTTP mocked)."""
 import responses
+from pathlib import Path
 
 from backend.clients.providers.base import Status, CAP_PIP, CAP_SCRIPTS, CAP_LAUNCH_TARGETS
 from backend.clients.providers.homeassistant import HomeAssistantProvider
+from backend.stores import config_store, secrets_store
+from backend.clients.providers import registry
 
 HA_BASE = "http://ha.test:8123"
 
@@ -71,3 +74,25 @@ def test_invoke_script_fires_service():
 def test_invoke_unsupported_capability_is_handled():
     out = _provider().invoke("nope", "x")
     assert out["ok"] is False and out["reason"]
+
+
+def test_build_provider_constructs_ha_from_store_and_secret(tmp_path: Path):
+    store_path = str(tmp_path / "integrations.json")
+    secret_path = str(tmp_path / "secrets.json")
+    config_store.save({
+        "providers": {"homeassistant": {
+            "kind": "homeassistant", "enabled": True,
+            "config": {"base_url": "http://ha.local:8123"}}},
+        "mappings": {},
+    }, store_path)
+    secrets_store.set_secret("homeassistant", "token", "tok", secret_path)
+
+    p = registry.build_provider("homeassistant", store_path=store_path, secret_path=secret_path)
+    assert isinstance(p, HomeAssistantProvider)
+
+
+def test_build_provider_returns_none_for_unknown(tmp_path: Path):
+    store_path = str(tmp_path / "integrations.json")
+    config_store.save({"providers": {}, "mappings": {}}, store_path)
+    assert registry.build_provider("ghost", store_path=store_path,
+                                   secret_path=str(tmp_path / "s.json")) is None
