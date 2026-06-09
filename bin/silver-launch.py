@@ -30,13 +30,25 @@ import time
 import urllib.error
 import urllib.request
 
-# Fire TV media_player entities (the Android Debug Bridge integration targets
-# the same entity for adb_command). See ha/silver_launch.yaml.
-BOXES = {
-    "bedroom": "media_player.fire_tv_192_168_0_233",
-    "box8":    "media_player.fire_tv_192_168_0_8",
-    "living":  "media_player.fire_tv_192_168_0_234",
-}
+# Make the repo root importable so this script (run as bin/silver-launch.py,
+# whose sys.path[0] is bin/) can import the shared backend.stores package.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from backend.stores import launch_targets  # noqa: E402
+
+# Hardcoded fallback (the original BOXES) — used when the config store has no
+# launch_targets mapping yet. Single source of truth lives in launch_targets.py.
+_FALLBACK_BOXES = launch_targets.DEFAULT_LAUNCH_TARGETS
+
+
+def resolve_boxes(store_path=None):
+    """Resolve {label: entity_id} from the config store, falling back to the
+    hardcoded defaults. Default store path is <repo>/config/integrations.json."""
+    if store_path is None:
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        store_path = os.path.join(repo, "config", "integrations.json")
+    return launch_targets.load_launch_targets(store_path=store_path, fallback=_FALLBACK_BOXES)
+
+
 DEFAULT_URL = "http://192.168.0.7:8765/?kiosk=1&nameplate=1"
 SILK = "com.amazon.cloud9"  # Amazon Silk browser package
 
@@ -88,8 +100,9 @@ def _call(base, token, service, data):
 
 
 def main():
+    boxes = resolve_boxes()
     ap = argparse.ArgumentParser(description="Launch the Silver kiosk viewer on a Fire TV via Home Assistant.")
-    ap.add_argument("box", nargs="?", default="bedroom", choices=list(BOXES),
+    ap.add_argument("box", nargs="?", default="bedroom", choices=list(boxes),
                     help="which Fire TV (default: bedroom)")
     ap.add_argument("--url", default=os.environ.get("VIEWER_URL", DEFAULT_URL),
                     help="viewer URL to open")
@@ -102,7 +115,7 @@ def main():
     a = ap.parse_args()
 
     base, token = _creds()
-    entity = BOXES[a.box]
+    entity = boxes[a.box]
 
     def adb(cmd):
         return _call(base, token, "androidtv/adb_command", {"entity_id": entity, "command": cmd})
