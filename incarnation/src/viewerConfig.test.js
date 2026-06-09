@@ -18,6 +18,7 @@ describe('loadConfig — defaults', () => {
             theme: 'p5-basic',
             split: true,
             cmdLog: true,
+            gpufix: false,
             wsUrl: 'ws://localhost:8765/ws',
             apiBase: 'http://localhost:8765',
         });
