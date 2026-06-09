@@ -83,6 +83,10 @@ Test/iterate loop: edit `incarnation/` → `cd incarnation && npx vite build` �
 - [ ] Delete `data/_mock_p5.html` — now SUPERSEDED by `incarnation/design-preview.html`.
       (Agent's `rm` was blocked by the permission classifier; user to remove or approve.)
 - [ ] (optional) Install `ha/silver_launch.yaml` in HA + tune the bedroom audio-unlock tap.
+- [ ] **Integrations console — v2/v3 roadmap** (v1 = generic provider seam + HA provider +
+      React config console, being spec'd 2026-06-08). **v2:** a Web-API provider (calendar,
+      weather; REST via the existing http-skill seam). **v3:** an Agent provider (Hermes-style
+      agents that *act* — e.g. write a web service). Both plug into the v1 provider seam.
 - [x] Refresh the stale README (Incarnation pages / Viewer / Running + HA endpoint count).
       Done 2026-06-07 via a living-docs sweep (full rewrite adopted from `LivDoc-README.md`).
 
