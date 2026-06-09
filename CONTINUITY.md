@@ -82,6 +82,14 @@ remain the live look; see Decisions for the full theme history.)*
 - [ ] **Integrations console — v2/v3 roadmap** (v1 done). **v2:** a Web-API provider (calendar,
       weather; REST via the existing http-skill seam). **v3:** an Agent provider (Hermes-style
       agents that *act* — e.g. write a web service). Both plug into the v1 provider seam.
+- [ ] **PARKED — Console → unified trigger-binding manager.** Brainstormed 2026-06-09, deferred
+      behind the `PlayAIdes` god-object decomposition (needs a clean persona/trigger API first).
+      Reframe: the console becomes CRUD over `persona.triggers` (`phrase|event → skill → params`),
+      one **unified row** per binding + a `+` to add; rows editable/deletable. Folds the old
+      capability→entity "mapping" into the row's *target*. Open Qs: "any persona" scope, LLM vs
+      deterministic phrase-parse, HA-intents overlap. Full notes:
+      `docs/superpowers/specs/2026-06-09-console-trigger-redesign-PARKED.md`. **Resume after** the
+      persona/trigger backend slice (PersonaService + triggers store + `/api/v1` triggers API) lands.
 - [x] Refresh the stale README (Incarnation pages / Viewer / Running + HA endpoint count).
       Done 2026-06-07 via a living-docs sweep (full rewrite adopted from `LivDoc-README.md`).
 
