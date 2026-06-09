@@ -162,3 +162,39 @@ class HAClient:
             return resp.status_code == 200
         except Exception:
             return False
+
+    def get_states(self) -> Optional[list]:
+        """GET /api/states — all entities. Returns the raw list, or None on any
+        error (unreachable, non-200, non-JSON). The provider normalizes."""
+        try:
+            resp = requests.get(
+                f"{self.base_url}/api/states",
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=self.timeout,
+            )
+        except (requests.ConnectionError, requests.Timeout, ConnectionError) as e:
+            logger.warning("HA states unreachable: %s", e)
+            return None
+        if resp.status_code != 200:
+            logger.warning("HA states returned %s", resp.status_code)
+            return None
+        try:
+            return resp.json()
+        except ValueError:
+            logger.warning("HA states returned non-JSON")
+            return None
+
+    def call_service(self, domain: str, service: str, data: dict) -> bool:
+        """POST /api/services/<domain>/<service>. Returns True on HTTP 200,
+        False on any error. Used by the provider's invoke() test-fire."""
+        try:
+            resp = requests.post(
+                f"{self.base_url}/api/services/{domain}/{service}",
+                json=data,
+                headers={"Authorization": f"Bearer {self.token}"},
+                timeout=self.timeout,
+            )
+        except (requests.ConnectionError, requests.Timeout, ConnectionError) as e:
+            logger.warning("HA service %s/%s unreachable: %s", domain, service, e)
+            return False
+        return resp.status_code == 200
