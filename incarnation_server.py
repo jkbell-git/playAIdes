@@ -11,7 +11,8 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 try:
-    from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File
+    from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File
+    from backend.api.deps import require_api_key
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import StreamingResponse
     import uvicorn
@@ -118,17 +119,6 @@ class IncarnationServer:
         self.thread.start()
 
     def _setup_routes(self):
-
-        # ── Auth dependency ───────────────────────────────────────────────────
-        def require_api_key(authorization: Optional[str] = Header(default=None)):
-            expected = os.environ.get("PLAYAIDES_API_KEY")
-            if not expected:
-                # Dev mode: no auth configured. Logged once at startup elsewhere.
-                return
-            if not authorization or not authorization.startswith("Bearer "):
-                raise HTTPException(status_code=401, detail="missing bearer token")
-            if authorization.removeprefix("Bearer ") != expected:
-                raise HTTPException(status_code=401, detail="invalid bearer token")
 
         # ── HA trigger endpoints ──────────────────────────────────────────────
         @self.app.post("/api/personas/{persona_id}/activate")
