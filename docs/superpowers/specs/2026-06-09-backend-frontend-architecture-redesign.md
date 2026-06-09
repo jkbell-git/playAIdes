@@ -184,6 +184,11 @@ surface side-by-side later (a "Model services" section is a v2+ roadmap line, no
 - **OpenAPI graduation path:** FastAPI auto-publishes an OpenAPI schema + Swagger UI at `/docs` — the
   ICD in machine-readable form. v1 hand-writes the small client; later, codegen a typed client from the
   schema so the two sides cannot drift. (Noted, not built in v1.)
+- **Frontend independence — preserved, not built.** Because pages only ever reach the backend through
+  the versioned contract (via the shared client), the frontend is already *logically* independent of
+  backend internals. Going further — a separately-deployed or separately-repo'd frontend, or
+  third-party consumers — becomes a **packaging choice the contract already enables**; it is not
+  required now (YAGNI), and nothing in this design forecloses it.
 
 ## Testing strategy
 
