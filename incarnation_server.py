@@ -112,6 +112,11 @@ class IncarnationServer:
             async def serve_index():
                 from fastapi.responses import FileResponse
                 return FileResponse("incarnation/dist/index.html")
+
+            @self.app.get("/console")
+            async def serve_console():
+                from fastapi.responses import FileResponse
+                return FileResponse("incarnation/dist/console.html")
         else:
             logger.warning("incarnation/dist not found. Production build will not be served.")
 

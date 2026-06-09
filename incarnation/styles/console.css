@@ -1,0 +1,25 @@
+/* incarnation/styles/console.css — master–detail console. Colors come from
+   styles/tokens.css (the framework-agnostic theme layer). */
+.console { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh;
+  font-family: system-ui, sans-serif; color: var(--color-text, #e8e8e8);
+  background: var(--color-bg, #14151a); }
+.console__sidebar { border-right: 1px solid var(--color-border, #2a2c33); padding: 1rem; }
+.console__title { font-size: 1rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--color-text-muted, #9aa0ab); }
+.console__provider { display: block; width: 100%; text-align: left; padding: .5rem .75rem;
+  margin-top: .5rem; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: inherit; }
+.console__provider--active { background: var(--color-accent, #3b82f6); color: #fff; }
+.console__detail { padding: 1.25rem 1.5rem; }
+.console__tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--color-border, #2a2c33); }
+.console__tab { padding: .5rem .9rem; border: 0; background: transparent; color: inherit;
+  cursor: pointer; border-bottom: 2px solid transparent; }
+.console__tab--active { border-bottom-color: var(--color-accent, #3b82f6); }
+.console__panel { padding-top: 1rem; }
+.console__group code, .console__panel code { color: var(--color-text-muted, #9aa0ab); }
+.console__secret { display: flex; flex-direction: column; gap: .5rem; max-width: 360px; margin-top: 1rem; }
+.console__secret input { width: 100%; padding: .4rem; }
+.console__pip { display: flex; flex-direction: column; gap: 1rem; max-width: 420px; }
+.console__pip label { display: flex; flex-direction: column; gap: .25rem; }
+.console__pip select, .console__pip input { width: 100%; padding: .4rem; }
+.console__hint { color: var(--color-text-muted, #9aa0ab); font-size: .85rem; margin-top: 1rem; }
