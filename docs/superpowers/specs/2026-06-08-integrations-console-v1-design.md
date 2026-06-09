@@ -26,8 +26,8 @@ of scope here.
 A React config console + backend that lets the operator:
 1. Connect & configure an external service (HA first), with health status.
 2. **Scan** a connected service to discover its entities.
-3. **Map** discovered entities to playAIdes capabilities (PiP camera, launch targets, say-target,
-   triggerable scripts), replacing the hardcoded values.
+3. **Map** discovered entities (and operator-entered sources) to playAIdes capabilities (PiP
+   display, launch targets, say-target, triggerable scripts), replacing the hardcoded values.
 4. Test-fire a mapping to verify it before relying on it.
 
 ## Scope
@@ -60,6 +60,11 @@ A React config console + backend that lets the operator:
   *emerge* from the second real provider rather than guessing it now.
 - **UI = master–detail (layout A).** Provider list in a left sidebar; right panel with
   Connection / Discovered / Mappings tabs. Chosen for how the provider surface will grow.
+- **PiP is a generic display slot, not a camera field.** The `pip` capability binds to a typed
+  **source** — a discovered HA camera *or* an operator-entered URL (website/document link); further
+  kinds (served doc file, etc.) slot in later. A camera is just one PiP source. Camera sources come
+  from a provider's `discover()`; `url` sources are operator-authored and need no provider. (Rendering
+  a non-camera source in the kiosk PiP overlay is a viewer change, tracked with the consume-refactor.)
 - **Secrets = separate backend-owned file** (`config/secrets.json`), not the shared `.env`. The
   backend can rewrite its own file atomically without risking the hand-maintained `.env`.
 - **Secret handling = write-only.** The token is POSTed once, persisted server-side, **never
@@ -95,9 +100,20 @@ serves as the template for v2/v3.
 
 ### Capability mapping
 
-playAIdes capabilities are **generic keys** bound to `(provider, entity)`:
-`pip_camera`, `say_target`, `launch_targets[]`, `scripts[]`. The same shape works for any future
-provider. This layer is what replaces the hardcoded camera entity and `BOXES`.
+playAIdes capabilities are **generic keys** bound to a source. Most bind to a single
+`(provider, entity)`; **`pip` is a generic display slot** whose source is a typed union, because a
+camera is only one thing PiP can show:
+
+- `pip` — a typed **source**: `{kind: "camera", provider, entity}` (a discovered HA camera) or
+  `{kind: "url", url, label?}` (an operator-entered website/document link). Designed so further kinds
+  slot in without reshaping. Camera sources come from a provider's `discover()`; `url` sources are
+  operator-authored and need no provider.
+- `say_target` — `{provider, entity}` (a media_player).
+- `launch_targets[]` — list of `{provider, entity, label}`.
+- `scripts[]` — list of `{provider, entity, label}`.
+
+A provider advertises which capability each discovered entity can fill (an HA `camera.*` entity fills
+`pip` as a camera source). This layer is what replaces the hardcoded camera entity and `BOXES`.
 
 ### Config store (`config/integrations.json`, gitignored)
 
@@ -110,7 +126,8 @@ provider. This layer is what replaces the hardcoded camera entity and `BOXES`.
     }
   },
   "mappings": {
-    "pip_camera":     { "provider": "homeassistant", "entity": "camera.printer_gym_camera_hd_stream" },
+    "pip":            { "kind": "camera", "provider": "homeassistant", "entity": "camera.printer_gym_camera_hd_stream" },
+    // or an operator-entered source: { "kind": "url", "url": "https://grafana.local/d/abc", "label": "dashboard" }
     "say_target":     { "provider": "homeassistant", "entity": "media_player.fire_tv_bedroom" },
     "launch_targets": [ { "provider": "homeassistant", "entity": "media_player.fire_tv_192_168_0_233", "label": "bedroom" } ],
     "scripts":        [ { "provider": "homeassistant", "entity": "script.silver_greet", "label": "greet" } ]
@@ -129,8 +146,9 @@ this file first and falls back to env `HA_TOKEN` for back-compat, so existing se
 ### Migration seed
 
 On first run only (when `config/integrations.json` is absent), the backend writes an initial store
-from today's hardcoded values: HA `base_url`/token from env, the camera entity bound to `pip_camera`,
-the three `BOXES` Fire TVs as `launch_targets`. Runs once; afterward the file is authoritative.
+from today's hardcoded values: HA `base_url` from env and the three `BOXES` Fire TVs as
+`launch_targets`. (`pip` and `say_target` are left unmapped for the operator to set in the console.)
+Runs once; afterward the file is authoritative.
 
 ### API surface
 
@@ -200,4 +218,8 @@ Kept strictly clear of any TTS/voice code. The migration seed makes this cutover
   MPA config, so existing pages don't regress.
 - Exact normalized `Item` shape and which HA domains to surface in v1 (camera, media_player, script
   at minimum).
-- Whether `invoke` test-fire for "show camera" reuses the existing camera-PiP path end-to-end.
+- v1 `pip` source kinds = **camera** (HA-discovered) + **url** (operator-entered website/doc link);
+  the typed-source model leaves room for more. Rendering a non-camera PiP source in the kiosk overlay
+  (`src/pipOverlay.js` → iframe) is a viewer change deferred to the consume-refactor.
+- `invoke` test-fire stays a lightweight **resolve-and-return** (camera → `camera_url`; url → the URL
+  itself), not a full viewer/WS push end-to-end.
