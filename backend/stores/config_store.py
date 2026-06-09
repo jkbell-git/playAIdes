@@ -40,3 +40,36 @@ def save(data: dict, path: str = DEFAULT_PATH) -> None:
         except FileNotFoundError:
             pass
         raise
+
+
+def seed_if_absent(path: str = DEFAULT_PATH, env: Optional[dict] = None) -> bool:
+    """One-time migration: if the store is absent, write an initial version from
+    today's hardcoded values (HA base_url from env, the Fire-TV launch targets).
+    Returns True if it seeded, False if the store already existed.
+
+    pip / say_target are intentionally left unmapped — the operator maps them in
+    the console (pip takes a camera or url source; see the plan's deferral note).
+    Idempotent: never overwrites an existing store."""
+    from backend.stores import launch_targets  # local import keeps load/save lean
+
+    if os.path.exists(path):
+        return False
+    env = env if env is not None else os.environ
+    base_url = (env.get("HA_URL") or "").rstrip("/")
+    data = {
+        "providers": {
+            "homeassistant": {
+                "kind": "homeassistant",
+                "enabled": True,
+                "config": {"base_url": base_url},
+            }
+        },
+        "mappings": {
+            "launch_targets": [
+                {"provider": "homeassistant", "entity": entity, "label": label}
+                for label, entity in launch_targets.DEFAULT_LAUNCH_TARGETS.items()
+            ],
+        },
+    }
+    save(data, path)
+    return True
