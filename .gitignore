@@ -8,6 +8,11 @@ hf_models
 models/
 vite.svg
 .env
+
+# Backend-owned runtime config + secrets (written by the integrations console).
+# Instance-specific; the secrets file holds the HA token — never commit either.
+config/integrations.json
+config/secrets.json
 tts/
 
 # Test / coverage artifacts
