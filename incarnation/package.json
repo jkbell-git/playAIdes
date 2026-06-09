@@ -11,12 +11,15 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
     "vite": "^7.3.1",
     "vitest": "^4.1.5"
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.4.5",
     "@pixiv/three-vrm-animation": "^3.4.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "three": "^0.182.0",
     "vrm-mixamo-retarget": "^1.0.3"
   }
