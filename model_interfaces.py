@@ -32,6 +32,7 @@ class LLMInterface(ABC):
         backends). Streaming backends override to yield token deltas."""
         yield self.chat(messages, system_prompt=system_prompt)
 
+
 class OpenAICompatLLM(LLMInterface):
     """OpenAI-compatible chat completions client.
 
@@ -113,6 +114,9 @@ class OpenAICompatLLM(LLMInterface):
                         continue
                     delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
                     content = delta.get("content")
+                    # reasoning_content (the chat() fallback) is intentionally
+                    # NOT surfaced mid-stream — Gemma's thinking tokens would
+                    # stream as visible noise.
                     if content:
                         yield content
         except requests.RequestException as e:
