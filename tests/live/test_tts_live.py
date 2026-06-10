@@ -32,3 +32,16 @@ def test_live_synth_returns_wav(live_rig_url):
         pytest.skip("VOICEBOX_TEST_VOICE not set (a voice UUID registered in the live registry)")
     out = TTSClient().synth("Hello from a live test.", voice)
     assert out[:4] == b"RIFF" and len(out) > 44   # a real WAV with body
+
+
+def test_live_ref_audio_returns_wav(live_rig_url):
+    import asyncio
+
+    voice = os.environ.get("VOICEBOX_TEST_VOICE")
+    if not voice:
+        pytest.skip("VOICEBOX_TEST_VOICE not set (a voice UUID registered in the live registry)")
+    registry = os.environ.get("VOICEBOX_REGISTRY_URL")
+    if not registry:
+        pytest.skip("VOICEBOX_REGISTRY_URL not set; skipping live ref_audio test")
+    out = asyncio.run(TTSClient().ref_audio(voice))
+    assert out[:4] == b"RIFF" and len(out) > 44

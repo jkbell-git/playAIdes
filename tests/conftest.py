@@ -171,14 +171,6 @@ def llm_url() -> str:
     return url  # type: ignore[return-value]
 
 
-@pytest.fixture(scope="session")
-def tts_url() -> str:
-    url = os.environ.get("TTS_URL")
-    if not _endpoint_reachable(url):
-        pytest.skip(f"TTS_URL not reachable (got {url!r}); skipping live test")
-    return url  # type: ignore[return-value]
-
-
 @pytest.fixture
 def with_api_key(monkeypatch):
     """Set PLAYAIDES_API_KEY for endpoints that require auth.
