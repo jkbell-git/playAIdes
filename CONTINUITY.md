@@ -95,12 +95,15 @@ remain the live look; see Decisions for the full theme history.)*
 - [x] **Fix the test image / RED full suite** — RESOLVED 2026-06-10 by the TTS-consumer
       migration (branch `tts-consumer-migration`): the dead `voicebox_client` import is gone,
       so the suite no longer needs the private SSH dep at all. 341 passed / 5 skipped.
-- [ ] **TTS Task 11 (MANUAL, operator-driven)** — stand up the new voicebox **registry +
-      CPU kokoro rig** in the harness (reuse the concurrent voicebox session's compose if one
-      exists); repoint `VOICEBOX_URL`/`VOICEBOX_REGISTRY_URL`; register a voice (or kokoro
-      preset) and set `VOICEBOX_TEST_VOICE`; run `tests/live/test_tts_live.py` (synth +
-      ref_audio) in the harness; end-to-end Silver speak via control.html. Until this is done,
-      **live TTS in the harness is broken by design** (hard-cut, see Known issues).
+- [~] **TTS Task 11 — harness cutover DONE 2026-06-10** (commit `76a2a6e`): harness now runs
+      the new voicebox **registry (:8008) + CPU kokoro rig (:9008)** (one image, two
+      commands, mirroring voicebox's `docker-compose.router.yml`); backend repointed
+      (`VOICEBOX_URL`→rig, `VOICEBOX_REGISTRY_URL`→registry, `VOICEBOX_DESIGN_URL`→rig —
+      kokoro's heuristic design route, CPU-only). Silver's legacy UUID resolves in the
+      shared `speakers.db` (no re-registration; `VOICEBOX_TEST_VOICE` in `.env`).
+      **Verified:** `tests/live/test_tts_live.py` 2 passed in-harness; `/api/tts/proxy` →
+      playable 24 kHz WAV; `/api/speakers/{voice}/ref_audio` → 200. **Remaining:** operator
+      end-to-end — Silver speaks on the TV via control.html "Say on TV" (audio + lip-sync).
 - [ ] **`docker-compose.live.yml` still builds the legacy `tts` service**
       (`Dockerfile_streaming_tts`, `TTS_URL=:8009`) whose only consumer was the deleted old
       live test, and never sets `VOICEBOX_URL` — so live TTS coverage there is a silent no-op.
@@ -132,12 +135,12 @@ remain the live look; see Decisions for the full theme history.)*
   `voicebox_client` import in `playAIdes.py`; removed by the TTS-consumer migration
   (branch `tts-consumer-migration`). Full suite now 341 passed / 5 skipped, no private
   dep needed.
-- **[major-but-deliberate, harness/TTS] Live TTS in the harness is broken until TTS Task 11
-  runs** — the running harness `voicebox:8008` is the LEGACY monolith (`/speakers`,
-  `/generate_stream`; no `/v1/*`), while playAIdes' proxy now speaks only `/v1/*` (hard-cut,
-  design D2). Silver cannot speak in the harness until the new voicebox **registry + CPU
-  kokoro rig** are stood up and the backend env repointed (manual Task 11, see TODO).
-  Surfaced: 2026-06-09 (verified by probing the container); cut over: 2026-06-10.
+- **[RESOLVED 2026-06-10] Harness live TTS after the /v1 hard-cut** — the harness now runs
+  the new voicebox registry (:8008) + CPU kokoro rig (:9008) and the backend is repointed
+  (commit `76a2a6e`). Live tests pass in-harness; the proxy serves playable WAV. Note the
+  kokoro rig maps any voice UUID to a **preset deterministically** (sha1 % pool, gender/
+  accent-filtered; `VOICEBOX_KOKORO_DEFAULT_ACCENT=b`) — Silver's voice *identity* works but
+  the *timbre* is a kokoro preset, not the qwen3-designed voice, until a qwen3 rig is up.
 - **[minor, ops/config] Stray root-owned `config/integrations.json` (mode 600) at repo
   root** — left by a containerized server seed. Host-side store loaders now degrade
   gracefully to defaults (hardening added in `af4551f`, catches `OSError`/`ValueError`) but
