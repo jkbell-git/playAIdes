@@ -92,3 +92,42 @@ def test_llm_path_streams_deltas_speaks_and_persists():
         {"role": "user", "content": "hi"},
         {"role": "assistant", "content": "Hello"},
     ]
+
+
+def test_house_word_delegates_to_ha_single_delta(mock_ha_client):
+    persona = _persona(house_words=["house"])
+    ha = mock_ha_client
+    ha.script(speech_text="Lights on.", conversation_id="c-1")
+    svc = _service(persona, llm=_StreamLLM(["unused"]), ha=ha)
+    events = list(svc.run_turn("testbot", "house turn on the lights"))
+
+    assert [e.type for e in events] == ["reply_started", "reply_delta", "reply_done"]
+    assert events[1].payload["text"] == "Lights on."
+    assert ha.calls[0]["text"] == "turn on the lights"
+    assert svc._spoken == [("testbot", "Lights on.")]
+
+
+def test_house_word_with_no_residual_short_circuits(mock_ha_client):
+    persona = _persona(house_words=["house"])
+    ha = mock_ha_client
+    svc = _service(persona, llm=_StreamLLM(["unused"]), ha=ha)
+    events = list(svc.run_turn("testbot", "house"))
+    assert events[1].payload["text"] == "What about the house?"
+    assert ha.calls == []
+
+
+def test_house_word_rephrase_uses_llm(mock_ha_client):
+    persona = _persona(house_words=["house"], rephrase_ha_response=True)
+    ha = mock_ha_client
+    ha.script(speech_text="Lights on.", success=True)
+
+    class _RephraseLLM:
+        def chat(self, messages, system_prompt=None):
+            return "The lights are now on, darling."
+        def chat_stream(self, messages, system_prompt=None):
+            yield "unused"
+
+    svc = _service(persona, llm=_RephraseLLM(), ha=ha)
+    events = list(svc.run_turn("testbot", "house turn on the lights"))
+    assert events[1].payload["text"] == "The lights are now on, darling."
+    assert svc._spoken == [("testbot", "The lights are now on, darling.")]

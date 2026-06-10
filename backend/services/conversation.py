@@ -50,6 +50,29 @@ class ConversationService:
                    f"please make sure your response does not contain things not spoken. no emojis")
         return sp
 
+    def _ha_turn(self, persona, target_id: str, residual: str) -> str:
+        if not residual:
+            return "What about the house?"
+        agent_id = persona.ha_agent_id or self._ha_default_agent_id
+        conv_id = self._ha_conversation_ids.get(target_id)
+        ha_resp = self._ha.converse(residual, agent_id=agent_id, conversation_id=conv_id)
+        if ha_resp.conversation_id:
+            self._ha_conversation_ids[target_id] = ha_resp.conversation_id
+        response = ha_resp.speech_text
+        if ha_resp.success and persona.rephrase_ha_response:
+            rephrase_prompt = (
+                f"You are {persona.name}. Rephrase this in your voice, keeping "
+                f"the meaning intact: {ha_resp.speech_text}"
+            )
+            try:
+                response = self._llm.chat(
+                    [{"role": "user", "content": rephrase_prompt}], system_prompt=None,
+                )
+            except Exception as e:
+                logger.warning("Rephrase LLM call failed, falling back to verbatim: %s", e)
+                response = ha_resp.speech_text
+        return response
+
     def run_turn(self, persona_id: str, text: str) -> Iterator[TurnEvent]:
         persona = self._get_persona(persona_id)
         # target_id is this turn's routing id (history/display/dispatch). The
@@ -77,12 +100,18 @@ class ConversationService:
         system_prompt = self._system_prompt(persona)
         history.append({"role": "user", "content": text})
 
-        # House-word / HA delegation lands in Task 5; LLM path here.
-        chunks: list[str] = []
-        for chunk in self._llm.chat_stream(history, system_prompt=system_prompt):
-            chunks.append(chunk)
-            yield TurnEvent("reply_delta", {"persona_id": target_id, "text": chunk})
-        response = "".join(chunks)
+        # House-word / HA delegation.
+        from match_keywords import match_keyword_prefix
+        hw_matched, residual = match_keyword_prefix(text, persona.house_words or [])
+        if hw_matched and self._ha:
+            response = self._ha_turn(persona, target_id, residual)
+            yield TurnEvent("reply_delta", {"persona_id": target_id, "text": response})
+        else:
+            chunks: list[str] = []
+            for chunk in self._llm.chat_stream(history, system_prompt=system_prompt):
+                chunks.append(chunk)
+                yield TurnEvent("reply_delta", {"persona_id": target_id, "text": chunk})
+            response = "".join(chunks)
 
         self._speak(target_id, response)
         history.append({"role": "assistant", "content": response})
