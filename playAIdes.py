@@ -496,10 +496,18 @@ class PlayAIdes:
             if not text:
                 return
             persona_id = (payload.get("persona_id") or "").strip() or None
+            target_id = persona_id or (
+                self.current_persona.name.strip().lower().replace(" ", "_")
+                if self.current_persona else None
+            )
+            if not target_id:
+                return
             try:
-                self.chat(text, persona_id=persona_id)
+                for ev in self.conversation.run_turn(target_id, text):
+                    if self.display is not None:
+                        self.display.push(target_id, ev.type, ev.payload)
             except Exception as e:
-                logger.exception(f"user_input chat() failed: {e}")
+                logger.exception(f"user_input run_turn failed: {e}")
             return
 
         if msg_type == "set_active_persona":
