@@ -46,3 +46,13 @@ def test_speak_is_silent_without_avatar():
     cmds = [c.args[1] for c in ai.incarnation_server.broadcast_to_persona.call_args_list]
     assert "start_lip_sync" not in cmds
     ai.tts.synth.assert_not_called()
+
+
+def test_speak_avatar_without_display_is_silent():
+    ai = _make_ai()
+    ai.args.use_voice = True
+    ai.args.use_avatar = True
+    ai.display = None
+    ai.speak_as_persona("silver", "hi")   # must not raise
+    cmds = [c.args[1] for c in ai.incarnation_server.broadcast_to_persona.call_args_list]
+    assert "start_lip_sync" not in cmds

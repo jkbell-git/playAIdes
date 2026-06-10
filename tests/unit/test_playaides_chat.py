@@ -69,7 +69,7 @@ class TestChat:
         cmds = [cmd for cmd, _payload in play.incarnation_server.commands]
         assert "start_lip_sync" not in cmds
 
-    def test_voice_enabled_calls_tts_stream(
+    def test_voice_enabled_pushes_lip_sync_url(
         self, persona_file, fake_tts, no_incarnation, valid_persona_dict
     ):
         # New design: the browser/avatar is the only audio sink.  With

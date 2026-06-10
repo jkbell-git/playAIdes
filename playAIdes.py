@@ -790,10 +790,12 @@ class PlayAIdes:
             safe_text = urllib.parse.quote(text)
             proxy_url = (
                 f"http://localhost:8765/api/tts/proxy?text={safe_text}"
-                f"&voice={voice.voice}"
+                f"&voice={urllib.parse.quote(voice.voice, safe='')}"
             )
             logger.info(f"Sending start_lip_sync: {proxy_url}")
             self.display.push(target_id, "start_lip_sync", {"url": proxy_url})
+        elif self.args.use_avatar:
+            logger.debug("use_avatar set but no display channel; skipping lip_sync")
 
     def _skill_send(self, persona_id: str, cmd_type: str, payload: dict) -> None:
         """SkillContext.send backing — push a WS frame to the persona's displays."""
