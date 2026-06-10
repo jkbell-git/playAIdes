@@ -242,3 +242,16 @@ class TestAvatarSpawnAndCamera:
         a = Avatar(model_url="m.vrm", spawn_point=[0, 1, 2])
         # Pydantic v2 will coerce int → float when the field type allows it.
         assert list(a.spawn_point) == [0, 1, 2]
+
+
+def test_animations_round_trip_through_model():
+    """Custom uploaded clips (top-level `animations`) must survive a validated
+    write (D3) — previously undeclared, so model_dump() dropped them."""
+    from persona import Persona
+    data = {
+        "name": "T", "back_ground": "bg", "psyche": {"traits": []},
+        "gender": "Female",
+        "animations": [{"name": "wave", "url": "outputs/anims/wave.vrma"}],
+    }
+    dumped = Persona(**data).model_dump()
+    assert dumped["animations"] == [{"name": "wave", "url": "outputs/anims/wave.vrma"}]

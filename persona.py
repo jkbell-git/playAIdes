@@ -36,6 +36,12 @@ class Memories(BaseModel):
     # need to add a method for compaction
     # need a method for adding memories
 
+class AnimationClip(BaseModel):
+    """A custom uploaded animation bound to a persona (creator page /
+    animation_uploaded). Top-level `animations` in persona.json."""
+    name: str
+    url: str
+
 class TriggerOn(BaseModel):
     phrase: Optional[str] = None          # deterministic voice-phrase match
     event: Optional[str] = None           # inbound event name (Plan 2)
@@ -65,6 +71,7 @@ class Persona(BaseModel):
     avatar: Optional[Avatar] = None
     persona_voice: Optional[Voice] = None
     memories: Optional[Memories] = None
+    animations: Optional[List[AnimationClip]] = None  # custom uploads (creator)
     wake_words: Optional[List[str]] = None
     dismiss_words: Optional[List[str]] = None
     is_default: bool = False
