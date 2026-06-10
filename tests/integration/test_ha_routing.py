@@ -39,7 +39,10 @@ def play_with_ha(persona_file, fake_tts, no_incarnation, mock_ha_client):
     )
     play = PlayAIdes(args)
     # Inject the mock HA client post-construction.
+    # ConversationService captures ha= at construction time (playAIdes.py __init__),
+    # so we must rewire both the top-level attribute and the service's internal ref.
     play.ha_client = mock_ha_client
+    play.conversation._ha = mock_ha_client
     return play
 
 
