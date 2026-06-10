@@ -125,8 +125,13 @@ class PersonaService:
         return history
 
     def save_history(self, persona_id: str) -> None:
-        """Persist the cached list (atomic via the store)."""
-        self._history_store.write(persona_id, self._histories.get(persona_id, []))
+        """Persist the cached list (atomic via the store).
+
+        No-op if the history was never loaded this process — writing the
+        cache-miss default ([]) would clobber real on-disk history."""
+        if persona_id not in self._histories:
+            return
+        self._history_store.write(persona_id, self._histories[persona_id])
 
     def delete_history(self, persona_id: str) -> None:
         self._histories.pop(persona_id, None)

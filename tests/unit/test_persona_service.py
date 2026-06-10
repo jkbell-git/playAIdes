@@ -151,6 +151,14 @@ class TestHistory:
         assert "alpha" not in svc.histories
         assert not path.exists()
 
+    def test_save_unloaded_is_a_noop(self, svc, base):
+        d = base / "alpha"
+        d.mkdir(parents=True)
+        on_disk = [{"role": "user", "content": "precious"}]
+        (d / "chat_history.json").write_text(json.dumps(on_disk))
+        svc.save_history("alpha")                    # never loaded: must not wipe
+        assert json.loads((d / "chat_history.json").read_text()) == on_disk
+
 
 class TestTriggers:
     def test_get_triggers_defaults_empty(self, svc, base):
@@ -175,3 +183,7 @@ class TestTriggers:
             svc.replace_triggers("testbot", [{"on": {}, "do": {"skill": "x"}}])
         on_disk = json.loads((base / "testbot" / "persona.json").read_text())
         assert "triggers" not in on_disk or on_disk["triggers"] == []
+
+    def test_replace_missing_persona_raises(self, svc):
+        with pytest.raises(PersonaNotFound):
+            svc.replace_triggers("ghost", [])
