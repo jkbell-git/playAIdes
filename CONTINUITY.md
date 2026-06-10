@@ -19,12 +19,14 @@ and a React console page at **`/console`** (Vite MPA, all four pages now built v
 rewired to read launch targets from the config store. PiP is now a **generic display slot**
 (`{kind:"camera",...}` or `{kind:"url",...}`), not a camera-only field.
 
-**Slice 2 — ConversationService + DisplayChannel — DONE and merged to `slice2-conversation-service` (2026-06-09).**
+**Slice 2 — ConversationService + DisplayChannel — DONE and merged to `main` (2026-06-09).**
 `ConversationService` extracted from `PlayAIdes.chat` (`backend/services/conversation.py`);
 `DisplayChannel` push port introduced (`backend/ports/display.py` + `WebSocketDisplayChannel`)
 breaking the circular `incarnation_server ⇄ PlayAIdes` dependency; WS live channel + REST
 `POST /api/v1/personas/{id}/messages` both wired to the same service; `LLMInterface.chat_stream`
-added. 24 tests green (15 hermetic + 9 harness). Viewer subtitle flow unchanged.
+added. 42 tests green (33 plain-container + 9 harness); live-verified (Silver replied via
+the new REST endpoint). Viewer subtitle flow unchanged. The final holistic review caught an
+8-test turn-path regression in pre-existing fixtures (Task 6's gate was too narrow); fixed.
 
 *(Background context: the UI theme work — p5-basic/fate-basic/manga-basic chrome for the
 Fire TV viewer — was completed on `feat/ui-theme-camera-split` and is merged. Those themes
