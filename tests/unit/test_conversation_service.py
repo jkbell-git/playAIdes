@@ -77,7 +77,7 @@ class _StreamLLM:
 
 
 def test_llm_path_streams_deltas_speaks_and_persists():
-    persona = _persona(persona_voice={"speaker_uuid": "v-1"})
+    persona = _persona(persona_voice={"voice": "v-1"})
     history = {}
     svc = _service(persona, llm=_StreamLLM(["Hel", "lo"]), history=history)
     events = list(svc.run_turn("testbot", "hi"))

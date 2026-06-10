@@ -1,7 +1,15 @@
 """Unit tests for the PlayAIdes chat flow — no network, no audio."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+from unittest.mock import MagicMock
+
+# Stub out unavailable native deps so PlayAIdes can be imported without
+# the full Docker environment.
+for _mod in ("voicebox_client", "voicebox", "voicebox.api_models"):
+    if _mod not in sys.modules:
+        sys.modules[_mod] = MagicMock()
 
 import pytest
 
@@ -63,7 +71,7 @@ class TestChat:
     ):
         # Give the persona a valid speaker so the TTS path has an id to use.
         import json
-        valid_persona_dict["persona_voice"] = {"speaker_uuid": "uuid-1"}
+        valid_persona_dict["persona_voice"] = {"voice": "uuid-1"}
         persona_file.write_text(json.dumps(valid_persona_dict))
         play = _make(persona_file, fake_tts, use_voice=True)
         play.chat("hi")
