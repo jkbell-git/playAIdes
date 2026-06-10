@@ -123,3 +123,55 @@ class TestCrud:
         assert isinstance(p, Persona) and p.name == "TestBot"
         with pytest.raises(PersonaNotFound):
             svc.get_model("ghost")
+
+
+class TestHistory:
+    def test_load_caps_and_caches_same_object(self, svc, base):
+        d = base / "alpha"
+        d.mkdir(parents=True)
+        big = [{"role": "user", "content": f"m{i}"} for i in range(20)]
+        (d / "chat_history.json").write_text(json.dumps(big))
+        loaded = svc.load_history("alpha")
+        assert len(loaded) == 5                      # history_cap=5 fixture
+        assert loaded[-1] == {"role": "user", "content": "m19"}
+        assert loaded is svc.histories["alpha"]      # same object: in-place
+                                                     # mutation hits the cache
+
+    def test_load_is_idempotent_and_keeps_mutations(self, svc):
+        first = svc.load_history("alpha")
+        first.append({"role": "user", "content": "hi"})
+        assert svc.load_history("alpha") is first
+
+    def test_save_persists_cache_and_delete_clears_both(self, svc, base):
+        svc.load_history("alpha").append({"role": "user", "content": "ping"})
+        svc.save_history("alpha")
+        path = base / "alpha" / "chat_history.json"
+        assert json.loads(path.read_text()) == [{"role": "user", "content": "ping"}]
+        svc.delete_history("alpha")
+        assert "alpha" not in svc.histories
+        assert not path.exists()
+
+
+class TestTriggers:
+    def test_get_triggers_defaults_empty(self, svc, base):
+        _seed(base, "testbot")                       # VALID has no triggers key
+        assert svc.get_triggers("testbot") == []
+        with pytest.raises(PersonaNotFound):
+            svc.get_triggers("ghost")
+
+    def test_replace_validates_rows_and_persists(self, svc, base):
+        _seed(base, "testbot")
+        trig = [{"on": {"phrase": "show camera"},
+                 "do": {"skill": "show_pip", "params": {"source": "cam.1"}}}]
+        out = svc.replace_triggers("testbot", trig)
+        assert out[0]["on"]["phrase"] == "show camera"
+        on_disk = json.loads((base / "testbot" / "persona.json").read_text())
+        assert on_disk["triggers"][0]["do"]["skill"] == "show_pip"
+
+    def test_replace_invalid_row_leaves_file_untouched(self, svc, base):
+        _seed(base, "testbot")
+        with pytest.raises(ValidationError):
+            # TriggerOn requires phrase or event — {} is invalid.
+            svc.replace_triggers("testbot", [{"on": {}, "do": {"skill": "x"}}])
+        on_disk = json.loads((base / "testbot" / "persona.json").read_text())
+        assert "triggers" not in on_disk or on_disk["triggers"] == []

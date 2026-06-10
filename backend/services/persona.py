@@ -108,7 +108,7 @@ class PersonaService:
         self._personas.delete(persona_id)      # rmtree removes chat history too
         self._histories.pop(persona_id, None)  # no resurrection on re-create
 
-    # ── History (full surface in the next commit) ─────────────────────────
+    # ── History (cache + cap, moved from PlayAIdes — single owner) ──
     @property
     def histories(self) -> Dict[str, List[dict]]:
         """The in-memory cache. PlayAIdes' chat_histories property returns
@@ -123,3 +123,29 @@ class PersonaService:
             history = history[-self._history_cap:]
         self._histories[persona_id] = history
         return history
+
+    def save_history(self, persona_id: str) -> None:
+        """Persist the cached list (atomic via the store)."""
+        self._history_store.write(persona_id, self._histories.get(persona_id, []))
+
+    def delete_history(self, persona_id: str) -> None:
+        self._histories.pop(persona_id, None)
+        self._history_store.delete(persona_id)
+
+    # ── Triggers (D2: whole-list replace, no row ids) ────────────────────
+    def get_triggers(self, persona_id: str) -> List[dict]:
+        return self.get(persona_id).get("triggers") or []
+
+    def replace_triggers(self, persona_id: str, triggers: List[dict]) -> List[dict]:
+        """Validate the WHOLE persona with the new list spliced in (each row
+        through Trigger, and the doc stays coherent — spec D2/D3), write,
+        return the new list."""
+        try:
+            doc = self._personas.read(persona_id)
+        except KeyError:
+            raise PersonaNotFound(persona_id)
+        doc.pop("id", None)
+        doc["triggers"] = triggers
+        validated = Persona(**doc).model_dump()  # ValidationError propagates
+        self._personas.write(persona_id, validated)
+        return validated["triggers"]
