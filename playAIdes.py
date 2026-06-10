@@ -308,14 +308,13 @@ class PlayAIdes:
             voice_instruct.append(f"Background: {p.back_ground}. ")
             voice_instruct.append(f"{', '.join(p.psyche.traits)}. ")
             # send a generate voice request to the TTS service
-            p.persona_voice.speaker_uuid = self.tts.generate_voice(VoiceDesignRequest(            
-                text=p.back_ground,
-                language=p.language,
-                instruct=f" ".join(voice_instruct),
-                #output_path=f"personas/{p.name}/tts",                
+            p.persona_voice.voice = self.tts.design_voice(
                 name=p.name,
-                gender=p.gender
-            ))
+                instruct=" ".join(voice_instruct),
+                text=p.back_ground,
+                gender=p.gender,
+                language=p.language,
+            )
             #update the persona file with the new voice
             self._update_persona_file(p)
 
@@ -646,35 +645,33 @@ class PlayAIdes:
             return
             
         if msg_type == "design_voice":
-            req = VoiceDesignRequest(
-                text=payload.get("sample_text", "hello"),
-                language=payload.get("language", "English"),
-                instruct=payload.get("instruct", ""),
+            voice = self.tts.design_voice(
                 name=payload.get("name", "voice"),
-                gender=payload.get("gender", "Female")
+                instruct=payload.get("instruct", ""),
+                text=payload.get("sample_text", "hello"),
+                gender=payload.get("gender", "Female"),
+                language=payload.get("language", "English"),
             )
-            speaker_uuid = self.tts.generate_voice(req)
-            ref_audio_url = f"http://localhost:{self.incarnation_server.port}/api/speakers/{speaker_uuid}/ref_audio"
+            ref_audio_url = f"http://localhost:{self.incarnation_server.port}/api/speakers/{voice}/ref_audio"
             self.incarnation_server.send_command("voice_designed", {
-                "speaker_id": speaker_uuid, 
+                "speaker_id": voice,                    # WS payload key unchanged (parked console)
                 "name": payload.get("name"),
-                "ref_audio_url": ref_audio_url
+                "ref_audio_url": ref_audio_url,
             })
             return
             
         if msg_type == "test_voice":
-            req = SpeechGenerationRequest(
-                text=payload.get("text", "hello"),
-                language=payload.get("language", "English"),
-                speaker_id=payload.get("speaker_id", "")
-            )
             try:
-                # We save audio to public/outputs so it's statically addressable by frontend via /outputs/...
                 output_path = "incarnation/public/outputs/tts/temp"
                 os.makedirs(output_path, exist_ok=True)
-                output_file = self.tts.generate_speech_file(req, output_path=output_path)
-                # Ensure the url is relative to the root for the frontend
-                filename = os.path.basename(output_file)
+                wav = self.tts.synth(
+                    text=payload.get("text", "hello"),
+                    voice=payload.get("speaker_id", ""),     # WS payload key unchanged
+                )
+                import uuid as _uuid
+                filename = f"{_uuid.uuid4().hex}.wav"
+                with open(os.path.join(output_path, filename), "wb") as f:
+                    f.write(wav)
                 url = f"http://localhost:8765/outputs/tts/temp/{filename}"
                 self.incarnation_server.send_command("voice_tested", {"url": url})
             except Exception as e:
