@@ -78,3 +78,20 @@ class TTSClient:
             logger.error("TTS synth failed at %s: %s", url, e)
             raise TTSError(f"TTS synth failed: {e}") from e
         return r.content
+
+    @asynccontextmanager
+    async def open_speech_stream(self, text: str, voice: str, *, tags: str = ""
+                                 ) -> AsyncIterator[Tuple[int, AsyncIterator[bytes]]]:
+        """Streamed PCM synthesis (response_format=pcm). Yields (sample_rate,
+        byte-iterator); the rate is read from the rig's audio/l16 header so the
+        proxy can build a correct WAV wrapper."""
+        url = f"{self.rig_url}/v1/audio/speech"
+        payload = {"input": text, "voice": voice,
+                   "response_format": "pcm", "voicebox": {"tags": tags}}
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            async with client.stream("POST", url, json=payload) as resp:
+                if resp.status_code != 200:
+                    body = await resp.aread()
+                    raise TTSError(f"TTS stream failed: {resp.status_code} {body[:200]!r}")
+                sample_rate = _parse_sample_rate(resp.headers.get("content-type", ""))
+                yield sample_rate, resp.aiter_bytes()

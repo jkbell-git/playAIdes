@@ -51,3 +51,26 @@ def test_synth_maps_http_error_to_ttserror():
         return_value=httpx.Response(404, json={"detail": "voice 'x' not found"}))
     with pytest.raises(TTSError):
         TTSClient(rig_url="http://rig.test").synth("hi", "x")
+
+
+@respx.mock
+async def test_open_speech_stream_yields_rate_and_pcm():
+    respx.post("http://rig.test/v1/audio/speech").mock(
+        return_value=httpx.Response(
+            200, content=b"\x01\x02\x03\x04",
+            headers={"content-type": "audio/l16; rate=16000; channels=1"}))
+    chunks = bytearray()
+    async with TTSClient(rig_url="http://rig.test").open_speech_stream("hi", "v1") as (sr, stream):
+        assert sr == 16000
+        async for chunk in stream:
+            chunks.extend(chunk)
+    assert bytes(chunks) == b"\x01\x02\x03\x04"
+
+
+@respx.mock
+async def test_open_speech_stream_error_raises_ttserror():
+    respx.post("http://rig.test/v1/audio/speech").mock(
+        return_value=httpx.Response(500, json={"detail": "boom"}))
+    with pytest.raises(TTSError):
+        async with TTSClient(rig_url="http://rig.test").open_speech_stream("hi", "v1"):
+            pass
