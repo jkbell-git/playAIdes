@@ -3,31 +3,12 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+import respx
 
 pytestmark = pytest.mark.integration
-
-
-class _FakeAsyncClient:
-    """Minimal httpx.AsyncClient stand-in: programmable get() response / error."""
-
-    def __init__(self, response=None, error=None):
-        self._response = response
-        self._error = error
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-    async def get(self, url, timeout=None, **kwargs):
-        if self._error is not None:
-            raise self._error
-        return self._response
 
 
 class TestHealth:
@@ -97,34 +78,32 @@ class TestAnimationUpload:
 
 
 class TestRefAudioProxy:
+    @respx.mock
     def test_proxies_ref_audio(self, client, monkeypatch):
-        fake_resp = MagicMock(spec=httpx.Response)
-        fake_resp.status_code = 200
-        fake_resp.content = b"WAVE_BYTES"
-        monkeypatch.setattr(
-            "incarnation_server.httpx.AsyncClient",
-            lambda *a, **k: _FakeAsyncClient(response=fake_resp),
+        monkeypatch.setenv("VOICEBOX_REGISTRY_URL", "http://reg.test")
+        respx.get("http://reg.test/v1/voices/abc/ref_audio").mock(
+            return_value=httpx.Response(200, content=b"WAVE_BYTES",
+                                        headers={"content-type": "audio/wav"})
         )
         r = client.get("/api/speakers/abc/ref_audio")
         assert r.status_code == 200
         assert r.content == b"WAVE_BYTES"
         assert r.headers["content-type"] == "audio/wav"
 
-    def test_proxies_upstream_error(self, client, monkeypatch):
-        fake_resp = MagicMock(spec=httpx.Response)
-        fake_resp.status_code = 404
-        fake_resp.text = "no such speaker"
-        monkeypatch.setattr(
-            "incarnation_server.httpx.AsyncClient",
-            lambda *a, **k: _FakeAsyncClient(response=fake_resp),
+    @respx.mock
+    def test_upstream_error_returns_502(self, client, monkeypatch):
+        monkeypatch.setenv("VOICEBOX_REGISTRY_URL", "http://reg.test")
+        respx.get("http://reg.test/v1/voices/nope/ref_audio").mock(
+            return_value=httpx.Response(404, content=b"no such speaker")
         )
         r = client.get("/api/speakers/nope/ref_audio")
-        assert r.status_code == 404
+        assert r.status_code == 502
 
+    @respx.mock
     def test_upstream_connection_error_502(self, client, monkeypatch):
-        monkeypatch.setattr(
-            "incarnation_server.httpx.AsyncClient",
-            lambda *a, **k: _FakeAsyncClient(error=httpx.ConnectError("nope")),
+        monkeypatch.setenv("VOICEBOX_REGISTRY_URL", "http://reg.test")
+        respx.get("http://reg.test/v1/voices/boom/ref_audio").mock(
+            side_effect=httpx.ConnectError("nope")
         )
         r = client.get("/api/speakers/boom/ref_audio")
         assert r.status_code == 502
