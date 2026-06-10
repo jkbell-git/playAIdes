@@ -114,3 +114,18 @@ async def test_ref_audio_fetches_from_registry():
                                     headers={"content-type": "audio/wav"}))
     out = await TTSClient(registry_url="http://reg.test").ref_audio("v1")
     assert out == b"RIFFref"
+
+
+def test_ttsclient_satisfies_persona_tts_protocol():
+    from backend.clients.tts import PersonaTTS
+    assert isinstance(TTSClient(), PersonaTTS)
+
+
+@respx.mock
+def test_design_voice_non_json_body_raises():
+    respx.post("http://design.test/v1/audio/voice_design").mock(
+        return_value=httpx.Response(200, content=b"not json",
+                                    headers={"content-type": "text/plain"}))
+    with pytest.raises(TTSError):
+        TTSClient(design_url="http://design.test").design_voice(
+            name="x", instruct="y", text="z", gender="female", language="English")
