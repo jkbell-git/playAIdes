@@ -771,29 +771,23 @@ class PlayAIdes:
         if not self.args.use_voice:
             return
         voice = getattr(self.current_persona, "persona_voice", None)
-        if not (voice and voice.speaker_uuid):
+        if not (voice and voice.voice):
             logger.warning(
                 "Persona %s has no voice config; skipping lip_sync",
                 getattr(self.current_persona, "name", "<unknown>"),
             )
             return
+        # The browser/avatar is the only audio sink; with no display there is
+        # nothing to play to (the old CLI-only TTS path was removed).
         if self.args.use_avatar and self.display:
             import urllib.parse
             safe_text = urllib.parse.quote(text)
             proxy_url = (
                 f"http://localhost:8765/api/tts/proxy?text={safe_text}"
-                f"&speaker_id={voice.speaker_uuid}"
+                f"&voice={voice.voice}"
             )
-            if self.current_persona.language:
-                proxy_url += f"&language={urllib.parse.quote(self.current_persona.language)}"
             logger.info(f"Sending start_lip_sync: {proxy_url}")
             self.display.push(target_id, "start_lip_sync", {"url": proxy_url})
-        else:
-            self.tts.generate_speech_stream(SpeechGenerationRequest(
-                text=text,
-                speaker_id=voice.speaker_uuid,
-                language=self.current_persona.language or "English",
-            ))
 
     def _skill_send(self, persona_id: str, cmd_type: str, payload: dict) -> None:
         """SkillContext.send backing — push a WS frame to the persona's displays."""
