@@ -6,11 +6,21 @@ the actual broadcast path."""
 from __future__ import annotations
 
 import json
+import sys
 import time
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+
+# Stub unavailable native deps so tests that import PlayAIdes (e.g.
+# test_chat_assistant_message_routes_via_persona_binding) can run without the
+# full Docker environment.  Only voicebox/voicebox_client are stubbed —
+# incarnation_server and ha_client are real modules used by these tests.
+for _mod in ("voicebox_client", "voicebox", "voicebox.api_models"):
+    if _mod not in sys.modules:
+        sys.modules[_mod] = MagicMock()
 
 
 pytestmark = pytest.mark.integration
@@ -161,11 +171,13 @@ def test_set_active_persona_routes_all_messages_via_persona_binding(persona_file
         llm=MockLLM(), tts=fake_tts,
     )
     play = PlayAIdes(args)
+    from incarnation_server import WebSocketDisplayChannel
     spy = MagicMock()
     spy.broadcast_to_persona = MagicMock()
     spy.broadcast_to_all = MagicMock()
     spy.send_command = MagicMock()
     play.incarnation_server = spy
+    play.display = WebSocketDisplayChannel(spy)
 
     play._handle_incarnation_message({
         "type": "set_active_persona",
@@ -214,9 +226,11 @@ def test_chat_assistant_message_routes_via_persona_binding(persona_file, fake_tt
     )
     play = PlayAIdes(args)
     # Replace the stub server with a MagicMock so we can spy on the calls.
+    from incarnation_server import WebSocketDisplayChannel
     spy = MagicMock()
     spy.broadcast_to_persona = MagicMock()
     play.incarnation_server = spy
+    play.display = WebSocketDisplayChannel(spy)
 
     play.chat("hello")
     # Find the assistant_message broadcast.

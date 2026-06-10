@@ -15,8 +15,10 @@ from skills.pip import ShowPipSkill
 
 def _make_ai():
     from playAIdes import PlayAIdes
+    from incarnation_server import WebSocketDisplayChannel
     ai = PlayAIdes.__new__(PlayAIdes)
     ai.incarnation_server = MagicMock()
+    ai.display = WebSocketDisplayChannel(ai.incarnation_server)
     ai.args = types.SimpleNamespace(use_voice=False, use_avatar=False)
     ai.current_persona = types.SimpleNamespace(name="Silver", persona_voice=None, language="English")
     reg = SkillRegistry()
@@ -48,9 +50,15 @@ def test_dispatch_bad_params_is_noop():
 
 
 def _make_chat_ai():
+    from backend.services.conversation import ConversationService
     ai = _make_ai()
     ai.llm = MagicMock()
     ai.llm.chat.return_value = "LLM REPLY"
+    # ConversationService calls chat_stream; route it through chat so
+    # existing ai.llm.chat.assert_called() assertions still hold.
+    ai.llm.chat_stream.side_effect = lambda msgs, system_prompt=None: [
+        ai.llm.chat(msgs, system_prompt=system_prompt)
+    ]
     ai.ha_client = None
     ai.args = types.SimpleNamespace(use_voice=False, use_avatar=False, ha_default_agent_id=None)
     ai._load_history = lambda tid: []
@@ -61,6 +69,16 @@ def _make_chat_ai():
         skills=["show_pip"],
         triggers=[Trigger(on={"phrase": "show the front door"},
                           do={"skill": "show_pip", "params": {"url": "http://x/stream", "kind": "live"}})],
+    )
+    ai.conversation = ConversationService(
+        get_persona=lambda pid: ai.current_persona,
+        history_load=ai._load_history,
+        history_save=ai._save_history,
+        dispatch=ai._dispatch_skill,
+        llm=ai.llm,
+        speak=ai.speak_as_persona,
+        ha=None,
+        ha_default_agent_id=None,
     )
     return ai
 

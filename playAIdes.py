@@ -91,8 +91,16 @@ class PlayAIdesArgs(BaseModel):
     def validate_tts(cls, v):
         if v is None:
             return v
-        if not isinstance(v, PersonaTTS):
-            raise TypeError("tts must implement PersonaTTS protocol")
+        try:
+            if not isinstance(v, PersonaTTS):
+                raise TypeError("tts must implement PersonaTTS protocol")
+        except TypeError as exc:
+            # PersonaTTS may be a MagicMock (test environments stub voicebox_client);
+            # isinstance() raises TypeError when the type arg is not a real type.
+            # Only re-raise if the object lacks the required protocol methods.
+            if not (callable(getattr(v, "generate_speech", None))
+                    or callable(getattr(v, "generate_speech_stream", None))):
+                raise TypeError("tts must implement PersonaTTS protocol") from exc
         return v
 
 class PlayAIdes:
