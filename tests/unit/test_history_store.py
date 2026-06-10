@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 
 import pytest
@@ -24,11 +25,14 @@ def test_write_read_round_trip(store):
     assert store.read("alpha") == history
 
 
-def test_corrupt_file_warns_and_reads_empty(store, tmp_path):
+def test_corrupt_file_warns_and_reads_empty(store, tmp_path, caplog):
     d = tmp_path / "personas" / "alpha"
     d.mkdir(parents=True)
     (d / "chat_history.json").write_text("{not json")
-    assert store.read("alpha") == []
+    with caplog.at_level(logging.WARNING, logger="backend.stores.history"):
+        result = store.read("alpha")
+    assert result == []
+    assert "Failed to read" in caplog.text
 
 
 def test_write_is_atomic_and_cleans_up_tempfile(store, tmp_path, monkeypatch):
@@ -51,6 +55,7 @@ def test_delete_removes_file_and_tolerates_missing(store, tmp_path):
     store.write("alpha", [{"role": "user", "content": "x"}])
     store.delete("alpha")
     assert not (tmp_path / "personas" / "alpha" / "chat_history.json").exists()
+    assert (tmp_path / "personas" / "alpha").is_dir()  # dir preserved, only file removed
     store.delete("alpha")  # second delete is a no-op
 
 
