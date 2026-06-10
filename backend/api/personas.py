@@ -50,6 +50,10 @@ def create_persona(body: PersonaCreateIn, request: Request) -> dict:
         return _service(request).create(body.name, body.description)
     except PersonaExists:
         raise HTTPException(status_code=409, detail=f"persona already exists: {body.name}")
+    except ValueError:
+        # slug(name) produced a guard-rejected id (empty/traversal) — a bad
+        # request, not a missing resource. Generic detail: no guard internals.
+        raise HTTPException(status_code=422, detail=f"invalid persona name: {body.name!r}")
 
 
 @router.get("/personas/{persona_id}")
@@ -67,7 +71,10 @@ def update_persona(persona_id: str, body: dict, request: Request) -> dict:
     except PersonaNotFound:
         raise _not_found(persona_id)
     except ValidationError as e:           # before ValueError — it subclasses it
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422,
+                            detail=e.errors(include_url=False,
+                                            include_context=False,
+                                            include_input=False))
     except ValueError:
         raise _not_found(persona_id)
 
@@ -100,6 +107,9 @@ def replace_triggers(persona_id: str, request: Request, triggers: list = Body(..
     except PersonaNotFound:
         raise _not_found(persona_id)
     except ValidationError as e:           # before ValueError — it subclasses it
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422,
+                            detail=e.errors(include_url=False,
+                                            include_context=False,
+                                            include_input=False))
     except ValueError:
         raise _not_found(persona_id)

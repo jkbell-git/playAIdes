@@ -64,12 +64,16 @@ def test_list_ok(client):
     assert r.status_code == 200 and r.json() == [{"id": "a"}]
 
 
-def test_create_201_and_409(client, fake_svc):
+def test_create_201_409_and_422_bad_name(client, fake_svc):
     r = client.post("/api/v1/personas", json={"name": "X", "description": "d"})
     assert r.status_code == 201
     assert fake_svc.calls[-1] == ("create", ("X", "d"))
     fake_svc.behavior["create"] = PersonaExists("x")
     assert client.post("/api/v1/personas", json={"name": "X"}).status_code == 409
+    fake_svc.behavior["create"] = ValueError("Suspicious persona_id: ''")
+    r = client.post("/api/v1/personas", json={"name": "   "})
+    assert r.status_code == 422
+    assert "Suspicious" not in str(r.json()["detail"])   # guard details not leaked
 
 
 def test_get_ok_404_and_traversal_404(client, fake_svc):
@@ -88,7 +92,9 @@ def test_put_ok_404_and_422(client, fake_svc):
     assert client.put("/api/v1/personas/ghost", json={"name": "X"}).status_code == 404
     # The except-order pin: ValidationError must map to 422, not the ValueError 404.
     fake_svc.behavior["update"] = _validation_error()
-    assert client.put("/api/v1/personas/a", json={"name": "X"}).status_code == 422
+    r = client.put("/api/v1/personas/a", json={"name": "X"})
+    assert r.status_code == 422
+    assert isinstance(r.json()["detail"], list)          # FastAPI-native shape
 
 
 def test_delete_204_404_409(client, fake_svc):
