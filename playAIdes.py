@@ -85,6 +85,7 @@ class PlayAIdesArgs(BaseModel):
     ha_url: Optional[str] = None
     ha_token: Optional[str] = None
     ha_default_agent_id: Optional[str] = None
+    # NOTE: doubles need REAL synth/design_voice attributes — pydantic's protocol isinstance uses getattr_static, so MagicMock() is rejected before this validator runs; use PlayAIdes.__new__ + direct assignment in tests instead.
     @field_validator("tts")
     @classmethod
     def validate_tts(cls, v):
@@ -92,13 +93,13 @@ class PlayAIdesArgs(BaseModel):
             return v
         if not (callable(getattr(v, "synth", None))
                 and callable(getattr(v, "design_voice", None))):
-            raise TypeError("tts must implement the PersonaTTS protocol (synth, design_voice)")
+            raise ValueError("tts must implement the PersonaTTS protocol (synth, design_voice)")
         return v
 
 class PlayAIdes:
     def __init__(self, args: PlayAIdesArgs):
         self.llm: Optional[LLMInterface] = args.llm if args.llm else OpenAICompatLLM() # Default to LLM_URL (Ollama by default)
-        self.tts: Optional[PersonaTTS] = args.tts if args.tts else TTSClient()  # default: VOICEBOX_URL / TTS_URL
+        self.tts: Optional[PersonaTTS] = args.tts if args.tts is not None else TTSClient()  # default: VOICEBOX_URL / TTS_URL
         self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(
             on_message_callback=self._handle_incarnation_message,
             event_handler=self.handle_event,

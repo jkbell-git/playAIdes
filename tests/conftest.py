@@ -14,7 +14,7 @@ import json
 import os
 import socket
 from pathlib import Path
-from typing import Any, Iterator, List, Optional
+from typing import Iterator, List, Optional
 from urllib.parse import urlparse
 
 import pytest
