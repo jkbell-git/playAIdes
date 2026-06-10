@@ -117,6 +117,39 @@ def test_house_word_with_no_residual_short_circuits(mock_ha_client):
     assert ha.calls == []
 
 
+def test_clear_ha_context_drops_cached_id():
+    svc = ConversationService(
+        get_persona=lambda pid: None,
+        history_load=lambda pid: [],
+        history_save=lambda pid: None,
+        dispatch=lambda *a: None,
+        llm=None,
+        speak=lambda tid, text: None,
+        ha=None,
+    )
+    svc._ha_conversation_ids["silver"] = "conv-1"
+    svc._ha_conversation_ids["nova"] = "conv-2"
+    svc.clear_ha_context("silver")
+    assert "silver" not in svc._ha_conversation_ids
+    # Other personas' ids are preserved
+    assert svc._ha_conversation_ids == {"nova": "conv-2"}
+
+
+def test_clear_ha_context_no_op_for_unknown_persona():
+    svc = ConversationService(
+        get_persona=lambda pid: None,
+        history_load=lambda pid: [],
+        history_save=lambda pid: None,
+        dispatch=lambda *a: None,
+        llm=None,
+        speak=lambda tid, text: None,
+        ha=None,
+    )
+    # Must not raise when persona_id is not in the cache
+    svc.clear_ha_context("nonexistent")
+    assert svc._ha_conversation_ids == {}
+
+
 def test_house_word_rephrase_uses_llm(mock_ha_client):
     persona = _persona(house_words=["house"], rephrase_ha_response=True)
     ha = mock_ha_client

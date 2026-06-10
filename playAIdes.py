@@ -148,10 +148,6 @@ class PlayAIdes:
                 "HA features disabled."
             )
 
-        # Per-persona conversation_id cache for HA's multi-turn context.
-        # Cleared on persona swap by Task 9 hook.
-        self._ha_conversation_ids: dict[str, str] = {}
-
         from incarnation_server import WebSocketDisplayChannel
         from backend.services.conversation import ConversationService
         self.display = (
@@ -471,7 +467,7 @@ class PlayAIdes:
 
         # Reset HA conversation context on every persona change so the next
         # session starts a fresh HA context.
-        self._ha_conversation_ids.pop(persona_id, None)
+        self.conversation.clear_ha_context(persona_id)
 
         # Re-use the existing loader (raises PersonaLoadError on bad input).
         self._load_persona_from_file(path)

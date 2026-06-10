@@ -35,6 +35,11 @@ class ConversationService:
         self._history_cap = history_cap
         self._ha_conversation_ids: dict[str, str] = {}
 
+    def clear_ha_context(self, persona_id: str) -> None:
+        """Drop the cached HA conversation id for *persona_id* (e.g. on persona
+        swap), so HA multi-turn context does not leak across personas."""
+        self._ha_conversation_ids.pop(persona_id, None)
+
     def _system_prompt(self, persona) -> str:
         sp = (f"You are impersonating a this character named"
               f"{persona.name}. "
