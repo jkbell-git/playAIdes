@@ -28,6 +28,19 @@ added. 42 tests green (33 plain-container + 9 harness); live-verified (Silver re
 the new REST endpoint). Viewer subtitle flow unchanged. The final holistic review caught an
 8-test turn-path regression in pre-existing fixtures (Task 6's gate was too narrow); fixed.
 
+**Slice 3 — TTS-consumer migration → voicebox `/v1/*` — CODE-COMPLETE on branch
+`tts-consumer-migration` (2026-06-10; not yet merged).** New `backend/clients/tts.py`
+`TTSClient` seam (synth / open_speech_stream / design_voice / ref_audio, all failures →
+`TTSError`); dead `voicebox_client` imports dropped from `playAIdes.py` (the keystone —
+full `bin/test` collects again); proxy routes repointed to `/v1/*` with the WAV sample rate
+derived from the rig's `audio/l16; rate=` header; `persona.Voice.speaker_uuid` hard-renamed
+to `voice` (data files + `creator.js` consumer migrated); CLI-only speak path removed
+(`--use_voice` without `--use_avatar` is now silent, by design D6). Full plain suite:
+**341 passed, 5 skipped, 0 failures**. Remaining: the **manual** harness live-test (stand up
+the new voicebox registry + CPU kokoro rig, register a voice, set `VOICEBOX_TEST_VOICE`,
+end-to-end Silver speak) — see TODO. Spec:
+`docs/superpowers/specs/2026-06-09-tts-consumer-migration-design.md`.
+
 *(Background context: the UI theme work — p5-basic/fate-basic/manga-basic chrome for the
 Fire TV viewer — was completed on `feat/ui-theme-camera-split` and is merged. Those themes
 remain the live look; see Decisions for the full theme history.)*
@@ -79,8 +92,25 @@ remain the live look; see Decisions for the full theme history.)*
       site/doc) needs an `<iframe>` render path. Deferred pending Slice 2.
 - [ ] **Say-target rewire** — deferred (TTS-adjacent; pending the voicebox concurrent session
       landing its `docs/VOICEBOX_HTTP_API.md` consumer migration).
-- [ ] **Fix the test image** to install/stub the private `voicebox` SSH dep so the full
-      `bin/test` suite collects without errors. Until then run targeted paths (see *Known issues*).
+- [x] **Fix the test image / RED full suite** — RESOLVED 2026-06-10 by the TTS-consumer
+      migration (branch `tts-consumer-migration`): the dead `voicebox_client` import is gone,
+      so the suite no longer needs the private SSH dep at all. 341 passed / 5 skipped.
+- [ ] **TTS Task 11 (MANUAL, operator-driven)** — stand up the new voicebox **registry +
+      CPU kokoro rig** in the harness (reuse the concurrent voicebox session's compose if one
+      exists); repoint `VOICEBOX_URL`/`VOICEBOX_REGISTRY_URL`; register a voice (or kokoro
+      preset) and set `VOICEBOX_TEST_VOICE`; run `tests/live/test_tts_live.py` (synth +
+      ref_audio) in the harness; end-to-end Silver speak via control.html. Until this is done,
+      **live TTS in the harness is broken by design** (hard-cut, see Known issues).
+- [ ] **`docker-compose.live.yml` still builds the legacy `tts` service**
+      (`Dockerfile_streaming_tts`, `TTS_URL=:8009`) whose only consumer was the deleted old
+      live test, and never sets `VOICEBOX_URL` — so live TTS coverage there is a silent no-op.
+      Drop the service or repoint the overlay to the new registry + kokoro rig (with Task 11).
+- [ ] **(optional cleanup) `voice_generation/` legacy subtree** — no production code references
+      it anymore (only its own `tests/unit/test_voice_api.py`); candidate for removal once the
+      new design path is live-verified.
+- [ ] **qwen3 design-path live test** — deferred until the GPU is free: point
+      `VOICEBOX_DESIGN_URL` at a qwen3 rig, live-test `--generate_voice` + the console
+      design flow.
 - [ ] **Integrations console — v2/v3 roadmap** (v1 done). **v2:** a Web-API provider (calendar,
       weather; REST via the existing http-skill seam). **v3:** an Agent provider (Hermes-style
       agents that *act* — e.g. write a web service). Both plug into the v1 provider seam.
@@ -97,12 +127,17 @@ remain the live look; see Decisions for the full theme history.)*
 
 ## Known issues
 
-- **[minor, infra/test] Full `bin/test` Python suite is pre-existingly RED** — the
-  `playaides-tests` Docker image lacks the private `voicebox` SSH dep, so any `import
-  PlayAIdes` test errors at collection-time. Run targeted test paths instead (e.g.
-  `pytest tests/test_backend_*.py tests/test_console*.py`); the `backend/` + console tests
-  pass and the JS suite is green. Fix: update the test image to install or stub `voicebox`.
-  Surfaced: 2026-06-09. Workaround: use targeted pytest paths.
+- **[RESOLVED 2026-06-10] Full `bin/test` Python suite was RED** (collection-time
+  `ModuleNotFoundError` on the private `voicebox` SSH dep). Root cause was the dead
+  `voicebox_client` import in `playAIdes.py`; removed by the TTS-consumer migration
+  (branch `tts-consumer-migration`). Full suite now 341 passed / 5 skipped, no private
+  dep needed.
+- **[major-but-deliberate, harness/TTS] Live TTS in the harness is broken until TTS Task 11
+  runs** — the running harness `voicebox:8008` is the LEGACY monolith (`/speakers`,
+  `/generate_stream`; no `/v1/*`), while playAIdes' proxy now speaks only `/v1/*` (hard-cut,
+  design D2). Silver cannot speak in the harness until the new voicebox **registry + CPU
+  kokoro rig** are stood up and the backend env repointed (manual Task 11, see TODO).
+  Surfaced: 2026-06-09 (verified by probing the container); cut over: 2026-06-10.
 - **[minor, ops/config] Stray root-owned `config/integrations.json` (mode 600) at repo
   root** — left by a containerized server seed. Host-side store loaders now degrade
   gracefully to defaults (hardening added in `af4551f`, catches `OSError`/`ValueError`) but
@@ -145,6 +180,21 @@ remain the live look; see Decisions for the full theme history.)*
 
 ## Decisions
 
+- [2026-06-10] **Slice 3 (TTS-consumer migration → voicebox `/v1/*`) code-complete** on branch
+  `tts-consumer-migration` (11-task TDD plan, subagent-driven, 2-stage review per task).
+  Key calls (full rationale in the spec, D1-D7): `httpx`+`respx` (async streaming proxy rules
+  out blocking `requests`); **hard-cut** the proxy to `/v1/*` (no dual legacy path); three
+  base URLs (`VOICEBOX_URL` rig / `VOICEBOX_REGISTRY_URL` / `VOICEBOX_DESIGN_URL`); hard
+  rename `Voice.speaker_uuid → voice` everywhere incl. persona JSONs + `creator.js` (a missed
+  consumer the plan didn't list — review caught it; saving from the creator UI would have
+  silently nulled voices); **CLI-only speak path removed** (browser/avatar is the only audio
+  sink; `--use_voice` without `--use_avatar` is now silent — reversible if host playback is
+  ever wanted); proxy WAV sample rate from the rig's `audio/l16; rate=` header (was hardcoded
+  24000). WS console payload keys (`speaker_id`/`url`) intentionally unchanged (parked
+  console). Review-driven extras beyond the plan: transport-error→`TTSError` mapping,
+  `voice_design_failed` WS error frame, `_setup_voice` None-guard, ha_routing fixture fix
+  (latent slice-2 regression exposed once collection worked), persona JSONs kept OUT of git
+  (a force-add was caught and amended — privacy policy holds).
 - [2026-06-09] **Slice 2 (ConversationService + DisplayChannel) shipped.** Extracted the
   conversation turn from PlayAIdes.chat into `backend/services/conversation.py` (yields a
   reply_started→delta*→done turn-event stream); introduced the `DisplayChannel` push port
