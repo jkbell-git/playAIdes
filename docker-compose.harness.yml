@@ -52,7 +52,9 @@ services:
         ollama pull "qwen3:0.6b"
     restart: "no"
 
-  # ── TTS: voicebox running the small Kokoro backend on the GPU ────────────────
+  # ── TTS: new decentralized voicebox — registry (catalog/ref-audio) + CPU kokoro
+  #    synth rig. One image (target: kokoro), two services with different commands;
+  #    mirrors voicebox's own docker-compose.router.yml. ──────────────────────────
   voicebox:
     build:
       context: ../../voicebox
@@ -60,22 +62,42 @@ services:
       target: kokoro          # bakes Kokoro-82M weights + voices into the image
     image: voicebox:kokoro
     container_name: playaides-harness-voicebox
+    command: ["voicebox"]     # registry only — no synthesis engine in-process
     environment:
       - VOICEBOX_PORT=8008
-      - VOICEBOX_BACKEND=kokoro
-      - VOICEBOX_DEVICE=${VOICEBOX_DEVICE:-cuda}   # cuda | cpu | auto
-      - VOICEBOX_KOKORO_DEFAULT_ACCENT=b           # bias preset voices British (Silver)
       - VOICEBOX_DB_PATH=/data/speakers.db
       - VOICEBOX_OUTPUT_DIR=/data/outputs/tts
     volumes:
       - ../../voicebox/data:/data    # shares the speaker DB (reuse/mint speakers)
-    gpus: all                        # matches voicebox's verified GPU syntax (runc)
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8008/health',timeout=2).status==200 else 1)\""]
       interval: 15s
       timeout: 5s
       retries: 40
       start_period: 40s
+    restart: unless-stopped
+
+  voicebox-kokoro:
+    image: voicebox:kokoro           # reuses the registry service's build
+    container_name: playaides-harness-voicebox-kokoro
+    command: ["uvicorn", "voicebox.rigs.kokoro:build_app", "--factory", "--host", "0.0.0.0", "--port", "9008"]
+    environment:
+      - HOME=/tmp
+      - VOICEBOX_REGISTRY_URL=http://voicebox:8008
+      - VOICEBOX_OUTPUT_DIR=/data/kokoro-cache
+      - VOICEBOX_DEVICE=cpu          # Kokoro-82M is fine on CPU; GPU stays free for qwen3 later
+      - VOICEBOX_KOKORO_DEFAULT_ACCENT=b   # bias preset voices British (Silver)
+    volumes:
+      - ../../voicebox/data:/data    # fetched voice-bundle cache
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:9008/health',timeout=2).status==200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 40s
+    depends_on:
+      voicebox:
+        condition: service_healthy
     restart: unless-stopped
 
   # ── STT ──────────────────────────────────────────────────────────────────────
@@ -110,8 +132,13 @@ services:
       # must NOT inherit .env's LLM_MODEL (that targets the real backend, e.g.
       # gemma3:4b, which isn't pulled here → ollama 404).
       - LLM_MODEL=qwen3:0.6b
-      - TTS_URL=http://voicebox:8008
-      - VOICEBOX_URL=http://voicebox:8008
+      # New decentralized voicebox: synth rig vs registry are separate services.
+      # VOICEBOX_DESIGN_URL → the kokoro rig too (its design route picks a preset
+      # heuristically + registers ref audio — CPU-only; swap to a qwen3 rig later).
+      - VOICEBOX_URL=http://voicebox-kokoro:9008
+      - VOICEBOX_REGISTRY_URL=http://voicebox:8008
+      - VOICEBOX_DESIGN_URL=http://voicebox-kokoro:9008
+      - VOICEBOX_TEST_VOICE=${VOICEBOX_TEST_VOICE:-}
       - WHISPER_URL=http://whisper:9000
       - PLAYAIDES_API_KEY
       - HA_URL
@@ -123,6 +150,8 @@ services:
       ollama-model-pull:
         condition: service_completed_successfully
       voicebox:
+        condition: service_healthy
+      voicebox-kokoro:
         condition: service_healthy
       whisper:
         condition: service_healthy
