@@ -83,3 +83,34 @@ async def test_open_speech_stream_transport_error_raises_ttserror():
     with pytest.raises(TTSError):
         async with TTSClient(rig_url="http://rig.test").open_speech_stream("hi", "v1"):
             pass
+
+
+@respx.mock
+def test_design_voice_returns_uuid_and_sends_body():
+    route = respx.post("http://design.test/v1/audio/voice_design").mock(
+        return_value=httpx.Response(200, json={"voice": "uuid-xyz"}))
+    out = TTSClient(design_url="http://design.test").design_voice(
+        name="Naoko", instruct="calm narrator", text="Hello.",
+        gender="female", language="English")
+    assert out == "uuid-xyz"
+    body = json.loads(route.calls.last.request.content)
+    assert body == {"name": "Naoko", "instruct": "calm narrator",
+                    "text": "Hello.", "gender": "female", "language": "English"}
+
+
+@respx.mock
+def test_design_voice_missing_voice_key_raises():
+    respx.post("http://design.test/v1/audio/voice_design").mock(
+        return_value=httpx.Response(200, json={"oops": True}))
+    with pytest.raises(TTSError):
+        TTSClient(design_url="http://design.test").design_voice(
+            name="x", instruct="y", text="z", gender="female", language="English")
+
+
+@respx.mock
+async def test_ref_audio_fetches_from_registry():
+    respx.get("http://reg.test/v1/voices/v1/ref_audio").mock(
+        return_value=httpx.Response(200, content=b"RIFFref",
+                                    headers={"content-type": "audio/wav"}))
+    out = await TTSClient(registry_url="http://reg.test").ref_audio("v1")
+    assert out == b"RIFFref"

@@ -99,3 +99,35 @@ class TTSClient:
         except httpx.HTTPError as e:
             logger.error("TTS stream failed at %s: %s", url, e)
             raise TTSError(f"TTS stream failed: {e}") from e
+
+    def design_voice(self, name: str, instruct: str, text: str,
+                     gender: str, language: str) -> str:
+        """Mint a voice on the qwen3 design rig; returns the registry voice UUID."""
+        url = f"{self.design_url}/v1/audio/voice_design"
+        payload = {"name": name, "instruct": instruct, "text": text,
+                   "gender": gender, "language": language}
+        try:
+            r = httpx.post(url, json=payload, timeout=self.timeout)
+            r.raise_for_status()
+            data = r.json()
+        except httpx.HTTPError as e:
+            logger.error("voice_design failed at %s: %s", url, e)
+            raise TTSError(f"voice_design failed: {e}") from e
+        except ValueError as e:  # non-JSON body
+            raise TTSError(f"voice_design returned non-JSON: {e}") from e
+        voice = data.get("voice")
+        if not voice:
+            raise TTSError(f"voice_design response missing 'voice': {data!r}")
+        return voice
+
+    async def ref_audio(self, voice: str) -> bytes:
+        """Fetch a voice's reference WAV from the registry."""
+        url = f"{self.registry_url}/v1/voices/{voice}/ref_audio"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                r = await client.get(url)
+                r.raise_for_status()
+        except httpx.HTTPError as e:
+            logger.error("ref_audio fetch failed at %s: %s", url, e)
+            raise TTSError(f"ref_audio fetch failed: {e}") from e
+        return r.content
