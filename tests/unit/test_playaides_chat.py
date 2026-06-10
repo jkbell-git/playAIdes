@@ -17,12 +17,12 @@ from playAIdes import PlayAIdes, PlayAIdesArgs
 from model_interfaces import MockLLM
 
 
-def _make(persona_file: Path, fake_tts, *, use_voice=False, generate_voice=False):
+def _make(persona_file: Path, fake_tts, *, use_voice=False, generate_voice=False, use_avatar=False):
     args = PlayAIdesArgs(
         persona=[str(persona_file)],
         generate_voice=generate_voice,
         use_voice=use_voice,
-        use_avatar=False,
+        use_avatar=use_avatar,
         generate_avatar=False,
         llm=MockLLM(),
         tts=fake_tts,
@@ -61,22 +61,31 @@ class TestChat:
     def test_voice_disabled_skips_tts(
         self, persona_file, fake_tts, no_incarnation
     ):
-        play = _make(persona_file, fake_tts, use_voice=False)
+        # With use_voice=False, speak_as_persona returns early — no start_lip_sync
+        # frame should be pushed.  Build with use_avatar=True so the stub
+        # incarnation_server is wired and commands can be inspected.
+        play = _make(persona_file, fake_tts, use_voice=False, use_avatar=True)
         play.chat("hi")
-        assert fake_tts.stream_calls == []
-        assert fake_tts.file_calls == []
+        cmds = [cmd for cmd, _payload in play.incarnation_server.commands]
+        assert "start_lip_sync" not in cmds
 
     def test_voice_enabled_calls_tts_stream(
         self, persona_file, fake_tts, no_incarnation, valid_persona_dict
     ):
-        # Give the persona a valid speaker so the TTS path has an id to use.
+        # New design: the browser/avatar is the only audio sink.  With
+        # use_avatar=True and a valid voice, speak_as_persona pushes a
+        # start_lip_sync frame whose URL carries &voice=uuid-1 (no direct synth).
         import json
         valid_persona_dict["persona_voice"] = {"voice": "uuid-1"}
         persona_file.write_text(json.dumps(valid_persona_dict))
-        play = _make(persona_file, fake_tts, use_voice=True)
+        play = _make(persona_file, fake_tts, use_voice=True, use_avatar=True)
         play.chat("hi")
-        assert len(fake_tts.stream_calls) == 1
-        assert fake_tts.stream_calls[0].speaker_id == "uuid-1"
+        lip_sync_cmds = [
+            payload for cmd, payload in play.incarnation_server.commands
+            if cmd == "start_lip_sync"
+        ]
+        assert lip_sync_cmds, "expected at least one start_lip_sync command"
+        assert "&voice=uuid-1" in lip_sync_cmds[0]["url"]
 
     def test_system_prompt_mentions_persona_name(
         self, persona_file, fake_tts, no_incarnation, monkeypatch

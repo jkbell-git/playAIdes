@@ -1,4 +1,4 @@
-from persona import Persona
+from persona import Persona, Voice
 from pydantic import BaseModel,ConfigDict, field_validator
 from model_interfaces import LLMInterface, OpenAICompatLLM
 from typing import Optional, List, Dict
@@ -302,8 +302,10 @@ class PlayAIdes:
             logger.error("TTS not initialized")
             return
         # is the voice design generation needed?
-        if (self.args.generate_voice and 
+        if (self.args.generate_voice and
         (p.persona_voice is None or not p.persona_voice.is_voice_valid())):
+            if p.persona_voice is None:
+                p.persona_voice = Voice()
             voice_instruct = p.persona_voice.voice_instruct if p.persona_voice.voice_instruct else []
             voice_instruct.append(f"Background: {p.back_ground}. ")
             voice_instruct.append(f"{', '.join(p.psyche.traits)}. ")
@@ -645,19 +647,23 @@ class PlayAIdes:
             return
             
         if msg_type == "design_voice":
-            voice = self.tts.design_voice(
-                name=payload.get("name", "voice"),
-                instruct=payload.get("instruct", ""),
-                text=payload.get("sample_text", "hello"),
-                gender=payload.get("gender", "Female"),
-                language=payload.get("language", "English"),
-            )
-            ref_audio_url = f"http://localhost:{self.incarnation_server.port}/api/speakers/{voice}/ref_audio"
-            self.incarnation_server.send_command("voice_designed", {
-                "speaker_id": voice,                    # WS payload key unchanged (parked console)
-                "name": payload.get("name"),
-                "ref_audio_url": ref_audio_url,
-            })
+            try:
+                voice = self.tts.design_voice(
+                    name=payload.get("name", "voice"),
+                    instruct=payload.get("instruct", ""),
+                    text=payload.get("sample_text", "hello"),
+                    gender=payload.get("gender", "Female"),
+                    language=payload.get("language", "English"),
+                )
+                ref_audio_url = f"http://localhost:{self.incarnation_server.port}/api/speakers/{voice}/ref_audio"
+                self.incarnation_server.send_command("voice_designed", {
+                    "speaker_id": voice,                    # WS payload key unchanged (parked console)
+                    "name": payload.get("name"),
+                    "ref_audio_url": ref_audio_url,
+                })
+            except Exception as e:
+                logger.error(f"Voice design failed: {e}")
+                self.incarnation_server.send_command("voice_design_failed", {"error": str(e)})
             return
             
         if msg_type == "test_voice":
