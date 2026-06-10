@@ -88,10 +88,14 @@ class TTSClient:
         url = f"{self.rig_url}/v1/audio/speech"
         payload = {"input": text, "voice": voice,
                    "response_format": "pcm", "voicebox": {"tags": tags}}
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            async with client.stream("POST", url, json=payload) as resp:
-                if resp.status_code != 200:
-                    body = await resp.aread()
-                    raise TTSError(f"TTS stream failed: {resp.status_code} {body[:200]!r}")
-                sample_rate = _parse_sample_rate(resp.headers.get("content-type", ""))
-                yield sample_rate, resp.aiter_bytes()
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                async with client.stream("POST", url, json=payload) as resp:
+                    if resp.status_code != 200:
+                        body = await resp.aread()
+                        raise TTSError(f"TTS stream failed: {resp.status_code} {body[:200]!r}")
+                    sample_rate = _parse_sample_rate(resp.headers.get("content-type", ""))
+                    yield sample_rate, resp.aiter_bytes()
+        except httpx.HTTPError as e:
+            logger.error("TTS stream failed at %s: %s", url, e)
+            raise TTSError(f"TTS stream failed: {e}") from e

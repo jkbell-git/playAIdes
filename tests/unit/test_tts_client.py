@@ -74,3 +74,12 @@ async def test_open_speech_stream_error_raises_ttserror():
     with pytest.raises(TTSError):
         async with TTSClient(rig_url="http://rig.test").open_speech_stream("hi", "v1"):
             pass
+
+
+@respx.mock
+async def test_open_speech_stream_transport_error_raises_ttserror():
+    respx.post("http://rig.test/v1/audio/speech").mock(
+        side_effect=httpx.ConnectError("connection refused"))
+    with pytest.raises(TTSError):
+        async with TTSClient(rig_url="http://rig.test").open_speech_stream("hi", "v1"):
+            pass
