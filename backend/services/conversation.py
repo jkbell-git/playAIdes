@@ -37,6 +37,9 @@ class ConversationService:
 
     def run_turn(self, persona_id: str, text: str) -> Iterator[TurnEvent]:
         persona = self._get_persona(persona_id)
+        # target_id is this turn's routing id (history/display/dispatch). The
+        # caller resolves the active persona before calling run_turn, so it
+        # always equals persona_id here; kept as a named concept to mirror chat().
         target_id = persona_id
         yield TurnEvent("reply_started", {"persona_id": target_id})
 

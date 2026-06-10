@@ -49,3 +49,18 @@ def test_phrase_trigger_dispatches_and_yields_silent_single_delta():
     assert events[2].payload["text"] == ""
     assert svc._dispatched == [("testbot", "show_pip", {"source": "cam.1"})]
     assert svc._spoken == []
+
+
+def test_no_persona_yields_error_single_delta():
+    svc = ConversationService(
+        get_persona=lambda pid: None,
+        history_load=lambda pid: [],
+        history_save=lambda pid: None,
+        dispatch=lambda *a: None,
+        llm=None,
+        speak=lambda tid, text: None,
+        ha=None,
+    )
+    events = list(svc.run_turn("nobody", "hi"))
+    assert [e.type for e in events] == ["reply_started", "reply_delta", "reply_done"]
+    assert events[-1].payload["text"] == "No persona loaded."
