@@ -1,9 +1,8 @@
-from persona import Persona
+from persona import Persona, Voice
 from pydantic import BaseModel,ConfigDict, field_validator
 from model_interfaces import LLMInterface, OpenAICompatLLM
 from typing import Optional, List, Dict
-from voicebox_client import PersonaTTS, VoiceboxClient
-from voicebox.api_models import VoiceDesignRequest, SpeechGenerationRequest
+from backend.clients.tts import TTSClient, PersonaTTS
 import json
 import logging
 from incarnation_server import IncarnationServer
@@ -86,27 +85,21 @@ class PlayAIdesArgs(BaseModel):
     ha_url: Optional[str] = None
     ha_token: Optional[str] = None
     ha_default_agent_id: Optional[str] = None
+    # NOTE: doubles need REAL synth/design_voice attributes — pydantic's protocol isinstance uses getattr_static, so MagicMock() is rejected before this validator runs; use PlayAIdes.__new__ + direct assignment in tests instead.
     @field_validator("tts")
     @classmethod
     def validate_tts(cls, v):
         if v is None:
             return v
-        try:
-            if not isinstance(v, PersonaTTS):
-                raise TypeError("tts must implement PersonaTTS protocol")
-        except TypeError as exc:
-            # PersonaTTS may be a MagicMock (test environments stub voicebox_client);
-            # isinstance() raises TypeError when the type arg is not a real type.
-            # Only re-raise if the object lacks the required protocol methods.
-            if not (callable(getattr(v, "generate_speech", None))
-                    or callable(getattr(v, "generate_speech_stream", None))):
-                raise TypeError("tts must implement PersonaTTS protocol") from exc
+        if not (callable(getattr(v, "synth", None))
+                and callable(getattr(v, "design_voice", None))):
+            raise ValueError("tts must implement the PersonaTTS protocol (synth, design_voice)")
         return v
 
 class PlayAIdes:
     def __init__(self, args: PlayAIdesArgs):
         self.llm: Optional[LLMInterface] = args.llm if args.llm else OpenAICompatLLM() # Default to LLM_URL (Ollama by default)
-        self.tts: Optional[PersonaTTS] = args.tts if args.tts else VoiceboxClient() #Default to voicebox (VOICEBOX_URL / TTS_URL)
+        self.tts: Optional[PersonaTTS] = args.tts if args.tts is not None else TTSClient()  # default: VOICEBOX_URL / TTS_URL
         self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(
             on_message_callback=self._handle_incarnation_message,
             event_handler=self.handle_event,
@@ -309,20 +302,21 @@ class PlayAIdes:
             logger.error("TTS not initialized")
             return
         # is the voice design generation needed?
-        if (self.args.generate_voice and 
+        if (self.args.generate_voice and
         (p.persona_voice is None or not p.persona_voice.is_voice_valid())):
+            if p.persona_voice is None:
+                p.persona_voice = Voice()
             voice_instruct = p.persona_voice.voice_instruct if p.persona_voice.voice_instruct else []
             voice_instruct.append(f"Background: {p.back_ground}. ")
             voice_instruct.append(f"{', '.join(p.psyche.traits)}. ")
             # send a generate voice request to the TTS service
-            p.persona_voice.speaker_uuid = self.tts.generate_voice(VoiceDesignRequest(            
-                text=p.back_ground,
-                language=p.language,
-                instruct=f" ".join(voice_instruct),
-                #output_path=f"personas/{p.name}/tts",                
+            p.persona_voice.voice = self.tts.design_voice(
                 name=p.name,
-                gender=p.gender
-            ))
+                instruct=" ".join(voice_instruct),
+                text=p.back_ground,
+                gender=p.gender,
+                language=p.language,
+            )
             #update the persona file with the new voice
             self._update_persona_file(p)
 
@@ -653,35 +647,37 @@ class PlayAIdes:
             return
             
         if msg_type == "design_voice":
-            req = VoiceDesignRequest(
-                text=payload.get("sample_text", "hello"),
-                language=payload.get("language", "English"),
-                instruct=payload.get("instruct", ""),
-                name=payload.get("name", "voice"),
-                gender=payload.get("gender", "Female")
-            )
-            speaker_uuid = self.tts.generate_voice(req)
-            ref_audio_url = f"http://localhost:{self.incarnation_server.port}/api/speakers/{speaker_uuid}/ref_audio"
-            self.incarnation_server.send_command("voice_designed", {
-                "speaker_id": speaker_uuid, 
-                "name": payload.get("name"),
-                "ref_audio_url": ref_audio_url
-            })
+            try:
+                voice = self.tts.design_voice(
+                    name=payload.get("name", "voice"),
+                    instruct=payload.get("instruct", ""),
+                    text=payload.get("sample_text", "hello"),
+                    gender=payload.get("gender", "Female"),
+                    language=payload.get("language", "English"),
+                )
+                ref_audio_url = f"http://localhost:{self.incarnation_server.port}/api/speakers/{voice}/ref_audio"
+                self.incarnation_server.send_command("voice_designed", {
+                    "speaker_id": voice,                    # WS payload key unchanged (parked console)
+                    "name": payload.get("name"),
+                    "ref_audio_url": ref_audio_url,
+                })
+            except Exception as e:
+                logger.error(f"Voice design failed: {e}")
+                self.incarnation_server.send_command("voice_design_failed", {"error": str(e)})
             return
             
         if msg_type == "test_voice":
-            req = SpeechGenerationRequest(
-                text=payload.get("text", "hello"),
-                language=payload.get("language", "English"),
-                speaker_id=payload.get("speaker_id", "")
-            )
             try:
-                # We save audio to public/outputs so it's statically addressable by frontend via /outputs/...
                 output_path = "incarnation/public/outputs/tts/temp"
                 os.makedirs(output_path, exist_ok=True)
-                output_file = self.tts.generate_speech_file(req, output_path=output_path)
-                # Ensure the url is relative to the root for the frontend
-                filename = os.path.basename(output_file)
+                wav = self.tts.synth(
+                    text=payload.get("text", "hello"),
+                    voice=payload.get("speaker_id", ""),     # WS payload key unchanged
+                )
+                import uuid as _uuid
+                filename = f"{_uuid.uuid4().hex}.wav"
+                with open(os.path.join(output_path, filename), "wb") as f:
+                    f.write(wav)
                 url = f"http://localhost:8765/outputs/tts/temp/{filename}"
                 self.incarnation_server.send_command("voice_tested", {"url": url})
             except Exception as e:
@@ -781,29 +777,25 @@ class PlayAIdes:
         if not self.args.use_voice:
             return
         voice = getattr(self.current_persona, "persona_voice", None)
-        if not (voice and voice.speaker_uuid):
+        if not (voice and voice.voice):
             logger.warning(
                 "Persona %s has no voice config; skipping lip_sync",
                 getattr(self.current_persona, "name", "<unknown>"),
             )
             return
+        # The browser/avatar is the only audio sink; with no display there is
+        # nothing to play to (the old CLI-only TTS path was removed).
         if self.args.use_avatar and self.display:
             import urllib.parse
             safe_text = urllib.parse.quote(text)
             proxy_url = (
                 f"http://localhost:8765/api/tts/proxy?text={safe_text}"
-                f"&speaker_id={voice.speaker_uuid}"
+                f"&voice={urllib.parse.quote(voice.voice, safe='')}"
             )
-            if self.current_persona.language:
-                proxy_url += f"&language={urllib.parse.quote(self.current_persona.language)}"
             logger.info(f"Sending start_lip_sync: {proxy_url}")
             self.display.push(target_id, "start_lip_sync", {"url": proxy_url})
-        else:
-            self.tts.generate_speech_stream(SpeechGenerationRequest(
-                text=text,
-                speaker_id=voice.speaker_uuid,
-                language=self.current_persona.language or "English",
-            ))
+        elif self.args.use_avatar:
+            logger.debug("use_avatar set but no display channel; skipping lip_sync")
 
     def _skill_send(self, persona_id: str, cmd_type: str, payload: dict) -> None:
         """SkillContext.send backing — push a WS frame to the persona's displays."""

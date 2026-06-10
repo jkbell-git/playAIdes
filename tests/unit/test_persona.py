@@ -50,14 +50,14 @@ class TestVoice:
         assert Voice().is_voice_valid() is False
 
     def test_is_voice_valid_false_on_none_explicit(self):
-        assert Voice(speaker_uuid=None).is_voice_valid() is False
+        assert Voice(voice=None).is_voice_valid() is False
 
     def test_is_voice_valid_true_when_uuid(self):
-        assert Voice(speaker_uuid="abc-123").is_voice_valid() is True
+        assert Voice(voice="abc-123").is_voice_valid() is True
 
     def test_instruct_optional(self):
-        v = Voice(speaker_uuid="x", voice_instruct=["calm", "slow"])
-        assert v.voice_instruct == ["calm", "slow"]
+        v = Voice(voice="x", voice_instruct=["calm", "slow"])
+        assert v.voice == "x" and v.voice_instruct == ["calm", "slow"]
 
 
 class TestMemories:
@@ -68,6 +68,16 @@ class TestMemories:
     def test_round_trip(self):
         m = Memories(memories="once upon a time")
         assert m.memories == "once upon a time"
+
+
+def test_silver_persona_loads_with_voice_field():
+    import json
+    from pathlib import Path
+    if not Path("personas/silver/persona.json").exists():
+        pytest.skip("personas/silver/persona.json not present (private asset)")
+    data = json.loads(Path("personas/silver/persona.json").read_text())
+    p = Persona(**data)
+    assert p.persona_voice.voice == "f89c35ba-6db3-40c3-a7ee-d6b03cf71449"
 
 
 class TestPersona:

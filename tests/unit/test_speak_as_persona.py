@@ -1,16 +1,8 @@
-import sys
 import types as _types
 from unittest.mock import MagicMock
 
-# Stub out unavailable native deps so PlayAIdes can be imported without
-# the full Docker environment (same pattern used by test_chat_skill_dispatch.py).
-for _mod in ("voicebox_client", "voicebox", "voicebox.api_models"):  # native deps only; incarnation_server/ha_client are real (mocking them in sys.modules leaks into integration tests)
-    if _mod not in sys.modules:
-        sys.modules[_mod] = MagicMock()
-
 
 def _make_ai():
-    # Build a PlayAIdes-like object with just the attributes speak_as_persona needs.
     from playAIdes import PlayAIdes
     from incarnation_server import WebSocketDisplayChannel
     ai = PlayAIdes.__new__(PlayAIdes)            # skip __init__
@@ -18,9 +10,9 @@ def _make_ai():
     ai.display = WebSocketDisplayChannel(ai.incarnation_server)
     ai.args = _types.SimpleNamespace(use_voice=False, use_avatar=False)
     ai.tts = MagicMock()
-    # current_persona with a valid voice
     ai.current_persona = _types.SimpleNamespace(
-        persona_voice=_types.SimpleNamespace(speaker_uuid="uuid-1"),
+        persona_voice=_types.SimpleNamespace(voice="uuid-1"),
+        name="silver",
         language="English",
     )
     return ai
@@ -34,18 +26,33 @@ def test_speak_broadcasts_assistant_message():
     )
 
 
-def test_speak_sends_lip_sync_when_voice_and_avatar_on():
+def test_speak_sends_lip_sync_url_with_voice_when_avatar_on():
     ai = _make_ai()
     ai.args.use_voice = True
     ai.args.use_avatar = True
     ai.speak_as_persona("silver", "hi")
-    calls = [c.args[1] for c in ai.incarnation_server.broadcast_to_persona.call_args_list]
-    assert "start_lip_sync" in calls
+    payloads = [c.args[2] for c in ai.incarnation_server.broadcast_to_persona.call_args_list
+                if c.args[1] == "start_lip_sync"]
+    assert payloads, "expected a start_lip_sync command"
+    assert "&voice=uuid-1" in payloads[0]["url"]
+    assert "speaker_id=" not in payloads[0]["url"]
 
 
-def test_speak_calls_tts_when_no_avatar():
+def test_speak_is_silent_without_avatar():
     ai = _make_ai()
     ai.args.use_voice = True
-    ai.args.use_avatar = False   # server-side TTS path
+    ai.args.use_avatar = False                 # no display sink → no audio (CLI path removed)
     ai.speak_as_persona("silver", "hi")
-    ai.tts.generate_speech_stream.assert_called_once()
+    cmds = [c.args[1] for c in ai.incarnation_server.broadcast_to_persona.call_args_list]
+    assert "start_lip_sync" not in cmds
+    ai.tts.synth.assert_not_called()
+
+
+def test_speak_avatar_without_display_is_silent():
+    ai = _make_ai()
+    ai.args.use_voice = True
+    ai.args.use_avatar = True
+    ai.display = None
+    ai.speak_as_persona("silver", "hi")   # must not raise
+    cmds = [c.args[1] for c in ai.incarnation_server.broadcast_to_persona.call_args_list]
+    assert "start_lip_sync" not in cmds

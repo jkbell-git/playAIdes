@@ -23,10 +23,10 @@ class Avatar(BaseModel): #optional
 
 class Voice(BaseModel): #optional
     #speaker: Speaker # this can also be a local file path
-    speaker_uuid: Optional[str] = None
+    voice: Optional[str] = None          # registry voice UUID (was speaker_uuid)
     voice_instruct: Optional[list[str]] = None
     def is_voice_valid(self) -> bool:
-        return self.speaker_uuid is not None
+        return self.voice is not None
 #probably start as a local file but VectorDB and embedding is were I really want to do 
 #we will need some kind of compress or collapse to reduce ths size of tokens we will be 
 #passing.

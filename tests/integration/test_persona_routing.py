@@ -6,21 +6,12 @@ the actual broadcast path."""
 from __future__ import annotations
 
 import json
-import sys
 import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
-
-# Stub unavailable native deps so tests that import PlayAIdes (e.g.
-# test_chat_assistant_message_routes_via_persona_binding) can run without the
-# full Docker environment.  Only voicebox/voicebox_client are stubbed —
-# incarnation_server and ha_client are real modules used by these tests.
-for _mod in ("voicebox_client", "voicebox", "voicebox.api_models"):
-    if _mod not in sys.modules:
-        sys.modules[_mod] = MagicMock()
 
 
 pytestmark = pytest.mark.integration

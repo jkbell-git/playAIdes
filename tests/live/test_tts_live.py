@@ -1,39 +1,47 @@
-"""Live E2E smoke test against the real Qwen3 TTS container."""
-from __future__ import annotations
+"""Live TTS smoke test against a real voicebox /v1 rig + registry.
 
-from pathlib import Path
+Auto-skips unless VOICEBOX_URL is set and reachable. Exercises whole-file synth
+against a live engine (e.g. the CPU kokoro rig). Voice *design* (qwen3, GPU) is
+covered by the deferred manual live test, not here.
+"""
+import os
 
+import httpx
 import pytest
 
-from voice_generation.voice_api import Qwen3TTS_local
-from voice_generation.voice_server.service.voice_server_api import (
-    SpeechGenerationRequest,
-    VoiceDesignRequest,
-)
+from backend.clients.tts import TTSClient
 
-pytestmark = [pytest.mark.live, pytest.mark.slow]
+pytestmark = pytest.mark.live
 
 
-def test_design_and_generate(tts_url: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    # Point the class at the live container URL via env var (already set by
-    # docker-compose.live.yml, but enforce here for robustness).
-    monkeypatch.setenv("TTS_URL", tts_url)
-    tts = Qwen3TTS_local()
-    tts.BASE_URL = tts_url  # instance override, module-level default may be cached
+@pytest.fixture
+def live_rig_url():
+    url = os.environ.get("VOICEBOX_URL")
+    if not url:
+        pytest.skip("VOICEBOX_URL not set; skipping live TTS test")
+    try:
+        httpx.get(f"{url.rstrip('/')}/health", timeout=3).raise_for_status()
+    except Exception as e:
+        pytest.skip(f"voicebox rig not reachable at {url!r}: {e}")
+    return url
 
-    speaker_id = tts.generate_voice(VoiceDesignRequest(
-        text="Hello world.",
-        language="English",
-        instruct="A calm, neutral voice.",
-        name="test-voice",
-        gender="Female",
-    ))
-    assert speaker_id, "TTS server did not return a speaker_id"
 
-    out_file = tts.generate_speech_file(
-        SpeechGenerationRequest(text="Hello from a test.", speaker_id=speaker_id),
-        output_path=str(tmp_path),
-    )
-    assert out_file, "generate_speech_file returned no path"
-    p = Path(out_file)
-    assert p.exists() and p.stat().st_size > 0
+def test_live_synth_returns_wav(live_rig_url):
+    voice = os.environ.get("VOICEBOX_TEST_VOICE")
+    if not voice:
+        pytest.skip("VOICEBOX_TEST_VOICE not set (a voice UUID registered in the live registry)")
+    out = TTSClient().synth("Hello from a live test.", voice)
+    assert out[:4] == b"RIFF" and len(out) > 44   # a real WAV with body
+
+
+def test_live_ref_audio_returns_wav(live_rig_url):
+    import asyncio
+
+    voice = os.environ.get("VOICEBOX_TEST_VOICE")
+    if not voice:
+        pytest.skip("VOICEBOX_TEST_VOICE not set (a voice UUID registered in the live registry)")
+    registry = os.environ.get("VOICEBOX_REGISTRY_URL")
+    if not registry:
+        pytest.skip("VOICEBOX_REGISTRY_URL not set; skipping live ref_audio test")
+    out = asyncio.run(TTSClient().ref_audio(voice))
+    assert out[:4] == b"RIFF" and len(out) > 44
