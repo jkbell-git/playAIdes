@@ -45,3 +45,24 @@ def test_ref_audio_proxy_hits_registry(proxy_client):
     r = proxy_client.get("/api/speakers/v1/ref_audio")
     assert r.status_code == 200
     assert r.content == b"RIFFref"
+
+
+@respx.mock
+def test_tts_proxy_rig_error_yields_empty_200(proxy_client):
+    """Pre-stream rig failure: status is already committed as 200; the body is
+    empty (logged server-side). The browser sees a media error, not a WAV."""
+    respx.post("http://rig.test/v1/audio/speech").mock(
+        return_value=httpx.Response(500, json={"detail": "boom"}))
+    r = proxy_client.get("/api/tts/proxy", params={"text": "hi", "voice": "v1"})
+    assert r.status_code == 200
+    assert r.content == b""
+
+
+@respx.mock
+def test_tts_proxy_missing_rate_header_falls_back_to_24000(proxy_client):
+    respx.post("http://rig.test/v1/audio/speech").mock(
+        return_value=httpx.Response(200, content=b"\x01\x02",
+                                    headers={"content-type": "application/octet-stream"}))
+    r = proxy_client.get("/api/tts/proxy", params={"text": "hi", "voice": "v1"})
+    assert r.status_code == 200
+    assert int.from_bytes(r.content[24:28], "little") == 24000

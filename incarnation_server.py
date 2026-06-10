@@ -22,9 +22,13 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
     import httpx
-    from backend.clients.tts import TTSClient, TTSError
 except ImportError:
     FastAPI = None
+
+if FastAPI is not None:
+    from backend.clients.tts import TTSClient, TTSError
+else:
+    TTSClient = TTSError = None
 
 import os
 import shutil

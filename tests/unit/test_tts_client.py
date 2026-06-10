@@ -32,6 +32,8 @@ def test_parse_sample_rate():
     assert _parse_sample_rate("audio/l16; rate=22050; channels=1") == 22050
     assert _parse_sample_rate("audio/wav") == 24000           # default
     assert _parse_sample_rate("audio/l16; rate=bogus") == 24000
+    assert _parse_sample_rate("audio/l16; rate=-1") == 24000
+    assert _parse_sample_rate("audio/l16; rate=0") == 24000
 
 
 @respx.mock

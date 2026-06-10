@@ -47,9 +47,10 @@ def _parse_sample_rate(content_type: str, default: int = DEFAULT_SAMPLE_RATE) ->
         part = part.strip()
         if part.startswith("rate="):
             try:
-                return int(part[len("rate="):])
+                rate = int(part[len("rate="):])
             except ValueError:
                 return default
+            return rate if rate > 0 else default
     return default
 
 
