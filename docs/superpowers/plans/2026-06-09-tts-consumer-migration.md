@@ -1107,12 +1107,12 @@ git commit -m "docs: record TTS-consumer migration; bin/test green again"
 
 > **Not an automated task.** Per the operator's decision, the new-voicebox stand-up and live synth test are done **manually, interactively** — do not script the compose changes or the voice registration. The steps below are a checklist to work through together when ready. The GPU is busy, so **only the CPU kokoro synth path is live-tested now**; the qwen3 design path is deferred.
 
-- [ ] **Discovery:** read `~/repo/voicebox`'s own compose (registry service + the CPU kokoro rig, ~`:9008` per commit `aeec623`) and `src/voicebox/rigs/kokoro.py` to confirm how a voice UUID maps to a kokoro preset and whether the rig needs the registry for ref audio.
-- [ ] **Stand up** the new voicebox **registry** + **CPU kokoro rig** (reuse the concurrent voicebox session's compose if one exists rather than reinventing it).
-- [ ] **Repoint** the harness backend env: `VOICEBOX_REGISTRY_URL` → the registry, `VOICEBOX_URL` → the kokoro rig; leave `VOICEBOX_DESIGN_URL` unset.
-- [ ] **Voice identity:** register a voice in the new registry (or pick a kokoro preset); set `VOICEBOX_TEST_VOICE` to its UUID and update `personas/silver/persona.json` `voice` if Silver should use it.
-- [ ] **Live unit check:** `docker compose -f docker-compose.harness.yml exec -T backend pytest tests/live/test_tts_live.py -q` → passes (real WAV).
-- [ ] **End-to-end:** trigger Silver to speak (control.html "Say on TV" / a greet) and confirm audio + lip-sync play through the repointed `/api/tts/proxy`.
+- [x] **Discovery:** read `~/repo/voicebox`'s own compose (registry service + the CPU kokoro rig, ~`:9008` per commit `aeec623`) and `src/voicebox/rigs/kokoro.py` to confirm how a voice UUID maps to a kokoro preset and whether the rig needs the registry for ref audio. *(Done 2026-06-10: UUID → preset deterministically; ref audio via registry.)*
+- [x] **Stand up** the new voicebox **registry** + **CPU kokoro rig** (reuse the concurrent voicebox session's compose if one exists rather than reinventing it). *(Done 2026-06-10: one `voicebox:kokoro` image, two services in `docker-compose.harness.yml`, commit `76a2a6e`.)*
+- [x] **Repoint** the harness backend env: `VOICEBOX_REGISTRY_URL` → the registry, `VOICEBOX_URL` → the kokoro rig; leave `VOICEBOX_DESIGN_URL` unset. *(Done; `VOICEBOX_DESIGN_URL` points at the rig's CPU heuristic design route instead of unset.)*
+- [x] **Voice identity:** register a voice in the new registry (or pick a kokoro preset); set `VOICEBOX_TEST_VOICE` to its UUID and update `personas/silver/persona.json` `voice` if Silver should use it. *(Done: Silver's legacy UUID `f89c35ba-…` resolves via the shared `speakers.db` — no re-registration needed; `VOICEBOX_TEST_VOICE` set in `.env`.)*
+- [x] **Live unit check:** `docker compose -f docker-compose.harness.yml exec -T backend pytest tests/live/test_tts_live.py -q` → passes (real WAV). *(2 passed, 2026-06-10.)*
+- [x] **End-to-end:** trigger Silver to speak (control.html "Say on TV" / a greet) and confirm audio + lip-sync play through the repointed `/api/tts/proxy`. *(Done 2026-06-10: operator confirmed audio + lip-sync both good on the Fire TV — kokoro preset timbre.)*
 - [ ] **Later (GPU free):** point `VOICEBOX_DESIGN_URL` at a qwen3 rig and live-test `--generate_voice` / the `design_voice` console path.
 
 ---

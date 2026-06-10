@@ -28,17 +28,19 @@ added. 42 tests green (33 plain-container + 9 harness); live-verified (Silver re
 the new REST endpoint). Viewer subtitle flow unchanged. The final holistic review caught an
 8-test turn-path regression in pre-existing fixtures (Task 6's gate was too narrow); fixed.
 
-**Slice 3 — TTS-consumer migration → voicebox `/v1/*` — CODE-COMPLETE on branch
-`tts-consumer-migration` (2026-06-10; not yet merged).** New `backend/clients/tts.py`
-`TTSClient` seam (synth / open_speech_stream / design_voice / ref_audio, all failures →
-`TTSError`); dead `voicebox_client` imports dropped from `playAIdes.py` (the keystone —
-full `bin/test` collects again); proxy routes repointed to `/v1/*` with the WAV sample rate
-derived from the rig's `audio/l16; rate=` header; `persona.Voice.speaker_uuid` hard-renamed
-to `voice` (data files + `creator.js` consumer migrated); CLI-only speak path removed
-(`--use_voice` without `--use_avatar` is now silent, by design D6). Full plain suite:
-**341 passed, 5 skipped, 0 failures**. Remaining: the **manual** harness live-test (stand up
-the new voicebox registry + CPU kokoro rig, register a voice, set `VOICEBOX_TEST_VOICE`,
-end-to-end Silver speak) — see TODO. Spec:
+**Slice 3 — TTS-consumer migration → voicebox `/v1/*` — DONE: merged to `main` (`9e4786f`,
+2026-06-10) and fully live-verified.** New `backend/clients/tts.py` `TTSClient` seam
+(synth / open_speech_stream / design_voice / ref_audio, all failures → `TTSError`); dead
+`voicebox_client` imports dropped from `playAIdes.py` (the keystone — full `bin/test`
+collects again); proxy routes repointed to `/v1/*` with the WAV sample rate derived from
+the rig's `audio/l16; rate=` header; `persona.Voice.speaker_uuid` hard-renamed to `voice`
+(data files + `creator.js` consumer migrated); CLI-only speak path removed (`--use_voice`
+without `--use_avatar` is now silent, by design D6). Full plain suite: **341 passed,
+5 skipped, 0 failures**. Harness cut over to the new voicebox registry + CPU kokoro rig
+(`76a2a6e`), and the end-to-end closed 2026-06-10: **Silver spoke on the Fire TV with
+audio + lip-sync** via control.html "Say on TV" through the repointed `/api/tts/proxy`
+(kokoro preset timbre — her qwen3-designed voice awaits a GPU rig, see TODO). Next: pick
+the next re-architecture slice. Spec:
 `docs/superpowers/specs/2026-06-09-tts-consumer-migration-design.md`.
 
 *(Background context: the UI theme work — p5-basic/fate-basic/manga-basic chrome for the
@@ -95,15 +97,16 @@ remain the live look; see Decisions for the full theme history.)*
 - [x] **Fix the test image / RED full suite** — RESOLVED 2026-06-10 by the TTS-consumer
       migration (branch `tts-consumer-migration`): the dead `voicebox_client` import is gone,
       so the suite no longer needs the private SSH dep at all. 341 passed / 5 skipped.
-- [~] **TTS Task 11 — harness cutover DONE 2026-06-10** (commit `76a2a6e`): harness now runs
-      the new voicebox **registry (:8008) + CPU kokoro rig (:9008)** (one image, two
-      commands, mirroring voicebox's `docker-compose.router.yml`); backend repointed
-      (`VOICEBOX_URL`→rig, `VOICEBOX_REGISTRY_URL`→registry, `VOICEBOX_DESIGN_URL`→rig —
-      kokoro's heuristic design route, CPU-only). Silver's legacy UUID resolves in the
-      shared `speakers.db` (no re-registration; `VOICEBOX_TEST_VOICE` in `.env`).
-      **Verified:** `tests/live/test_tts_live.py` 2 passed in-harness; `/api/tts/proxy` →
-      playable 24 kHz WAV; `/api/speakers/{voice}/ref_audio` → 200. **Remaining:** operator
-      end-to-end — Silver speaks on the TV via control.html "Say on TV" (audio + lip-sync).
+- [x] **TTS Task 11 — DONE 2026-06-10 (end-to-end verified on the TV).** Harness cutover
+      (commit `76a2a6e`): the new voicebox **registry (:8008) + CPU kokoro rig (:9008)**
+      (one image, two commands, mirroring voicebox's `docker-compose.router.yml`); backend
+      repointed (`VOICEBOX_URL`→rig, `VOICEBOX_REGISTRY_URL`→registry,
+      `VOICEBOX_DESIGN_URL`→rig — kokoro's heuristic design route, CPU-only). Silver's
+      legacy UUID resolves in the shared `speakers.db` (no re-registration;
+      `VOICEBOX_TEST_VOICE` in `.env`). **Verified:** `tests/live/test_tts_live.py` 2 passed
+      in-harness; `/api/tts/proxy` → playable 24 kHz WAV; `/api/speakers/{voice}/ref_audio`
+      → 200; operator end-to-end — Silver spoke on the Fire TV via control.html "Say on TV"
+      with **audio + lip-sync both good** (kokoro preset timbre; qwen3 timbre deferred).
 - [ ] **`docker-compose.live.yml` still builds the legacy `tts` service**
       (`Dockerfile_streaming_tts`, `TTS_URL=:8009`) whose only consumer was the deleted old
       live test, and never sets `VOICEBOX_URL` — so live TTS coverage there is a silent no-op.
