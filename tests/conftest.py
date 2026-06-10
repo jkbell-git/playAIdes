@@ -71,32 +71,16 @@ def mock_llm():
 
 
 class FakeTTS:
-    """In-memory PersonaTTS implementation for tests.
+    """In-memory PersonaTTS implementation for tests (new /v1 surface)."""
 
-    Records every call so tests can assert behavior without hitting a real
-    TTS server or audio device.
-    """
+    def __init__(self, voice: str = "fake-voice-0001") -> None:
+        self.voice = voice
 
-    def __init__(self, speaker_uuid: str = "fake-speaker-0001") -> None:
-        self.speaker_uuid = speaker_uuid
-        self.design_calls: List[Any] = []
-        self.file_calls: List[Any] = []
-        self.stream_calls: List[Any] = []
+    def design_voice(self, name, instruct, text, gender, language) -> str:
+        return self.voice
 
-    def generate_voice(self, voice_design_request) -> Optional[str]:
-        self.design_calls.append(voice_design_request)
-        return self.speaker_uuid
-
-    def generate_speech(self, speech_generation_request, output_path=None):  # Protocol method
-        return self.generate_speech_file(speech_generation_request, output_path)
-
-    def generate_speech_file(self, speech_generation_request, output_path=None) -> str:
-        self.file_calls.append(speech_generation_request)
-        return f"{output_path or '/tmp'}/fake.wav"
-
-    def generate_speech_stream(self, speech_generation_request, output_path=None) -> str:
-        self.stream_calls.append(speech_generation_request)
-        return speech_generation_request.text
+    def synth(self, text, voice, *, tags: str = "") -> bytes:
+        return b"RIFFfake-wav-bytes"
 
 
 @pytest.fixture
