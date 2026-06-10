@@ -47,7 +47,7 @@ class TestAvatar:
 
 class TestVoice:
     def test_is_voice_valid_false_when_no_uuid(self):
-        assert Voice(voice=None).is_voice_valid() is False
+        assert Voice().is_voice_valid() is False
 
     def test_is_voice_valid_false_on_none_explicit(self):
         assert Voice(voice=None).is_voice_valid() is False
@@ -73,6 +73,8 @@ class TestMemories:
 def test_silver_persona_loads_with_voice_field():
     import json
     from pathlib import Path
+    if not Path("personas/silver/persona.json").exists():
+        pytest.skip("personas/silver/persona.json not present (private asset)")
     data = json.loads(Path("personas/silver/persona.json").read_text())
     p = Persona(**data)
     assert p.persona_voice.voice == "f89c35ba-6db3-40c3-a7ee-d6b03cf71449"
