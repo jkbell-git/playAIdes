@@ -19,12 +19,12 @@ and a React console page at **`/console`** (Vite MPA, all four pages now built v
 rewired to read launch targets from the config store. PiP is now a **generic display slot**
 (`{kind:"camera",...}` or `{kind:"url",...}`), not a camera-only field.
 
-**Next: Slice 2 — ConversationService extraction + `DisplayChannel` port + streaming turn
-model.** Extract `ConversationService` from `PlayAIdes.chat` (preserving the
-trigger → house-word/HA → LLM proxy), implement `run_turn` as the turn event stream
-(`reply_started → reply_delta* → reply_done`), introduce the `DisplayChannel` push port to
-break the circular `incarnation_server ⇄ PlayAIdes` dependency, and wire both the WS live
-channel and the REST `messages` endpoint to the same service.
+**Slice 2 — ConversationService + DisplayChannel — DONE and merged to `slice2-conversation-service` (2026-06-09).**
+`ConversationService` extracted from `PlayAIdes.chat` (`backend/services/conversation.py`);
+`DisplayChannel` push port introduced (`backend/ports/display.py` + `WebSocketDisplayChannel`)
+breaking the circular `incarnation_server ⇄ PlayAIdes` dependency; WS live channel + REST
+`POST /api/v1/personas/{id}/messages` both wired to the same service; `LLMInterface.chat_stream`
+added. 24 tests green (15 hermetic + 9 harness). Viewer subtitle flow unchanged.
 
 *(Background context: the UI theme work — p5-basic/fate-basic/manga-basic chrome for the
 Fire TV viewer — was completed on `feat/ui-theme-camera-split` and is merged. Those themes
@@ -64,7 +64,7 @@ remain the live look; see Decisions for the full theme history.)*
 - [ ] Delete `data/_mock_p5.html` — now SUPERSEDED by `incarnation/design-preview.html`.
       (Agent's `rm` was blocked by the permission classifier; user to remove or approve.)
 - [ ] (optional) Install `ha/silver_launch.yaml` in HA + tune the bedroom audio-unlock tap.
-- [ ] **Slice 2 (next):** extract `ConversationService` from `PlayAIdes.chat`; implement
+- [x] **Slice 2 (next): DONE —** extract `ConversationService` from `PlayAIdes.chat`; implement
       `run_turn` turn-event stream (`reply_started→delta*→done`); introduce `DisplayChannel`
       push port to break the circular `incarnation_server ⇄ PlayAIdes` dependency; wire WS
       live channel + REST `POST /api/v1/personas/{id}/messages` to the same service; add LLM
@@ -143,6 +143,14 @@ remain the live look; see Decisions for the full theme history.)*
 
 ## Decisions
 
+- [2026-06-09] **Slice 2 (ConversationService + DisplayChannel) shipped.** Extracted the
+  conversation turn from PlayAIdes.chat into `backend/services/conversation.py` (yields a
+  reply_started→delta*→done turn-event stream); introduced the `DisplayChannel` push port
+  (`backend/ports/display.py` + `WebSocketDisplayChannel`) — the domain no longer references
+  the concrete server for push, breaking the incarnation_server⇄PlayAIdes circular dependency.
+  Added `LLMInterface.chat_stream`; WS forwards turn events, REST `POST /api/v1/personas/{id}/messages`
+  drains them. Viewer unchanged (subtitle still via `assistant_message`). TTS-consumer migration
+  to `/v1/audio/speech` + the RED full-suite fix remain their own next slice.
 - [2026-06-09] **Backend/frontend re-architecture** — layered backend
   (`api → services → clients/stores`, + `ports/` for the one inversion) behind a stable
   versioned contract (`/api/v1` REST + narrow WebSocket for the live avatar loop), strangler-fig
