@@ -165,6 +165,8 @@ class PlayAIdes:
             ha_default_agent_id=self.args.ha_default_agent_id,
             history_cap=CHAT_HISTORY_CAP,
         )
+        if self.incarnation_server is not None:
+            self.incarnation_server.app.state.conversation_service = self.conversation
 
         for persona in args.persona:
             self._load_persona_from_file(persona)

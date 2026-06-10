@@ -116,6 +116,8 @@ class StubIncarnationServer:
         self.port = kwargs.get("port", 0)
         self.on_message_callback = on_message_callback
         self.commands: List[tuple[str, dict]] = []
+        from types import SimpleNamespace
+        self.app = SimpleNamespace(state=SimpleNamespace())
 
     def send_command(self, cmd_type: str, payload: dict = None):
         self.commands.append((cmd_type, payload or {}))
