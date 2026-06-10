@@ -2,8 +2,7 @@ from persona import Persona
 from pydantic import BaseModel,ConfigDict, field_validator
 from model_interfaces import LLMInterface, OpenAICompatLLM
 from typing import Optional, List, Dict
-from voicebox_client import PersonaTTS, VoiceboxClient
-from voicebox.api_models import VoiceDesignRequest, SpeechGenerationRequest
+from backend.clients.tts import TTSClient, PersonaTTS
 import json
 import logging
 from incarnation_server import IncarnationServer
@@ -91,22 +90,15 @@ class PlayAIdesArgs(BaseModel):
     def validate_tts(cls, v):
         if v is None:
             return v
-        try:
-            if not isinstance(v, PersonaTTS):
-                raise TypeError("tts must implement PersonaTTS protocol")
-        except TypeError as exc:
-            # PersonaTTS may be a MagicMock (test environments stub voicebox_client);
-            # isinstance() raises TypeError when the type arg is not a real type.
-            # Only re-raise if the object lacks the required protocol methods.
-            if not (callable(getattr(v, "generate_speech", None))
-                    or callable(getattr(v, "generate_speech_stream", None))):
-                raise TypeError("tts must implement PersonaTTS protocol") from exc
+        if not (callable(getattr(v, "synth", None))
+                and callable(getattr(v, "design_voice", None))):
+            raise TypeError("tts must implement the PersonaTTS protocol (synth, design_voice)")
         return v
 
 class PlayAIdes:
     def __init__(self, args: PlayAIdesArgs):
         self.llm: Optional[LLMInterface] = args.llm if args.llm else OpenAICompatLLM() # Default to LLM_URL (Ollama by default)
-        self.tts: Optional[PersonaTTS] = args.tts if args.tts else VoiceboxClient() #Default to voicebox (VOICEBOX_URL / TTS_URL)
+        self.tts: Optional[PersonaTTS] = args.tts if args.tts else TTSClient()  # default: VOICEBOX_URL / TTS_URL
         self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(
             on_message_callback=self._handle_incarnation_message,
             event_handler=self.handle_event,
