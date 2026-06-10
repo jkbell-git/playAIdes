@@ -1,15 +1,7 @@
 """Unit tests for the PlayAIdes chat flow — no network, no audio."""
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock
-
-# Stub out unavailable native deps so PlayAIdes can be imported without
-# the full Docker environment.
-for _mod in ("voicebox_client", "voicebox", "voicebox.api_models"):
-    if _mod not in sys.modules:
-        sys.modules[_mod] = MagicMock()
 
 import pytest
 
