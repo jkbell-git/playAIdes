@@ -64,3 +64,31 @@ def test_no_persona_yields_error_single_delta():
     events = list(svc.run_turn("nobody", "hi"))
     assert [e.type for e in events] == ["reply_started", "reply_delta", "reply_done"]
     assert events[-1].payload["text"] == "No persona loaded."
+
+
+class _StreamLLM:
+    def __init__(self, chunks):
+        self._chunks = list(chunks)
+    def chat(self, messages, system_prompt=None):
+        return "".join(self._chunks)
+    def chat_stream(self, messages, system_prompt=None):
+        for c in self._chunks:
+            yield c
+
+
+def test_llm_path_streams_deltas_speaks_and_persists():
+    persona = _persona(persona_voice={"speaker_uuid": "v-1"})
+    history = {}
+    svc = _service(persona, llm=_StreamLLM(["Hel", "lo"]), history=history)
+    events = list(svc.run_turn("testbot", "hi"))
+
+    assert [e.type for e in events] == [
+        "reply_started", "reply_delta", "reply_delta", "reply_done",
+    ]
+    assert [e.payload["text"] for e in events[1:3]] == ["Hel", "lo"]
+    assert events[-1].payload["text"] == "Hello"
+    assert svc._spoken == [("testbot", "Hello")]
+    assert history["testbot"][-2:] == [
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "Hello"},
+    ]

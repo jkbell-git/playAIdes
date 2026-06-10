@@ -35,6 +35,21 @@ class ConversationService:
         self._history_cap = history_cap
         self._ha_conversation_ids: dict[str, str] = {}
 
+    def _system_prompt(self, persona) -> str:
+        sp = (f"You are impersonating a this character named"
+              f"{persona.name}. "
+              f"Your background is: {persona.back_ground}. ")
+        if persona.psyche and persona.psyche.traits:
+            sp += (f"Your Psyche contains the following traits"
+                   f"{', '.join(persona.psyche.traits)}. ")
+        if persona.memories and persona.memories.memories:
+            sp += (f"your memories are: {persona.memories.memories}.")
+        sp += "be a helpful assistant to the user. with yor responses in character"
+        if persona.persona_voice and persona.persona_voice.is_voice_valid():
+            sp += (f"your response will be sent to a TTS service to be spoken."
+                   f"please make sure your response does not contain things not spoken. no emojis")
+        return sp
+
     def run_turn(self, persona_id: str, text: str) -> Iterator[TurnEvent]:
         persona = self._get_persona(persona_id)
         # target_id is this turn's routing id (history/display/dispatch). The
@@ -58,6 +73,20 @@ class ConversationService:
             yield TurnEvent("reply_done", {"persona_id": target_id, "text": ""})
             return
 
-        # LLM / house-word paths land in Tasks 4 & 5.
-        yield TurnEvent("reply_delta", {"persona_id": target_id, "text": ""})
-        yield TurnEvent("reply_done", {"persona_id": target_id, "text": ""})
+        history = self._history_load(target_id)
+        system_prompt = self._system_prompt(persona)
+        history.append({"role": "user", "content": text})
+
+        # House-word / HA delegation lands in Task 5; LLM path here.
+        chunks: list[str] = []
+        for chunk in self._llm.chat_stream(history, system_prompt=system_prompt):
+            chunks.append(chunk)
+            yield TurnEvent("reply_delta", {"persona_id": target_id, "text": chunk})
+        response = "".join(chunks)
+
+        self._speak(target_id, response)
+        history.append({"role": "assistant", "content": response})
+        if len(history) > self._history_cap:
+            history[:] = history[-self._history_cap:]
+        self._history_save(target_id)
+        yield TurnEvent("reply_done", {"persona_id": target_id, "text": response})
