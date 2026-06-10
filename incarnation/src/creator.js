@@ -283,8 +283,8 @@ function setActivePersona(p) {
     pendingSpeakerId = null;
     saveVoiceBtn.disabled = true;
     voiceRef.removeAttribute('src');
-    if (p.persona_voice?.speaker_uuid) {
-        voiceRef.src = `${API_BASE}/api/speakers/${p.persona_voice.speaker_uuid}/ref_audio`;
+    if (p.persona_voice?.voice) {
+        voiceRef.src = `${API_BASE}/api/speakers/${p.persona_voice.voice}/ref_audio`;
     }
 
     // Load avatar into stage; auto-play idle animation if configured
@@ -585,7 +585,7 @@ designBtn.addEventListener('click', () => {
 saveVoiceBtn.addEventListener('click', () => {
     if (!activePersona?.id || !pendingSpeakerId) return;
     activePersona.persona_voice = {
-        speaker_uuid: pendingSpeakerId,
+        voice: pendingSpeakerId,
         voice_instruct: [vInstruct.value.trim()].filter(Boolean),
     };
     conn.send('update_persona', { id: activePersona.id, ...buildPersonaPayload() });
@@ -594,7 +594,7 @@ saveVoiceBtn.addEventListener('click', () => {
 });
 
 testVoiceBtn.addEventListener('click', () => {
-    const speakerId = pendingSpeakerId || activePersona?.persona_voice?.speaker_uuid;
+    const speakerId = pendingSpeakerId || activePersona?.persona_voice?.voice;
     if (!speakerId) {
         toast('err', 'Voice', 'Design or select a voice first.');
         return;
