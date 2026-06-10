@@ -51,6 +51,7 @@ class ConversationService:
         return sp
 
     def _ha_turn(self, persona, target_id: str, residual: str) -> str:
+        assert self._ha is not None, "_ha_turn called without an HA client"
         if not residual:
             return "What about the house?"
         agent_id = persona.ha_agent_id or self._ha_default_agent_id

@@ -112,6 +112,7 @@ def test_house_word_with_no_residual_short_circuits(mock_ha_client):
     ha = mock_ha_client
     svc = _service(persona, llm=_StreamLLM(["unused"]), ha=ha)
     events = list(svc.run_turn("testbot", "house"))
+    assert [e.type for e in events] == ["reply_started", "reply_delta", "reply_done"]
     assert events[1].payload["text"] == "What about the house?"
     assert ha.calls == []
 
