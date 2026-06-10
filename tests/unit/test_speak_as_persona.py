@@ -12,8 +12,10 @@ for _mod in ("voicebox_client", "voicebox", "voicebox.api_models"):  # native de
 def _make_ai():
     # Build a PlayAIdes-like object with just the attributes speak_as_persona needs.
     from playAIdes import PlayAIdes
+    from incarnation_server import WebSocketDisplayChannel
     ai = PlayAIdes.__new__(PlayAIdes)            # skip __init__
     ai.incarnation_server = MagicMock()
+    ai.display = WebSocketDisplayChannel(ai.incarnation_server)
     ai.args = _types.SimpleNamespace(use_voice=False, use_avatar=False)
     ai.tts = MagicMock()
     # current_persona with a valid voice

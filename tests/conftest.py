@@ -116,6 +116,11 @@ class StubIncarnationServer:
         self.port = kwargs.get("port", 0)
         self.on_message_callback = on_message_callback
         self.commands: List[tuple[str, dict]] = []
+        # Stand-in for the real FastAPI app.state (where PlayAIdes stashes the
+        # ConversationService); the live app.state path is exercised end-to-end
+        # by the harness curl in Task 9.
+        from types import SimpleNamespace
+        self.app = SimpleNamespace(state=SimpleNamespace())
 
     def send_command(self, cmd_type: str, payload: dict = None):
         self.commands.append((cmd_type, payload or {}))
@@ -127,6 +132,21 @@ class StubIncarnationServer:
 
     def broadcast_to_all(self, cmd_type: str, payload: dict = None):
         self.commands.append((cmd_type, payload or {}))
+
+
+class RecordingDisplayChannel:
+    """DisplayChannel test double — records every (persona_id, type, payload) push."""
+
+    def __init__(self):
+        self.pushes: list[tuple[str, str, dict]] = []
+
+    def push(self, persona_id: str, event_type: str, payload: dict) -> None:
+        self.pushes.append((persona_id, event_type, payload))
+
+
+@pytest.fixture
+def recording_display() -> "RecordingDisplayChannel":
+    return RecordingDisplayChannel()
 
 
 @pytest.fixture

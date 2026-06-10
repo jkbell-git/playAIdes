@@ -16,8 +16,10 @@ from skills.pip import ShowPipSkill
 
 def _make_ai(skills, triggers):
     from playAIdes import PlayAIdes
+    from incarnation_server import WebSocketDisplayChannel
     ai = PlayAIdes.__new__(PlayAIdes)
     ai.incarnation_server = MagicMock()
+    ai.display = WebSocketDisplayChannel(ai.incarnation_server)
     ai.args = types.SimpleNamespace(use_voice=False, use_avatar=False)
     ai.ha_client = None
     reg = SkillRegistry()

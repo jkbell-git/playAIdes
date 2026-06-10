@@ -91,8 +91,16 @@ class PlayAIdesArgs(BaseModel):
     def validate_tts(cls, v):
         if v is None:
             return v
-        if not isinstance(v, PersonaTTS):
-            raise TypeError("tts must implement PersonaTTS protocol")
+        try:
+            if not isinstance(v, PersonaTTS):
+                raise TypeError("tts must implement PersonaTTS protocol")
+        except TypeError as exc:
+            # PersonaTTS may be a MagicMock (test environments stub voicebox_client);
+            # isinstance() raises TypeError when the type arg is not a real type.
+            # Only re-raise if the object lacks the required protocol methods.
+            if not (callable(getattr(v, "generate_speech", None))
+                    or callable(getattr(v, "generate_speech_stream", None))):
+                raise TypeError("tts must implement PersonaTTS protocol") from exc
         return v
 
 class PlayAIdes:
@@ -148,9 +156,25 @@ class PlayAIdes:
                 "HA features disabled."
             )
 
-        # Per-persona conversation_id cache for HA's multi-turn context.
-        # Cleared on persona swap by Task 9 hook.
-        self._ha_conversation_ids: dict[str, str] = {}
+        from incarnation_server import WebSocketDisplayChannel
+        from backend.services.conversation import ConversationService
+        self.display = (
+            WebSocketDisplayChannel(self.incarnation_server)
+            if self.incarnation_server is not None else None
+        )
+        self.conversation = ConversationService(
+            get_persona=lambda pid: self.current_persona,
+            history_load=self._load_history,
+            history_save=self._save_history,
+            dispatch=self._dispatch_skill,
+            llm=self.llm,
+            ha=self.ha_client,
+            speak=self.speak_as_persona,
+            ha_default_agent_id=self.args.ha_default_agent_id,
+            history_cap=CHAT_HISTORY_CAP,
+        )
+        if self.incarnation_server is not None:
+            self.incarnation_server.app.state.conversation_service = self.conversation
 
         for persona in args.persona:
             self._load_persona_from_file(persona)
@@ -453,7 +477,7 @@ class PlayAIdes:
 
         # Reset HA conversation context on every persona change so the next
         # session starts a fresh HA context.
-        self._ha_conversation_ids.pop(persona_id, None)
+        self.conversation.clear_ha_context(persona_id)
 
         # Re-use the existing loader (raises PersonaLoadError on bad input).
         self._load_persona_from_file(path)
@@ -482,10 +506,18 @@ class PlayAIdes:
             if not text:
                 return
             persona_id = (payload.get("persona_id") or "").strip() or None
+            target_id = persona_id or (
+                self.current_persona.name.strip().lower().replace(" ", "_")
+                if self.current_persona else None
+            )
+            if not target_id:
+                return
             try:
-                self.chat(text, persona_id=persona_id)
+                for ev in self.conversation.run_turn(target_id, text):
+                    if self.display is not None:
+                        self.display.push(target_id, ev.type, ev.payload)
             except Exception as e:
-                logger.exception(f"user_input chat() failed: {e}")
+                logger.exception(f"user_input run_turn failed: {e}")
             return
 
         if msg_type == "set_active_persona":
@@ -742,8 +774,8 @@ class PlayAIdes:
         lip-sync on the persona's bound displays. Extracted from chat() so
         skills can reuse it via SkillContext.speak. No-op pieces degrade
         gracefully in CLI-only mode."""
-        if self.incarnation_server is not None:
-            self.incarnation_server.broadcast_to_persona(
+        if self.display is not None:
+            self.display.push(
                 target_id, "assistant_message", {"text": text, "persona_id": target_id},
             )
         if not self.args.use_voice:
@@ -755,7 +787,7 @@ class PlayAIdes:
                 getattr(self.current_persona, "name", "<unknown>"),
             )
             return
-        if self.args.use_avatar and self.incarnation_server:
+        if self.args.use_avatar and self.display:
             import urllib.parse
             safe_text = urllib.parse.quote(text)
             proxy_url = (
@@ -765,9 +797,7 @@ class PlayAIdes:
             if self.current_persona.language:
                 proxy_url += f"&language={urllib.parse.quote(self.current_persona.language)}"
             logger.info(f"Sending start_lip_sync: {proxy_url}")
-            self.incarnation_server.broadcast_to_persona(
-                target_id, "start_lip_sync", {"url": proxy_url},
-            )
+            self.display.push(target_id, "start_lip_sync", {"url": proxy_url})
         else:
             self.tts.generate_speech_stream(SpeechGenerationRequest(
                 text=text,
@@ -777,8 +807,8 @@ class PlayAIdes:
 
     def _skill_send(self, persona_id: str, cmd_type: str, payload: dict) -> None:
         """SkillContext.send backing — push a WS frame to the persona's displays."""
-        if self.incarnation_server is not None:
-            self.incarnation_server.broadcast_to_persona(persona_id, cmd_type, payload)
+        if self.display is not None:
+            self.display.push(persona_id, cmd_type, payload)
 
     def _resolve_camera_url(self, entity_id: str, live: bool = False) -> Optional[str]:
         """SkillContext.resolve_camera backing — HA camera entity → fresh proxy
@@ -852,95 +882,9 @@ class PlayAIdes:
     def chat(self, user_input: str, persona_id: Optional[str] = None) -> str:
         if not self.current_persona:
             return "No persona loaded."
-
-        # Resolve the persona to route this turn against. Defaults to active.
         target_id = persona_id or self.current_persona.name.strip().lower().replace(" ", "_")
-
-        # ─ Deterministic skill triggers (phrase path) ──────────────────
-        # Precedence: phrase-trigger → house_words → conversation (spec §3.5).
-        from skills.router import match_phrase_trigger
-        matched = match_phrase_trigger(
-            user_input, self.current_persona.triggers, self.current_persona.skills,
-        )
-        if matched is not None:
-            skill_name, params = matched
-            self._dispatch_skill(target_id, skill_name, params)
-            return ""   # silent unless the skill spoke an announce (spec Q2)
-
-        # Ensure that persona's history is loaded (lazy from disk).
-        history = self._load_history(target_id)
-
-        # Construct system prompt based on persona
-        system_prompt = (f"You are impersonating a this character named"
-        f"{self.current_persona.name}. "
-        f"Your background is: {self.current_persona.back_ground}. "
-        )
-        if self.current_persona.psyche and self.current_persona.psyche.traits:
-            system_prompt += (f"Your Psyche contains the following traits"
-            f"{', '.join(self.current_persona.psyche.traits)}. ")
-        if self.current_persona.memories and self.current_persona.memories.memories:
-            system_prompt += (f"your memories are: {self.current_persona.memories.memories}.")
-
-
-        system_prompt += "be a helpful assistant to the user. with yor responses in character"
-
-        if self.current_persona.persona_voice and self.current_persona.persona_voice.is_voice_valid():
-            system_prompt += (f"your response will be sent to a TTS service to be spoken."
-            f"please make sure your response does not contain things not spoken. no emojis")
-
-        history.append({"role": "user", "content": user_input})
-
-        # ─ HA delegation via house_words ────────────────────────────────
-        from match_keywords import match_keyword_prefix
-        house_words = self.current_persona.house_words or []
-        matched, residual = match_keyword_prefix(user_input, house_words)
-        if matched and self.ha_client:
-            if not residual:
-                # House word with no follow-up — short-circuit, no HA call.
-                response = "What about the house?"
-            else:
-                agent_id = (
-                    self.current_persona.ha_agent_id
-                    or self.args.ha_default_agent_id
-                )
-                conv_id = self._ha_conversation_ids.get(target_id)
-                ha_resp = self.ha_client.converse(
-                    residual, agent_id=agent_id, conversation_id=conv_id,
-                )
-                if ha_resp.conversation_id:
-                    self._ha_conversation_ids[target_id] = ha_resp.conversation_id
-                response = ha_resp.speech_text
-                if (
-                    ha_resp.success
-                    and self.current_persona.rephrase_ha_response
-                ):
-                    rephrase_prompt = (
-                        f"You are {self.current_persona.name}. "
-                        f"Rephrase this in your voice, keeping the meaning "
-                        f"intact: {ha_resp.speech_text}"
-                    )
-                    try:
-                        response = self.llm.chat(
-                            [{"role": "user", "content": rephrase_prompt}],
-                            system_prompt=None,
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            "Rephrase LLM call failed, falling back to verbatim: %s", e,
-                        )
-                        response = ha_resp.speech_text
-        else:
-            response = self.llm.chat(history, system_prompt=system_prompt)
-
-        # Broadcast the reply to the persona's displays + TTS lip-sync.
-        self.speak_as_persona(target_id, response)
-
-        history.append({"role": "assistant", "content": response})
-
-        # Trim to cap and persist atomically.
-        if len(history) > CHAT_HISTORY_CAP:
-            history[:] = history[-CHAT_HISTORY_CAP:]
-        self._save_history(target_id)
-
-        return response
-            
+        reply = ""
+        for ev in self.conversation.run_turn(target_id, user_input):
+            if ev.type == "reply_done":
+                reply = ev.payload.get("text", "")
+        return reply

@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+import json
 import logging
 import requests
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +16,22 @@ class LLMInterface(ABC):
     def chat(self, messages: List[Dict[str, str]], system_prompt: Optional[str] = None) -> str:
         """
         Send a chat request to the LLM.
-        
+
         Args:
             messages: A list of dictionaries with 'role' and 'content' keys.
             system_prompt: An optional system prompt to prepend or use as context.
-            
+
         Returns:
             The content of the LLM's response.
         """
         pass
+
+    def chat_stream(self, messages: List[Dict[str, str]],
+                    system_prompt: Optional[str] = None) -> "Iterator[str]":
+        """Yield reply chunks. Default: one chunk wrapping chat() (non-streaming
+        backends). Streaming backends override to yield token deltas."""
+        yield self.chat(messages, system_prompt=system_prompt)
+
 
 class OpenAICompatLLM(LLMInterface):
     """OpenAI-compatible chat completions client.
@@ -82,6 +90,39 @@ class OpenAICompatLLM(LLMInterface):
             )
             return reasoning
         return ""
+
+    def chat_stream(self, messages: List[Dict[str, str]],
+                    system_prompt: Optional[str] = None) -> Iterator[str]:
+        url = f"{self.base_url}/chat/completions"
+        msgs: List[Dict[str, str]] = []
+        if system_prompt:
+            msgs.append({"role": "system", "content": system_prompt})
+        msgs.extend(messages)
+        payload = {"model": self.model, "messages": msgs, "stream": True}
+        try:
+            with requests.post(url, json=payload, timeout=self.timeout, stream=True) as r:
+                r.raise_for_status()
+                for line in r.iter_lines(decode_unicode=True):
+                    if not line or not line.startswith("data: "):
+                        continue
+                    data = line[len("data: "):]
+                    if data.strip() == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                    except ValueError:
+                        continue
+                    delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
+                    content = delta.get("content")
+                    # reasoning_content (the chat() fallback) is intentionally
+                    # NOT surfaced mid-stream — Gemma's thinking tokens would
+                    # stream as visible noise.
+                    if content:
+                        yield content
+        except requests.RequestException as e:
+            logger.error("Error streaming from LLM at %s: %s", url, e)
+            raise LLMError(f"LLM stream failed: {e}") from e
+
 
 class MockLLM(LLMInterface):
     def chat(self, messages: List[Dict[str, str]], system_prompt: Optional[str] = None) -> str:

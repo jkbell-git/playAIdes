@@ -15,6 +15,7 @@ try:
     from backend.api.deps import require_api_key
     from backend.stores import config_store
     from backend.api.integrations import router as integrations_router
+    from backend.api.conversation import router as conversation_router
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import StreamingResponse
     import uvicorn
@@ -26,6 +27,20 @@ except ImportError:
 
 import os
 import shutil
+
+
+class WebSocketDisplayChannel:
+    """DisplayChannel implementation backed by the WS broadcast.
+
+    Thread-safe: broadcast_to_persona uses asyncio.run_coroutine_threadsafe,
+    so a worker thread running a turn can push frames without touching the
+    event loop."""
+
+    def __init__(self, server):
+        self._server = server
+
+    def push(self, persona_id: str, event_type: str, payload: dict) -> None:
+        self._server.broadcast_to_persona(persona_id, event_type, payload)
 
 
 class PersonaCreate(BaseModel):
@@ -129,6 +144,7 @@ class IncarnationServer:
 
         self._setup_routes()
         self.app.include_router(integrations_router)
+        self.app.include_router(conversation_router)
 
         self.thread = threading.Thread(target=self._run_server, daemon=True)
         self.thread.start()
