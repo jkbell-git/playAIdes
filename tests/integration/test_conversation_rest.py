@@ -38,3 +38,13 @@ def test_post_message_requires_auth(with_api_key):
     # sending no Authorization header -> 401
     resp = _client().post("/api/v1/personas/silver/messages", json={"text": "x"})
     assert resp.status_code == 401
+
+
+def test_post_message_503_when_service_missing(with_api_key):
+    app = FastAPI()
+    app.include_router(router)            # no app.state.conversation_service set
+    client = TestClient(app)
+    resp = client.post("/api/v1/personas/silver/messages",
+                       json={"text": "x"},
+                       headers={"Authorization": f"Bearer {with_api_key}"})
+    assert resp.status_code == 503

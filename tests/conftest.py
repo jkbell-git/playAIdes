@@ -116,6 +116,9 @@ class StubIncarnationServer:
         self.port = kwargs.get("port", 0)
         self.on_message_callback = on_message_callback
         self.commands: List[tuple[str, dict]] = []
+        # Stand-in for the real FastAPI app.state (where PlayAIdes stashes the
+        # ConversationService); the live app.state path is exercised end-to-end
+        # by the harness curl in Task 9.
         from types import SimpleNamespace
         self.app = SimpleNamespace(state=SimpleNamespace())
 
