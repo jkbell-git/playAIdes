@@ -3,18 +3,23 @@
  *
  * Wires:
  *   • The 3D stage (creatorScene.js) to the current persona's VRM
- *   • Persona CRUD via the /ws WebSocket (handled server-side by PlayAIdes)
+ *   • Persona CRUD via REST (/api/v1/personas, apiClient.js)
  *   • File uploads (VRM, VRMA) via REST endpoints on IncarnationServer
  *   • Click-to-play animation preview on the loaded VRM
  *   • Voice design + preview via the same WS channel
  */
 import { createCreatorScene } from './creatorScene.js';
 import { ConnectionManager } from './connectionManager.js';
+import { ApiClient } from './apiClient.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
 const WS_URL = params.get('ws') || 'ws://localhost:8765/ws';
 const API_BASE = params.get('api') || 'http://localhost:8765';
+
+// Persona CRUD client (REST, /api/v1). The optional ?key= param carries the
+// bearer token when PLAYAIDES_API_KEY is set; dev mode needs none.
+const api = new ApiClient(params.get('key'), API_BASE);
 
 // Backend-built asset URLs (default animations, etc.) carry a hardcoded
 // http://localhost:8765 origin; rewrite localhost/127.0.0.1 → API_BASE so the
@@ -112,7 +117,7 @@ conn.addEventListener('connected', () => {
     connDot.classList.remove('error');
     connDot.classList.add('connected');
     toast('ok', 'Linked', 'Connected to PlayAIdes');
-    conn.send('get_personas');
+    refreshPersonas();
 });
 conn.addEventListener('disconnected', () => {
     connDot.classList.remove('connected');
@@ -120,46 +125,6 @@ conn.addEventListener('disconnected', () => {
 conn.addEventListener('error', () => {
     connDot.classList.remove('connected');
     connDot.classList.add('error');
-});
-
-conn.addEventListener('personas_list', (ev) => {
-    const list = ev.detail?.personas || [];
-    populatePersonaSelect(list);
-});
-
-conn.addEventListener('persona_data', (ev) => {
-    const p = ev.detail?.persona;
-    if (p) setActivePersona(p);
-});
-
-conn.addEventListener('persona_created', (ev) => {
-    const p = ev.detail?.persona;
-    if (!p) return;
-    toast('ok', 'Forged', `Persona "${p.name}" created`);
-    conn.send('get_personas');
-    // auto-select
-    setTimeout(() => {
-        personaSelect.value = p.id;
-        conn.send('get_persona', { id: p.id });
-    }, 80);
-});
-
-conn.addEventListener('persona_updated', (ev) => {
-    const p = ev.detail?.persona;
-    if (!p) return;
-    toast('ok', 'Saved', `"${p.name}" updated`);
-    conn.send('get_personas');
-});
-
-conn.addEventListener('persona_deleted', (ev) => {
-    const { id, ok } = ev.detail || {};
-    if (!ok) {
-        toast('err', 'Delete', `Could not delete "${id}". Is it the active persona?`);
-        return;
-    }
-    toast('ok', 'Deleted', `"${id}" removed`);
-    if (activePersona?.id === id) clearActivePersona();
-    conn.send('get_personas');
 });
 
 conn.addEventListener('voice_designed', (ev) => {
@@ -187,8 +152,17 @@ conn.addEventListener('voice_test_failed', (ev) => {
 });
 
 conn.connect(WS_URL);
+refreshPersonas();
 
 // ── Persona select + CRUD ─────────────────────────────────────────────────
+async function refreshPersonas() {
+    try {
+        populatePersonaSelect(await api.listPersonas());
+    } catch (err) {
+        toast('err', 'Personas', `List failed: ${err.message}`);
+    }
+}
+
 function populatePersonaSelect(list) {
     personasById.clear();
     personaSelect.innerHTML = '<option value="">— select persona —</option>';
@@ -204,36 +178,60 @@ function populatePersonaSelect(list) {
     }
 }
 
-personaSelect.addEventListener('change', () => {
+personaSelect.addEventListener('change', async () => {
     const id = personaSelect.value;
     if (!id) { clearActivePersona(); return; }
-    conn.send('get_persona', { id });
+    try {
+        setActivePersona(await api.getPersona(id));
+    } catch (err) {
+        toast('err', 'Persona', `Load failed: ${err.message}`);
+    }
 });
 
-newBtn.addEventListener('click', () => {
+newBtn.addEventListener('click', async () => {
     const name = prompt('Name your new persona:');
     if (!name) return;
     const description = prompt('A one-line background (optional):') || '';
-    conn.send('create_persona', { name: name.trim(), description: description.trim() });
+    try {
+        const p = await api.createPersona(name.trim(), description.trim());
+        toast('ok', 'Forged', `Persona "${p.name}" created`);
+        await refreshPersonas();
+        personaSelect.value = p.id;
+        setActivePersona(p);
+    } catch (err) {
+        toast('err', 'Forge', err.message);   // e.g. 409 "persona already exists"
+    }
 });
 
-saveBtn.addEventListener('click', () => {
+saveBtn.addEventListener('click', async () => {
     if (!activePersona?.id) {
         toast('err', 'Save', 'No persona selected. Use + NEW first.');
         return;
     }
-    const payload = buildPersonaPayload();
-    conn.send('update_persona', { id: activePersona.id, ...payload });
+    try {
+        const p = await api.updatePersona(activePersona.id, buildPersonaPayload());
+        toast('ok', 'Saved', `"${p.name}" updated`);
+        await refreshPersonas();
+    } catch (err) {
+        toast('err', 'Save', err.message);    // 422 = the doc failed validation
+    }
 });
 
-deleteBtn.addEventListener('click', () => {
+deleteBtn.addEventListener('click', async () => {
     if (!activePersona?.id) return;
     const id = activePersona.id;
     const name = activePersona.name || id;
     if (!confirm(`Permanently delete persona "${name}"?\nThis removes the directory under personas/${id}/ on disk.`)) {
         return;
     }
-    conn.send('delete_persona', { id });
+    try {
+        await api.deletePersona(id);
+        toast('ok', 'Deleted', `"${id}" removed`);
+        clearActivePersona();
+        await refreshPersonas();
+    } catch (err) {
+        toast('err', 'Delete', `Could not delete "${id}": ${err.message}`);
+    }
 });
 
 talkBtn.addEventListener('click', () => {
@@ -582,15 +580,20 @@ designBtn.addEventListener('click', () => {
     setTimeout(() => (designBtn.disabled = false), 4000);
 });
 
-saveVoiceBtn.addEventListener('click', () => {
+saveVoiceBtn.addEventListener('click', async () => {
     if (!activePersona?.id || !pendingSpeakerId) return;
     activePersona.persona_voice = {
         voice: pendingSpeakerId,
         voice_instruct: [vInstruct.value.trim()].filter(Boolean),
     };
-    conn.send('update_persona', { id: activePersona.id, ...buildPersonaPayload() });
-    pendingSpeakerId = null;
-    saveVoiceBtn.disabled = true;
+    try {
+        await api.updatePersona(activePersona.id, buildPersonaPayload());
+        toast('ok', 'Voice', 'Voice saved to persona');
+        pendingSpeakerId = null;
+        saveVoiceBtn.disabled = true;
+    } catch (err) {
+        toast('err', 'Voice', `Save failed: ${err.message}`);
+    }
 });
 
 testVoiceBtn.addEventListener('click', () => {
