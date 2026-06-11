@@ -404,13 +404,9 @@ class PlayAIdes:
             self.incarnation_server.send_command("personas_list", {"personas": self.list_personas()})
             return
             
-        if msg_type == "get_persona":
-            pid = payload.get("id")
-            if pid:
-                p = self.get_persona_by_id(pid)
-                if p:
-                    self.incarnation_server.send_command("persona_data", {"persona": p})
-            return
+        # Persona CRUD frames (get_persona/create/update/delete + their reply
+        # frames) were deleted 2026-06-10: creator.js — their only consumer —
+        # now uses REST (/api/v1/personas). get_personas stays for viewer.js.
 
         if msg_type == "user_input":
             text = (payload.get("text") or "").strip()
@@ -509,30 +505,6 @@ class PlayAIdes:
             logger.info("Persona dismissed (binding cleared by WS layer)")
             return
 
-        if msg_type == "create_persona":
-            name = payload.get("name", "Unknown")
-            desc = payload.get("description", "")
-            p = self.create_persona(name, desc)
-            self.incarnation_server.send_command("persona_created", {"persona": p})
-            return
-            
-        if msg_type == "update_persona":
-            pid = payload.get("id")
-            if pid:
-                p = self.update_persona(pid, payload)
-                self.incarnation_server.send_command("persona_updated", {"persona": p})
-            return
-
-        if msg_type == "delete_persona":
-            pid = payload.get("id")
-            if pid:
-                ok = self.delete_persona(pid)
-                self.incarnation_server.send_command(
-                    "persona_deleted",
-                    {"id": pid, "ok": ok},
-                )
-            return
-            
         if msg_type == "model_uploaded":
             pid = payload.get("persona_id")
             url = payload.get("url")
