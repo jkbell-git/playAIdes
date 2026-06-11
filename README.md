@@ -91,6 +91,7 @@ These are imported by the pages above; not pages themselves:
 | `animationManager.js`, `expressionManager.js`, `visemeManager.js`, `lipSyncManager.js` | Runtime controllers for skeletal animation, facial expressions, mouth shapes |
 | `mixamoVRMRigMap.js` | Bone-retargeting table for Mixamo → VRM |
 | `creator.js` | Behavior for `creator.html` |
+| `apiClient.js` | Shared `/api/v1` REST client — persona CRUD; carries the optional bearer token |
 | `ui/uploader.js` | Tiny shared file-input helper |
 
 ## Home Assistant integration

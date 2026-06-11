@@ -43,7 +43,7 @@ audio + lip-sync** via control.html "Say on TV" through the repointed `/api/tts/
 `docs/superpowers/specs/2026-06-09-tts-consumer-migration-design.md`.
 
 **Slice 4 — PersonaService — DONE: code-complete + browser-verified on branch
-`personaservice-slice` (2026-06-10); merge to `main` pending.** The persona domain (CRUD,
+`personaservice-slice` (2026-06-10); merged to `main` (2026-06-10).** The persona domain (CRUD,
 chat-history I/O, triggers) extracted out of `PlayAIdes` into
 `backend/stores/{personas,history}.py` + `backend/services/persona.py` behind a new
 `/api/v1/personas` router (CRUD + whole-list triggers PUT, spec status mapping, auth);
