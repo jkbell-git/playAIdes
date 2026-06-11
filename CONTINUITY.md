@@ -39,9 +39,25 @@ without `--use_avatar` is now silent, by design D6). Full plain suite: **341 pas
 5 skipped, 0 failures**. Harness cut over to the new voicebox registry + CPU kokoro rig
 (`76a2a6e`), and the end-to-end closed 2026-06-10: **Silver spoke on the Fire TV with
 audio + lip-sync** via control.html "Say on TV" through the repointed `/api/tts/proxy`
-(kokoro preset timbre — her qwen3-designed voice awaits a GPU rig, see TODO). Next: pick
-the next re-architecture slice. Spec:
+(kokoro preset timbre — her qwen3-designed voice awaits a GPU rig, see TODO). Spec:
 `docs/superpowers/specs/2026-06-09-tts-consumer-migration-design.md`.
+
+**Slice 4 — PersonaService — DONE: code-complete + browser-verified on branch
+`personaservice-slice` (2026-06-10); merge to `main` pending.** The persona domain (CRUD,
+chat-history I/O, triggers) extracted out of `PlayAIdes` into
+`backend/stores/{personas,history}.py` + `backend/services/persona.py` behind a new
+`/api/v1/personas` router (CRUD + whole-list triggers PUT, spec status mapping, auth);
+creator.js persona CRUD migrated WS→REST via the new shared `incarnation/src/apiClient.js`
+seed; the four WS dispatcher CRUD branches deleted (`get_personas` stays — viewer.js);
+`ConversationService` rewired to a real by-id persona load (D6 — turns addressed to a
+non-active persona used to run as the ACTIVE one). Suites: **398 passed / 5 skipped
+Python, 135 JS, 0 failures**. Browser checklist done via chrome-devtools against the live
+harness (list/create/409-collision/edit-save-persist/delete/delete-active-409/trigger
+round-trip), including the big one: **a creator SAVE on Silver now round-trips all 7
+triggers + skills + wake words intact** — review caught the page sending a partial doc
+into the full-replace PUT, the exact data-loss class this slice existed to close. Next:
+unpark the trigger-console manager (resume condition met — see TODO). Spec:
+`docs/superpowers/specs/2026-06-10-personaservice-slice-design.md`; plan beside it.
 
 *(Background context: the UI theme work — p5-basic/fate-basic/manga-basic chrome for the
 Fire TV viewer — was completed on `feat/ui-theme-camera-split` and is merged. Those themes
@@ -120,14 +136,17 @@ remain the live look; see Decisions for the full theme history.)*
 - [ ] **Integrations console — v2/v3 roadmap** (v1 done). **v2:** a Web-API provider (calendar,
       weather; REST via the existing http-skill seam). **v3:** an Agent provider (Hermes-style
       agents that *act* — e.g. write a web service). Both plug into the v1 provider seam.
-- [ ] **PARKED — Console → unified trigger-binding manager.** Brainstormed 2026-06-09, deferred
+- [ ] **UNPARKED 2026-06-10 — Console → unified trigger-binding manager.** Resume condition
+      met: PersonaService + `GET/PUT /api/v1/personas/{id}/triggers` landed on
+      `personaservice-slice`. Brainstormed 2026-06-09, was deferred
       behind the `PlayAIdes` god-object decomposition (needs a clean persona/trigger API first).
       Reframe: the console becomes CRUD over `persona.triggers` (`phrase|event → skill → params`),
       one **unified row** per binding + a `+` to add; rows editable/deletable. Folds the old
       capability→entity "mapping" into the row's *target*. Open Qs: "any persona" scope, LLM vs
       deterministic phrase-parse, HA-intents overlap. Full notes:
       `docs/superpowers/specs/2026-06-09-console-trigger-redesign-PARKED.md`. **Resume after** the
-      persona/trigger backend slice (PersonaService + triggers store + `/api/v1` triggers API) lands.
+      persona/trigger backend slice (PersonaService + triggers store + `/api/v1` triggers API)
+      lands — **landed 2026-06-10 (`personaservice-slice`)**.
 - [x] Refresh the stale README (Incarnation pages / Viewer / Running + HA endpoint count).
       Done 2026-06-07 via a living-docs sweep (full rewrite adopted from `LivDoc-README.md`).
 
@@ -186,6 +205,26 @@ remain the live look; see Decisions for the full theme history.)*
 
 ## Decisions
 
+- [2026-06-10] **Slice 4 (PersonaService) code-complete** on branch `personaservice-slice`
+  (11-task TDD plan `221e02d`, subagent-driven, 2-stage review per task). Key calls (full
+  rationale in the spec, D1–D7): Approach A — two pure-I/O stores (path-traversal guard at
+  the filesystem layer) + a domain service (every write round-trips the `Persona` model so
+  invalid docs never reach disk; typed `PersonaNotFound/PersonaExists/PersonaActive`; history
+  cache+cap single-owner) + the `/api/v1/personas` router (slice-2 pattern; `ValidationError`
+  caught BEFORE `ValueError` — it subclasses it — pinned in code + tests; triggers PUT takes
+  a bare JSON array); D6 fixed via a None-on-missing by-id adapter; D7 typed errors replace
+  silent-create/silent-overwrite (one legacy test deliberately replaced). Planning had found
+  the `Persona.animations` gap (undeclared key ⇒ validated writes would drop uploaded clips);
+  declared in Task 3. Review-driven extras beyond the plan: `save_history` no-ops when the
+  history was never loaded (the old `.get(pid, [])` could clobber a real file with `[]`);
+  create maps the slug-guard `ValueError`→422 (was an unhandled 500 on names like `"   "`);
+  422 details use `e.errors(include_url/context/input=False)` — FastAPI-native list shape AND
+  serializable (bare `errors()` embeds exception objects in `ctx` → 500-while-rendering-422);
+  **creator `buildPersonaPayload` now spreads the loaded doc first** — the page sent only its
+  edited fields into the full-replace PUT, so one SAVE wiped Silver's triggers/skills/
+  wake_words (pre-existing bug carried from the WS path; caught in review, fix verified live
+  in the browser). FastAPI quirk pinned: a bare `list` handler param is NOT body-inferred
+  (bare `dict` is) → the triggers PUT needs `Body(...)` (plan corrected after empirical test).
 - [2026-06-10] **Slice 3 (TTS-consumer migration → voicebox `/v1/*`) code-complete** on branch
   `tts-consumer-migration` (11-task TDD plan, subagent-driven, 2-stage review per task).
   Key calls (full rationale in the spec, D1-D7): `httpx`+`respx` (async streaming proxy rules
