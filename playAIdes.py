@@ -3,6 +3,11 @@ from pydantic import BaseModel,ConfigDict, field_validator
 from model_interfaces import LLMInterface, OpenAICompatLLM
 from typing import Optional, List, Dict
 from backend.clients.tts import TTSClient, PersonaTTS
+from backend.services.persona import (
+    PersonaActive, PersonaExists, PersonaNotFound, PersonaService,
+)
+from backend.stores.history import HistoryStore
+from backend.stores.personas import PersonaStore
 import json
 import logging
 from incarnation_server import IncarnationServer
@@ -100,6 +105,17 @@ class PlayAIdes:
     def __init__(self, args: PlayAIdesArgs):
         self.llm: Optional[LLMInterface] = args.llm if args.llm else OpenAICompatLLM() # Default to LLM_URL (Ollama by default)
         self.tts: Optional[PersonaTTS] = args.tts if args.tts is not None else TTSClient()  # default: VOICEBOX_URL / TTS_URL
+        # The persona domain owner (spec 2026-06-10). Stores default to the
+        # relative "personas" dir, same as the methods they replace.
+        self.personas = PersonaService(
+            persona_store=PersonaStore(),
+            history_store=HistoryStore(),
+            active_persona_id=lambda: (
+                self.current_persona.name.strip().lower().replace(" ", "_")
+                if self.current_persona else None
+            ),
+            history_cap=CHAT_HISTORY_CAP,
+        )
         self.incarnation_server: Optional[IncarnationServer] = IncarnationServer(
             on_message_callback=self._handle_incarnation_message,
             event_handler=self.handle_event,
@@ -111,10 +127,6 @@ class PlayAIdes:
             },
         ) if args.use_avatar else None
         self.current_persona: Optional[Persona] = None
-        # chat_histories: persona_id → list of message dicts. Loaded lazily
-        # per persona from personas/<id>/chat_history.json on first access.
-        # See _load_history / _save_history / delete_history for persistence.
-        self.chat_histories: Dict[str, List[Dict[str, str]]] = {}
         # Backwards-compat alias for chat() — points at the active persona's
         # history once a persona is loaded.
         self.chat_history: List[Dict[str, str]] = []
@@ -156,9 +168,9 @@ class PlayAIdes:
             if self.incarnation_server is not None else None
         )
         self.conversation = ConversationService(
-            get_persona=lambda pid: self.current_persona,
-            history_load=self._load_history,
-            history_save=self._save_history,
+            get_persona=self._conversation_persona,
+            history_load=self.personas.load_history,
+            history_save=self.personas.save_history,
             dispatch=self._dispatch_skill,
             llm=self.llm,
             ha=self.ha_client,
@@ -168,6 +180,7 @@ class PlayAIdes:
         )
         if self.incarnation_server is not None:
             self.incarnation_server.app.state.conversation_service = self.conversation
+            self.incarnation_server.app.state.persona_service = self.personas
 
         for persona in args.persona:
             self._load_persona_from_file(persona)
@@ -209,83 +222,28 @@ class PlayAIdes:
             json.dump(p.model_dump(), f, indent=2)
 
     def list_personas(self) -> List[dict]:
-        personas_dir = "personas"
-        os.makedirs(personas_dir, exist_ok=True)
-        persona_list = []
-        for d in os.listdir(personas_dir):
-            p_dir = os.path.join(personas_dir, d)
-            if os.path.isdir(p_dir):
-                p_file = os.path.join(p_dir, "persona.json")
-                if os.path.exists(p_file):
-                    try:
-                        with open(p_file, 'r') as f:
-                            data = json.load(f)
-                            data["id"] = d
-                            persona_list.append(data)
-                    except Exception as e:
-                        logger.error(f"Error reading {p_file}: {e}")
-        return persona_list
+        return self.personas.list()
 
     def get_persona_by_id(self, persona_id: str) -> Optional[dict]:
-        p_file = os.path.join("personas", persona_id, "persona.json")
-        if os.path.exists(p_file):
-             with open(p_file, 'r') as f:
-                 data = json.load(f)
-                 data["id"] = persona_id
-                 return data
-        return None
+        try:
+            return self.personas.get(persona_id)
+        except (PersonaNotFound, ValueError):
+            return None
 
     def create_persona(self, name: str, description: str) -> dict:
-        persona_id = name.strip().lower().replace(" ", "_")
-        p_dir = os.path.join("personas", persona_id)
-        os.makedirs(p_dir, exist_ok=True)
-        p_data = {
-            "name": name,
-            "back_ground": description,
-            "psyche": {"traits": []},
-            "gender": "Female",
-            "language": "English",
-            "avatar": None,
-            "persona_voice": None,
-            "memories": None
-        }
-        with open(os.path.join(p_dir, "persona.json"), "w") as f:
-            json.dump(p_data, f, indent=2)
-        p_data["id"] = persona_id
-        return p_data
+        return self.personas.create(name, description)
 
     def update_persona(self, persona_id: str, data: dict) -> dict:
-        p_dir = os.path.join("personas", persona_id)
-        os.makedirs(p_dir, exist_ok=True)
-        p_file = os.path.join(p_dir, "persona.json")
-        if "id" in data:
-            del data["id"]
-        with open(p_file, "w") as f:
-            json.dump(data, f, indent=2)
-        data["id"] = persona_id
-        return data
+        return self.personas.update(persona_id, data)
 
     def delete_persona(self, persona_id: str) -> bool:
-        """Permanently delete a persona's directory.
-
-        Returns True if the persona existed and was removed. False if no
-        persona by that id was found. Refuses path-traversal attempts and
-        silently no-ops if the requested id is the currently-active one
-        (the running session would crash if we yanked its files out).
-        """
-        if not persona_id or "/" in persona_id or "\\" in persona_id or persona_id in {".", ".."}:
-            logger.warning("Refusing to delete persona with suspicious id: %r", persona_id)
+        """Legacy bool surface for internal callers: the service's typed
+        exceptions translate back to today's False returns."""
+        try:
+            self.personas.delete(persona_id)
+        except (PersonaNotFound, PersonaActive, ValueError) as e:
+            logger.warning("delete_persona(%r) refused: %s", persona_id, e)
             return False
-        if (self.current_persona
-                and self.current_persona.name.strip().lower().replace(" ", "_") == persona_id):
-            logger.warning("Refusing to delete the currently-active persona: %s", persona_id)
-            return False
-        p_dir = os.path.join("personas", persona_id)
-        if not os.path.isdir(p_dir):
-            return False
-        import shutil
-        shutil.rmtree(p_dir)
-        logger.info("Deleted persona: %s", persona_id)
         return True
 
     def _validate_persona(self,p:Persona):
@@ -386,62 +344,21 @@ class PlayAIdes:
             return sorted(self.loaded_animations)[0]
         return DEFAULT_IDLE_ANIMATION
 
-    def _history_path(self, persona_id: str):
-        """Path to a persona's chat_history.json. Path-traversal guarded."""
-        from pathlib import Path
-        if not persona_id or "/" in persona_id or "\\" in persona_id or persona_id in {".", ".."}:
-            raise ValueError(f"Suspicious persona_id: {persona_id!r}")
-        return Path("personas") / persona_id / "chat_history.json"
+    @property
+    def chat_histories(self) -> Dict[str, List[Dict[str, str]]]:
+        """The PersonaService history cache — the SAME dict, not a copy, so
+        legacy readers/writers and the history_loaded frame keep operating on
+        live state. The chat_history alias still points at the active entry."""
+        return self.personas.histories
 
     def _load_history(self, persona_id: str) -> List[Dict[str, str]]:
-        """Load a persona's chat history from disk, cap at the most recent
-        CHAT_HISTORY_CAP messages, store in chat_histories, and return it.
-        Missing file → empty list. Idempotent."""
-        if persona_id in self.chat_histories:
-            return self.chat_histories[persona_id]
-        path = self._history_path(persona_id)
-        history: List[Dict[str, str]] = []
-        if path.exists():
-            try:
-                history = json.loads(path.read_text())
-            except (json.JSONDecodeError, OSError) as e:
-                logger.warning("Failed to read %s: %s — starting empty", path, e)
-                history = []
-        if len(history) > CHAT_HISTORY_CAP:
-            history = history[-CHAT_HISTORY_CAP:]
-        self.chat_histories[persona_id] = history
-        return history
+        return self.personas.load_history(persona_id)
 
     def _save_history(self, persona_id: str):
-        """Persist a persona's chat history atomically via tempfile + os.replace.
-        If os.replace raises, the original file is left intact."""
-        import tempfile
-        path = self._history_path(persona_id)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        history = self.chat_histories.get(persona_id, [])
-        # Write to a sibling tempfile, then atomically rename over the target.
-        with tempfile.NamedTemporaryFile(
-            mode="w", dir=str(path.parent), delete=False,
-            prefix=".chat_history.", suffix=".json.tmp",
-        ) as tf:
-            json.dump(history, tf, ensure_ascii=False, indent=2)
-            tmp_path = tf.name
-        try:
-            os.replace(tmp_path, str(path))
-        except Exception:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-            raise
+        self.personas.save_history(persona_id)
 
     def delete_history(self, persona_id: str):
-        """Clear a persona's history both in memory and on disk.
-        Not exposed to the WS in v1 — callable for future /forget commands."""
-        self.chat_histories.pop(persona_id, None)
-        path = self._history_path(persona_id)
-        if path.exists():
-            path.unlink()
+        self.personas.delete_history(persona_id)
 
     def set_persona(self, persona_id: str) -> Optional[Persona]:
         """Reload the active persona at runtime.
@@ -870,6 +787,17 @@ class PlayAIdes:
         except Exception:
             logger.exception("handle_event raised unexpectedly for event %r", name)
             return {"matched": False}
+
+    def _conversation_persona(self, persona_id: str) -> Optional[Persona]:
+        """D6: load the TARGETED persona by id. The old wiring ignored the pid
+        and always returned the active persona, so a turn addressed to a
+        non-active persona ran with the wrong character. None keeps
+        ConversationService's existing "No persona loaded." handling for
+        unknown ids."""
+        try:
+            return self.personas.get_model(persona_id)
+        except (PersonaNotFound, ValueError):
+            return None
 
     def chat(self, user_input: str, persona_id: Optional[str] = None) -> str:
         if not self.current_persona:

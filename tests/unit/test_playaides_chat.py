@@ -9,6 +9,21 @@ from playAIdes import PlayAIdes, PlayAIdesArgs
 from model_interfaces import MockLLM
 
 
+class _RecordingLLM(MockLLM):
+    """MockLLM subclass (passes the PlayAIdesArgs isinstance check) that
+    records the system prompt each turn."""
+    def __init__(self):
+        self.system_prompts = []
+
+    def chat(self, messages, system_prompt=None):
+        self.system_prompts.append(system_prompt)
+        return "ok"
+
+    def chat_stream(self, messages, system_prompt=None):
+        self.system_prompts.append(system_prompt)
+        yield "ok"
+
+
 def _make(persona_file: Path, fake_tts, *, use_voice=False, generate_voice=False, use_avatar=False):
     args = PlayAIdesArgs(
         persona=[str(persona_file)],
@@ -78,6 +93,28 @@ class TestChat:
         ]
         assert lip_sync_cmds, "expected at least one start_lip_sync command"
         assert "&voice=uuid-1" in lip_sync_cmds[0]["url"]
+
+    def test_run_turn_targets_the_requested_persona_not_the_active_one(
+        self, persona_file, fake_tts, no_incarnation, tmp_personas_dir
+    ):
+        """D6 pin: the old wiring (get_persona=lambda pid: current_persona)
+        ignored the pid — a turn addressed to a non-active persona ran with
+        the ACTIVE persona's character. The rewire loads the target by id."""
+        import json
+        (tmp_personas_dir / "rin").mkdir()
+        (tmp_personas_dir / "rin" / "persona.json").write_text(json.dumps({
+            "name": "Rin", "back_ground": "A completely different background.",
+            "psyche": {"traits": []}, "gender": "Female", "language": "English",
+        }))
+        llm = _RecordingLLM()
+        args = PlayAIdesArgs(
+            persona=[str(persona_file)], generate_voice=False, use_voice=False,
+            use_avatar=False, generate_avatar=False, llm=llm, tts=fake_tts,
+        )
+        play = PlayAIdes(args)              # active persona: testbot
+        play.chat("hello", persona_id="rin")
+        assert "A completely different background." in llm.system_prompts[-1]
+        assert "A persona used only in tests." not in llm.system_prompts[-1]
 
     def test_system_prompt_mentions_persona_name(
         self, persona_file, fake_tts, no_incarnation, monkeypatch

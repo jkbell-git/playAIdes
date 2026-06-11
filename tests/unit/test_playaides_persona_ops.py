@@ -123,6 +123,12 @@ class TestCreatePersona:
         assert out["id"].startswith("two")
         assert " " not in out["id"]
 
+    def test_create_collision_raises(self, play: PlayAIdes):
+        # D7: silent overwrite was a bug. "TestBot" slugs to the seeded "testbot".
+        from backend.services.persona import PersonaExists
+        with pytest.raises(PersonaExists):
+            play.create_persona("TestBot", "again")
+
 
 class TestUpdatePersona:
     def test_updates_existing(self, play: PlayAIdes, tmp_personas_dir: Path):
@@ -140,10 +146,11 @@ class TestUpdatePersona:
         on_disk = json.loads((tmp_personas_dir / "testbot" / "persona.json").read_text())
         assert "id" not in on_disk
 
-    def test_creates_dir_if_missing(self, play: PlayAIdes, tmp_personas_dir: Path):
-        play.update_persona("fresh", {"name": "Fresh", "back_ground": "b",
-                                        "psyche": {"traits": []}, "gender": "Female"})
-        assert (tmp_personas_dir / "fresh" / "persona.json").exists()
+    def test_update_missing_persona_raises(self, play: PlayAIdes):
+        from backend.services.persona import PersonaNotFound
+        with pytest.raises(PersonaNotFound):
+            play.update_persona("fresh", {"name": "Fresh", "back_ground": "b",
+                                          "psyche": {"traits": []}, "gender": "Female"})
 
 
 class TestDeletePersona:
