@@ -252,6 +252,10 @@ function buildPersonaPayload() {
         .filter(Boolean);
 
     return {
+        // Full-document PUT: spread the loaded doc first so fields this page
+        // doesn't edit (triggers, skills, wake_words, is_default, ...) survive
+        // the round-trip instead of being re-defaulted by the server.
+        ...activePersona,
         name: pName.value.trim() || 'Unnamed',
         back_ground: pBackground.value.trim(),
         psyche: { traits },
