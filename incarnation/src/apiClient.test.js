@@ -60,4 +60,23 @@ describe('ApiClient', () => {
     await expect(new ApiClient().updatePersona('a', {}))
       .rejects.toThrow('PUT /personas/a -> 422');
   });
+
+  it('getTriggers GETs the triggers array for a persona', async () => {
+    const trig = [{ on: { phrase: 'hi' }, do: { skill: 'greet', params: {} } }];
+    global.fetch.mockResolvedValue({ ok: true, status: 200, json: async () => trig });
+    const result = await new ApiClient().getTriggers('silver');
+    const [url, opts] = global.fetch.mock.calls[0];
+    expect(url).toBe('/api/v1/personas/silver/triggers');
+    expect(opts.method).toBe('GET');
+    expect(result).toEqual(trig);
+  });
+
+  it('falls back to method/path/status when the error body is not JSON', async () => {
+    global.fetch.mockResolvedValue({
+      ok: false, status: 502,
+      json: async () => { throw new SyntaxError('not json'); },
+    });
+    await expect(new ApiClient().listPersonas())
+      .rejects.toThrow('GET /personas -> 502');
+  });
 });

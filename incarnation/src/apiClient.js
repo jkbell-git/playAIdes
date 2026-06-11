@@ -35,6 +35,8 @@ export class ApiClient {
   createPersona(name, description = '') {
     return this._req('POST', '/personas', { name, description });
   }
+  // Full-document replace (PUT): pass the COMPLETE persona doc, not a diff —
+  // omitted fields fall back to model defaults on the server.
   updatePersona(id, doc) {
     return this._req('PUT', `/personas/${encodeURIComponent(id)}`, doc);
   }
